@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #151c2c;
+      --border: #232d42;
+      --text: #f8fafc;
+      --sub: #94a3b8;
+      --accent: #38bdf8;
+      --green: #4ade80;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 300px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      padding: 14px;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, var(--accent), #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .row { display: flex; justify-content: space-between; margin: 3px 0; }
+    .row .label { color: var(--sub); }
+    .row .value {
+      font-weight: 600;
+      font-family: 'JetBrains Mono', 'SF Mono', Consolas, 'Courier New', monospace;
+    }
+    .row .value.last-rec {
+      font-size: 11px;
+      font-weight: 500;
+      max-width: 170px;
+      text-align: right;
+      word-break: break-all;
+    }
+    #cache-list { color: var(--sub); font-size: 11px; word-break: break-all; margin-top: 4px; line-height: 1.5; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 8px 0;
+      margin-bottom: 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #1e293b;
+      color: var(--text);
+    }
+    .btn.primary { background: linear-gradient(135deg, #0ea5e9, #22d3ee); color: #06202e; }
+    .btn.danger { background: #7f1d1d; color: #fecaca; }
+    .btn:hover { filter: brightness(1.15); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #status { min-height: 16px; color: var(--sub); font-size: 12px; margin-top: 2px; }
+    #status.ok { color: var(--green); }
+    #status.err { color: var(--red); }
+  </style>
+</head>
+<body>
+  <h1>Opencode Token Usage</h1>
+
+  <div class="card">
+    <div class="row" id="crawl-progress-row" style="display:none;">
+      <span class="label">Sync Progress</span>
+      <span class="value" id="crawl-progress" style="color:var(--accent-cyan);">-</span>
+    </div>
+    <div class="row"><span class="label">Last Sync</span><span class="value" id="last-sync">-</span></div>
+    <div class="row"><span class="label">New Records</span><span class="value" id="last-sync-count">-</span></div>
+    <div class="row"><span class="label">Last Record</span><span class="value last-rec" id="last-record">-</span></div>
+    <div class="row"><span class="label">Workspace</span><span class="value" id="workspace">-</span></div>
+    <div class="row"><span class="label">Total Records</span><span class="value" id="total-records">-</span></div>
+    <div id="cache-list"></div>
+  </div>
+
+  <button class="btn primary" id="btn-dashboard">Open Dashboard</button>
+  <button class="btn" id="btn-sync">Crawl Now</button>
+  <!-- Rescan button - hidden by default. Uncomment to show:
+  <button class="btn" id="btn-rescan">Rescan (overwrite, keep data)</button>
+  -->
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

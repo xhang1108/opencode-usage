@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Opencode Token Usage",
+  "version": "0.1.0",
+  "description": "Syncs opencode.ai usage token data into local storage and visualizes it in an integrated dashboard.",
+  "permissions": ["storage", "scripting", "webRequest", "unlimitedStorage"],
+  "host_permissions": ["https://opencode.ai/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Opencode Token Usage"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://opencode.ai/*"],
+      "js": ["content/content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
