@@ -8,6 +8,8 @@ A Chrome extension that syncs your [opencode.ai](https://opencode.ai) usage toke
 2. Open `chrome://extensions`, enable **Developer mode**.
 3. Click **Load unpacked** and select the `extension` folder.
 
+![Load unpacked extension](https://developer.chrome.com/static/docs/extensions/get-started/tutorial/hello-world/image/extensions-page-e0d64d89a6acf_1440.png)
+
 ## Usage
 
 1. Open `https://opencode.ai/workspace/<your-workspace-id>/usage` and sign in.

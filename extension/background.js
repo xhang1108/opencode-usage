@@ -63,11 +63,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           done: true,
           page: msg.lastPage || 0,
           workspace: msg.workspaceID || "",
-          message: msg.stopReason
-            ? `Crawl stopped: ${msg.stopReason} [${msg.sidNote || "?"}]`
-            : msg.sidNote
-              ? `Crawl finished [${msg.sidNote}]`
-              : "",
+          message: msg.stopReason ? `Crawl stopped: ${msg.stopReason}` : "",
         },
       });
       // After a sync, cache the merged data so it's usable without an open page.

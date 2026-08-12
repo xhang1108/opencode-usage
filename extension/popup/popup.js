@@ -48,39 +48,31 @@ async function loadStatus() {
     "crawlState",
   ]);
 
-  // Live progress of an in-flight crawl (page number).
+  // Show a minimal status line only while a crawl is running or errored.
+  // Once finished, the Last Sync / New Records rows already show the result.
   const cs = stored.crawlState;
   const progressRow = $("#crawl-progress-row");
   const progressEl = $("#crawl-progress");
   if (cs && cs.running) {
     progressRow.style.display = "flex";
-    progressEl.textContent = `Page ${cs.page}... (${cs.rescan ? "rescan" : "sync"} in progress)`;
+    progressEl.textContent = "Syncing...";
   } else if (cs && cs.error) {
     progressRow.style.display = "flex";
     progressEl.textContent = `Error: ${cs.error}`;
-  } else if (cs && cs.message) {
-    progressRow.style.display = "flex";
-    progressEl.textContent = cs.message;
   } else {
     progressRow.style.display = "none";
   }
 
   if (stored.lastSyncAt) $("#last-sync").textContent = new Date(stored.lastSyncAt).toLocaleString();
   if (stored.lastSyncCount !== undefined) $("#last-sync-count").textContent = stored.lastSyncCount;
-  if (stored.lastSyncWorkspace) $("#workspace").textContent = stored.lastSyncWorkspace;
   if (stored.totalRecords !== undefined) $("#total-records").textContent = stored.totalRecords;
   renderLastRecord(stored.cachedMeta && stored.cachedMeta.lastRecord);
 
-  // Ask the content script for live OPFS status; falls back to the cached
-  // overview when no usage tab is open.
+  // Live status from the content script; falls back to the cached overview.
   const res = await chrome.runtime.sendMessage({ type: "get-status" });
   if (res && res.ok) {
     $("#total-records").textContent = res.totalRecords;
-    $("#cache-list").textContent =
-      res.files.map((f) => `${f.name}: ${f.count}`).join(" · ") || "(no OPFS cache)";
     if (res.lastRecord) renderLastRecord(res.lastRecord);
-  } else {
-    $("#cache-list").textContent = res && res.error ? `(${res.error})` : "(no usage tab open)";
   }
 }
 
