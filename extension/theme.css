@@ -1,0 +1,153 @@
+/* theme.css - Shared design tokens & base components (opencode.ai brand).
+   Values extracted from opencode.ai's live CSS custom properties:
+   warm near-black surfaces, monospace type, iOS-blue accent, flat (no shadows/gradients). */
+
+/* Bundled IBM Plex Mono (latin subset) so the monospace look is consistent everywhere */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/ibm-plex-mono-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('fonts/ibm-plex-mono-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('fonts/ibm-plex-mono-700.woff2') format('woff2');
+}
+
+:root {
+  /* Surfaces */
+  --bg: #0c0c0e;
+  --bg-content: #131010;
+  --surface: #161618;
+  --surface-hover: #1c1c1f;
+  --border: #38383a;
+  --border-muted: #2c2c2e;
+
+  /* Text */
+  --text: #f2eded;
+  --text-secondary: #b8b2b2;
+  --text-muted: #a1a1a6;
+  --text-disabled: #68686f;
+
+  /* Accent - desaturated steel blue (low-saturation brand tone) */
+  --primary: #6a8fc0;
+  --primary-hover: #5576a6;
+  --primary-active: #476491;
+
+  /* Semantic - muted variants */
+  --success: #57a06b;
+  --warning: #d69b3c;
+  --danger: #cc6f66;
+
+  /* Typography - opencode uses a monospace stack for everything */
+  --font-mono: "Berkeley Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Radius - small, terminal-like */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
+
+/* Dark scrollbars (Firefox + WebKit) consistent with the flat theme */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-disabled); }
+
+/* ---------- Buttons (flat, no gradients/shadows) ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn-block { display: block; width: 100%; }
+
+/* Primary = inverted (off-white fill, dark text) - opencode's CTA style */
+.btn-primary { background: var(--text); color: var(--bg); }
+.btn-primary:hover:not(:disabled) { background: #ffffff; }
+.btn-primary:active:not(:disabled) { background: #d9d4d4; }
+
+/* Secondary = dark fill + hairline border */
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-hover); }
+
+/* Danger = translucent red */
+.btn-danger { background: rgba(204, 111, 102, 0.12); color: #d99c96; border-color: rgba(204, 111, 102, 0.35); }
+.btn-danger:hover:not(:disabled) { background: rgba(204, 111, 102, 0.2); }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  background: rgba(106, 143, 192, 0.12);
+  color: var(--primary);
+  border: 1px solid rgba(106, 143, 192, 0.3);
+}
+
+/* ---------- Inputs / selects ---------- */
+.input {
+  background: var(--bg-content);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15);
+}
+.input::placeholder { color: var(--text-disabled); }

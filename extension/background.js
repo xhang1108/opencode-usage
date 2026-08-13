@@ -25,7 +25,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   switch (msg.type) {
     case "crawl-start": {
-      setBadge(sender, "...", "#f59e0b");
+      setBadge(sender, "...", "#d69b3c");
       chrome.storage.local.set({
         crawlState: { running: true, page: 0, workspace: msg.workspace || "", rescan: !!msg.rescan },
       });
@@ -36,7 +36,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "progress": {
       const page = msg.page || 0;
       const label = page >= 1000 ? `${(page / 1000).toFixed(1)}k` : String(page);
-      setBadge(sender, label, "#f59e0b");
+      setBadge(sender, label, "#d69b3c");
       chrome.storage.local.get("crawlState", ({ crawlState }) => {
         chrome.storage.local.set({
           crawlState: { ...(crawlState || {}), running: true, page, message: msg.message || "" },
@@ -76,7 +76,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     case "error":
     case "info": {
-      setBadge(sender, msg.type === "error" ? "ERR" : "", msg.type === "error" ? "#ef4444" : "#94a3b8");
+      setBadge(sender, msg.type === "error" ? "ERR" : "", msg.type === "error" ? "#cc6f66" : "#a1a1a6");
       chrome.storage.local.get("crawlState", ({ crawlState }) => {
         if (msg.type === "error") {
           chrome.storage.local.set({ crawlState: { running: false, error: msg.message || "" } });

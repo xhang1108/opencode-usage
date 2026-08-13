@@ -17,6 +17,74 @@ const sortState = {
   model: { col: "cost", dir: -1 },
 };
 
+// Chart palette - single desaturated brand blue (#6a8fc0) with opacity variants for series/slices.
+const CHART_COLORS = {
+  blue: "#6a8fc0",
+  blueDim: "rgba(106, 143, 192, 0.35)",
+  text: "#f2eded",
+  muted: "#b8b2b2",
+  surface: "#1c1c1f",
+  border: "#38383a",
+  grid: "rgba(255, 255, 255, 0.07)",
+};
+const CHART_FONT = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+
+// Single-hue opacity ramp so multi-slice charts stay monochromatic.
+function monoTones(n) {
+  return Array.from({ length: n }, (_, i) => `rgba(106, 143, 192, ${(1 - i / n).toFixed(3)})`);
+}
+
+// Recursive merge so per-chart overrides layer on top of the shared theme.
+function mergeDeep(...objects) {
+  const out = {};
+  for (const obj of objects) {
+    if (!obj) continue;
+    for (const [k, v] of Object.entries(obj)) {
+      if (v && typeof v === "object" && !Array.isArray(v) && out[k] && typeof out[k] === "object" && !Array.isArray(out[k])) {
+        out[k] = mergeDeep(out[k], v);
+      } else {
+        out[k] = v;
+      }
+    }
+  }
+  return out;
+}
+
+// Shared axis styling: muted ticks + subtle grid, mono font.
+function axis(extra = {}) {
+  return mergeDeep(
+    {
+      grid: { color: CHART_COLORS.grid },
+      ticks: { color: CHART_COLORS.muted, font: { family: CHART_FONT, size: 11 } },
+    },
+    extra
+  );
+}
+
+// Shared chart options: dark tooltip, brand legend, mono fonts everywhere.
+function chartOptions(overrides = {}) {
+  return mergeDeep(
+    {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: CHART_COLORS.text, font: { family: CHART_FONT, size: 12 } } },
+        tooltip: {
+          backgroundColor: CHART_COLORS.surface,
+          titleColor: CHART_COLORS.text,
+          bodyColor: CHART_COLORS.text,
+          borderColor: CHART_COLORS.border,
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 6,
+          titleFont: { family: CHART_FONT },
+          bodyFont: { family: CHART_FONT },
+        },
+      },
+    },
+    overrides
+  );
+}
+
 function sortBy(arr, col, dir) {
   return arr.slice().sort((a, b) => {
     let va = a[col], vb = b[col];
@@ -29,10 +97,16 @@ function sortBy(arr, col, dir) {
   });
 }
 
+// Format USD with thousands separators, keeping a fixed number of decimals.
+const fmtMoney = (v, digits = 4) =>
+  (Number(v) || 0).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
 function markSortHeader(tableId, col, dir) {
   document.querySelectorAll(`#${tableId} th[data-col]`).forEach((th) => {
     if (th.dataset.base === undefined) th.dataset.base = th.textContent;
-    th.textContent = th.dataset.col === col ? th.dataset.base + (dir === -1 ? " ▼" : " ▲") : th.dataset.base;
+    const isSorted = th.dataset.col === col;
+    th.textContent = isSorted ? th.dataset.base + (dir === -1 ? " ▼" : " ▲") : th.dataset.base;
+    th.classList.toggle("th-sorted", isSorted);
   });
 }
 
@@ -181,7 +255,6 @@ function renderDashboard() {
   const selectedModel = document.getElementById("modelSelect").value;
   const startDate = document.getElementById("startDate").value;
   const endDate = document.getElementById("endDate").value;
-  const searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
 
   filteredRecordsCache = [];
   let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
@@ -192,7 +265,6 @@ function renderDashboard() {
     const modelName = rec.model || "Unknown";
     const recDate = rec.date || "";
 
-    if (searchKeyword && !id.toLowerCase().includes(searchKeyword)) continue;
     if (startDate && recDate && recDate < startDate) continue;
     if (endDate && recDate && recDate > endDate) continue;
 
@@ -246,11 +318,11 @@ function renderDashboard() {
   }
 
   document.getElementById("statRequests").innerText = totalReq.toLocaleString();
-  document.getElementById("statCost").innerText = `$${totalCost.toFixed(4)}`;
-  document.getElementById("statSavings").innerText = `Cache savings: $${totalSavings.toFixed(4)}`;
+  document.getElementById("statCost").innerText = `$${fmtMoney(totalCost)}`;
+  document.getElementById("statSavings").innerText = `Cache savings: $${fmtMoney(totalSavings)}`;
   document.getElementById("statTokens").innerText = totalTokens.toLocaleString();
   document.getElementById("statHitRate").innerText = totalPrompt > 0 ? `${((totalCacheRead / totalPrompt) * 100).toFixed(2)}%` : "0.00%";
-  document.getElementById("statAvgCostPerReq").innerText = `Avg per request: $${totalReq > 0 ? (totalCost / totalReq).toFixed(5) : "0.0000"}`;
+  document.getElementById("statAvgCostPerReq").innerText = `Avg per request: $${totalReq > 0 ? fmtMoney(totalCost / totalReq, 5) : "0.00000"}`;
   document.getElementById("statAvgTokens").innerText = `Avg tokens/request: ${totalReq > 0 ? Math.round(totalTokens / totalReq).toLocaleString() : 0}`;
 
   let topModel = "-", maxModelCost = 0;
@@ -261,7 +333,7 @@ function renderDashboard() {
     }
   }
   document.getElementById("statTopModel").innerText = topModel;
-  document.getElementById("statTopModelCost").innerText = `Cost: $${maxModelCost.toFixed(4)}`;
+  document.getElementById("statTopModelCost").innerText = `Cost: $${fmtMoney(maxModelCost)}`;
 
   // Render the per-workspace summary table (sorted by the active column).
   const wsTbody = document.getElementById("wsTableBody");
@@ -281,7 +353,7 @@ function renderDashboard() {
       <td>${stats.req}</td>
       <td>${stats.tokens.toLocaleString()}</td>
       <td>${hitRate}</td>
-      <td><strong>$${stats.cost.toFixed(4)}</strong></td>
+      <td><strong>$${fmtMoney(stats.cost)}</strong></td>
     `;
     wsTbody.appendChild(tr);
   }
@@ -324,7 +396,7 @@ function renderDashboard() {
         <td>${stats.output.toLocaleString()}</td>
         <td>${stats.cacheRead.toLocaleString()}</td>
         <td>${stats.hitRate.toFixed(2)}%</td>
-        <td>$${stats.cost.toFixed(4)}</td>
+        <td>$${fmtMoney(stats.cost)}</td>
       `;
       tbody.appendChild(tr);
     }
@@ -377,18 +449,17 @@ function renderDashboard() {
     data: {
       labels: dates,
       datasets: [
-        { label: "Daily Cost (USD)", data: dailyCosts, borderColor: "#38bdf8", backgroundColor: "rgba(56, 189, 248, 0.1)", yAxisID: "yCost", fill: true, tension: 0.3 },
-        { label: "Token Volume", data: dailyTokens, borderColor: "#c084fc", yAxisID: "yToken", borderDash: [5, 5], tension: 0.3 }
+        { label: "Daily Cost (USD)", data: dailyCosts, borderColor: CHART_COLORS.blue, backgroundColor: "rgba(106, 143, 192, 0.15)", yAxisID: "yCost", fill: true, tension: 0.3 },
+        { label: "Token Volume", data: dailyTokens, borderColor: CHART_COLORS.blueDim, yAxisID: "yToken", borderDash: [5, 5], tension: 0.3 }
       ]
     },
-    options: {
-      plugins: { legend: { labels: { color: "#f8fafc", font: { family: "monospace" } } } },
+    options: chartOptions({
       scales: {
-        x: { ticks: { color: "#94a3b8", font: { family: "monospace" } } },
-        yCost: { type: "linear", position: "left", ticks: { color: "#38bdf8", font: { family: "monospace" } } },
-        yToken: { type: "linear", position: "right", grid: { drawOnChartArea: false }, ticks: { color: "#c084fc", font: { family: "monospace" } } }
+        x: axis(),
+        yCost: axis({ type: "linear", position: "left" }),
+        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false } })
       }
-    }
+    })
   });
 
   const models = Object.keys(modelMap);
@@ -398,9 +469,9 @@ function renderDashboard() {
     type: "doughnut",
     data: {
       labels: models,
-      datasets: [{ data: modelCosts, backgroundColor: ["#38bdf8", "#4ade80", "#c084fc", "#facc15", "#f87171", "#a78bfa"] }]
+      datasets: [{ data: modelCosts, backgroundColor: monoTones(modelCosts.length), borderWidth: 0, hoverBorderWidth: 0 }]
     },
-    options: { plugins: { legend: { labels: { color: "#f8fafc", font: { family: "monospace" } } } } }
+    options: chartOptions({ plugins: { legend: { position: "bottom" } } })
   });
 
   const inputs = models.map((m) => modelMap[m].input);
@@ -411,17 +482,16 @@ function renderDashboard() {
     data: {
       labels: models,
       datasets: [
-        { label: "Real Input Tokens", data: inputs, backgroundColor: "#38bdf8" },
-        { label: "Cache Read Tokens", data: cacheReads, backgroundColor: "#4ade80" }
+        { label: "Real Input Tokens", data: inputs, backgroundColor: CHART_COLORS.blue },
+        { label: "Cache Read Tokens", data: cacheReads, backgroundColor: CHART_COLORS.blueDim }
       ]
     },
-    options: {
-      plugins: { legend: { labels: { color: "#f8fafc", font: { family: "monospace" } } } },
+    options: chartOptions({
       scales: {
-        x: { stacked: true, ticks: { color: "#94a3b8", font: { family: "monospace" } } },
-        y: { stacked: true, ticks: { color: "#94a3b8", font: { family: "monospace" } } }
+        x: axis({ stacked: true }),
+        y: axis({ stacked: true })
       }
-    }
+    })
   });
 
   const wsLabels = Object.keys(wsMap);
@@ -431,16 +501,15 @@ function renderDashboard() {
     type: "bar",
     data: {
       labels: wsLabels,
-      datasets: [{ label: "Estimated Cost (USD)", data: wsCosts, backgroundColor: "#c084fc" }]
+      datasets: [{ label: "Estimated Cost (USD)", data: wsCosts, backgroundColor: CHART_COLORS.blue }]
     },
-    options: {
+    options: chartOptions({
       indexAxis: "y",
-      plugins: { legend: { labels: { color: "#f8fafc", font: { family: "monospace" } } } },
       scales: {
-        x: { ticks: { color: "#94a3b8", font: { family: "monospace" } } },
-        y: { ticks: { color: "#94a3b8", font: { family: "monospace" } } }
+        x: axis(),
+        y: axis()
       }
-    }
+    })
   });
 
   const hitRates = models.map((m) => {
@@ -452,15 +521,14 @@ function renderDashboard() {
     type: "bar",
     data: {
       labels: models,
-      datasets: [{ label: "Cache Hit Rate (%)", data: hitRates, backgroundColor: "#facc15" }]
+      datasets: [{ label: "Cache Hit Rate (%)", data: hitRates, backgroundColor: CHART_COLORS.blue }]
     },
-    options: {
-      plugins: { legend: { labels: { color: "#f8fafc", font: { family: "monospace" } } } },
+    options: chartOptions({
       scales: {
-        x: { ticks: { color: "#94a3b8", font: { family: "monospace" } } },
-        y: { max: 100, ticks: { color: "#facc15", font: { family: "monospace" }, callback: (v) => v + "%" } }
+        x: axis(),
+        y: axis({ max: 100 })
       }
-    }
+    })
   });
 }
 
@@ -501,11 +569,26 @@ function exportFilteredCSV() {
 }
 
 // ===== Auto-load: merged data injected by the popup "Open Dashboard" action =====
+function showEmptyStateIfNeeded() {
+  if (Object.keys(globalCache).length > 0) return;
+  const container = document.querySelector(".container");
+  if (!container || container.querySelector(".empty-state")) return;
+  const notice = document.createElement("div");
+  notice.className = "notice empty-state";
+  notice.innerHTML =
+    `No usage data yet. Open the <strong>opencode.ai</strong> usage page and click ` +
+    `<strong>Crawl Now</strong> in the extension popup to sync records.`;
+  container.prepend(notice);
+}
+
 async function loadFromExtension() {
   try {
     if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) return;
     const { dashboardData } = await chrome.storage.local.get("dashboardData");
-    if (!dashboardData) return;
+    if (!dashboardData) {
+      showEmptyStateIfNeeded();
+      return;
+    }
 
     const data = JSON.parse(dashboardData);
     for (const [id, rec] of Object.entries(data)) {
@@ -515,13 +598,14 @@ async function loadFromExtension() {
     initDateRange();
     updateDropdowns();
     renderDashboard();
+    showEmptyStateIfNeeded();
 
     const container = document.querySelector(".container");
-    if (container) {
+    if (container && Object.keys(data).length > 0) {
       const notice = document.createElement("div");
       notice.className = "notice";
       notice.innerHTML =
-        `Auto-loaded <strong style="color:var(--accent-green)">` +
+        `Auto-loaded <strong style="color:var(--success)">` +
         `${Object.keys(data).length.toLocaleString()} records</strong> from the extension.`;
       container.prepend(notice);
     }
@@ -667,6 +751,5 @@ document.getElementById("workspaceSelect").addEventListener("change", renderDash
 document.getElementById("modelSelect").addEventListener("change", renderDashboard);
 document.getElementById("startDate").addEventListener("change", renderDashboard);
 document.getElementById("endDate").addEventListener("change", renderDashboard);
-document.getElementById("searchInput").addEventListener("input", renderDashboard);
 
 loadFromExtension();
