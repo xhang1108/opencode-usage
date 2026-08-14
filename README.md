@@ -17,6 +17,8 @@ A Chrome extension that syncs your [opencode.ai](https://opencode.ai) usage toke
 3. Click **Open Dashboard** to view charts, tables, and cost estimates.
 4. Use **Export Filtered Data (CSV)** on the dashboard to download records.
 
+![Dashboard](screenshots/dashboard.avif)
+
 ## Notes
 
 - Crawling is manual (click **Crawl Now** each time); the extension refreshes the server ID itself.
