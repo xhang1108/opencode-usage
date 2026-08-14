@@ -11,8 +11,10 @@
 
     .container { max-width: 1380px; margin: 0 auto; }
 
+    /* Uniform vertical rhythm: every top-level block is 24px apart. */
+    .container > * + * { margin-top: 24px; }
+
     header {
-      margin-bottom: 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -29,7 +31,6 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 12px 16px;
-      margin-bottom: 16px;
       color: var(--text-muted);
       font-size: 12.5px;
     }
@@ -43,7 +44,6 @@
       padding: 16px 20px;
       border-radius: var(--radius-lg);
       border: 1px solid var(--border);
-      margin-bottom: 24px;
     }
     .filter-group {
       display: flex;
@@ -72,7 +72,6 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
-      margin-bottom: 24px;
     }
     .card { padding: 20px; }
     .card .title { font-size: 12px; color: var(--text-muted); }
@@ -89,15 +88,13 @@
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-      gap: 20px;
-      margin-bottom: 24px;
+      gap: 24px;
     }
     .chart-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 20px;
-      margin-bottom: 24px;
     }
     .chart-card h3 {
       margin: 0 0 16px;
@@ -160,18 +157,66 @@
       border: 1px solid var(--border); border-radius: var(--radius-md);
       padding: 7px 10px; font-size: 12.5px; font-family: var(--font-mono); outline: none;
     }
-    .rate-main input:focus, .rate-fields input:focus {
+    .rate-main input:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15);
     }
     .rate-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
     .rate-fields label { display: flex; flex-direction: column; font-size: 11px; color: var(--text-muted); gap: 3px; }
-    .rate-fields input {
-      width: 84px;
-      background: var(--bg-content); color: var(--text);
-      border: 1px solid var(--border); border-radius: var(--radius-md);
-      padding: 5px 8px; font-size: 12.5px; font-family: var(--font-mono); outline: none;
+    /* Tier rows: Low on one line, High on the next, with a fixed label column. */
+    .tier-fields { flex-direction: column; align-items: stretch; }
+    .rate-group { display: flex; align-items: center; gap: 6px; }
+    .rate-group-title {
+      width: 44px;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: right;
     }
+    .rate-group .rate-del { margin-left: auto; }
+
+    /* Custom number steppers (hide native spinners) */
+    .rate-fields input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+    .rate-fields input[type="number"]::-webkit-outer-spin-button,
+    .rate-fields input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .num-field {
+      display: inline-flex;
+      align-items: stretch;
+      width: 96px;
+      background: var(--bg-content);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .num-field:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
+    .num-field input {
+      flex: 1;
+      min-width: 0;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      padding: 5px 2px;
+      text-align: center;
+      outline: none;
+    }
+    .num-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      width: 22px;
+      padding: 0;
+      cursor: pointer;
+      line-height: 1;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .num-btn:hover { background: var(--surface-hover); color: var(--text); }
+    .num-btn:active { background: var(--primary); color: #fff; }
     .rate-del {
       background: rgba(204, 111, 102, 0.12); color: #d99c96;
       border: 1px solid rgba(204, 111, 102, 0.35);
@@ -180,6 +225,149 @@
     }
     .rate-del:hover { background: rgba(204, 111, 102, 0.2); }
     .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+
+    /* Custom date range picker */
+    .date-range-group { position: relative; }
+    .range-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .range-trigger .range-caret { color: var(--text-disabled); font-size: 11px; transition: transform 0.15s ease; }
+    .range-trigger.open .range-caret { transform: rotate(180deg); }
+    .range-popup {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 50;
+      width: 300px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+    }
+    .range-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .range-presets button {
+      background: var(--bg-content);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .range-presets button:hover { color: var(--text); border-color: var(--border); }
+    .range-cal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .range-cal-head span { font-size: 13px; font-weight: 600; }
+    .range-nav {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      width: 26px; height: 26px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .range-nav:hover { color: var(--text); border-color: var(--text-disabled); }
+    .range-weekdays, .range-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      text-align: center;
+    }
+    .range-weekdays { margin-bottom: 4px; }
+    .range-weekdays span { font-size: 10.5px; color: var(--text-disabled); padding: 4px 0; }
+    .range-day {
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 0;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .range-day:hover { background: var(--surface-hover); color: var(--text); }
+    .range-day.today { color: var(--primary); border-color: rgba(106, 143, 192, 0.4); }
+    .range-day.in-range { background: rgba(106, 143, 192, 0.12); color: var(--text); border-radius: 0; }
+    .range-day.in-range:hover { background: rgba(106, 143, 192, 0.2); }
+    .range-day.range-start, .range-day.range-end {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    .range-actions { display: flex; margin-top: 12px; }
+    .range-actions .btn { flex: 1; padding: 6px 10px; font-size: 12px; }
+
+    /* Custom dropdowns */
+    .select-custom { position: relative; width: 100%; }
+    .select-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .select-trigger .select-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .select-trigger .select-caret {
+      color: var(--text-disabled);
+      font-size: 11px;
+      flex-shrink: 0;
+      transition: transform 0.15s ease;
+    }
+    .select-trigger.open .select-caret { transform: rotate(180deg); }
+    .select-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      z-index: 50;
+      max-height: 240px;
+      overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 6px;
+    }
+    .select-options { display: flex; flex-direction: column; gap: 2px; }
+    .select-option {
+      background: none;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      text-align: left;
+      padding: 7px 10px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .select-option:hover { background: var(--surface-hover); color: var(--text); }
+    .select-option.selected {
+      background: rgba(106, 143, 192, 0.12);
+      color: var(--primary);
+    }
   </style>
 </head>
 <body>
@@ -196,23 +384,63 @@
     <div class="filter-bar">
       <div class="filter-group">
         <label for="workspaceSelect">Workspace:</label>
-        <select class="input" id="workspaceSelect">
+        <div class="select-custom">
+          <button type="button" class="input select-trigger" id="wsSelectTrigger" title="Select workspace">
+            <span class="select-label" id="wsSelectLabel">All Workspaces (Total)</span>
+            <span class="select-caret">▾</span>
+          </button>
+          <div class="select-panel" id="wsSelectPanel" hidden>
+            <div class="select-options" id="wsSelectOptions"></div>
+          </div>
+        </div>
+        <select class="input" id="workspaceSelect" hidden>
           <option value="ALL">All Workspaces (Total)</option>
         </select>
       </div>
       <div class="filter-group">
         <label for="modelSelect">Model:</label>
-        <select class="input" id="modelSelect">
+        <div class="select-custom">
+          <button type="button" class="input select-trigger" id="modelSelectTrigger" title="Select model">
+            <span class="select-label" id="modelSelectLabel">All Models</span>
+            <span class="select-caret">▾</span>
+          </button>
+          <div class="select-panel" id="modelSelectPanel" hidden>
+            <div class="select-options" id="modelSelectOptions"></div>
+          </div>
+        </div>
+        <select class="input" id="modelSelect" hidden>
           <option value="ALL">All Models</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label for="startDate">Start Date:</label>
-        <input class="input" type="date" id="startDate">
-      </div>
-      <div class="filter-group">
-        <label for="endDate">End Date:</label>
-        <input class="input" type="date" id="endDate">
+      <div class="filter-group date-range-group">
+        <label>Date Range:</label>
+        <button type="button" class="input range-trigger" id="rangeTrigger" title="Pick a date range">
+          <span id="rangeLabel">All Time</span>
+          <span class="range-caret">▾</span>
+        </button>
+        <input type="hidden" id="startDate">
+        <input type="hidden" id="endDate">
+        <div class="range-popup" id="rangePopup" hidden>
+          <div class="range-presets">
+            <button type="button" data-preset="today">Today</button>
+            <button type="button" data-preset="all">All Time</button>
+            <button type="button" data-preset="7d">Last 7 Days</button>
+            <button type="button" data-preset="30d">Last 30 Days</button>
+            <button type="button" data-preset="month">This Month</button>
+            <button type="button" data-preset="lastMonth">Last Month</button>
+          </div>
+          <div class="range-cal-head">
+            <button type="button" class="range-nav" id="rangePrev" title="Previous month">‹</button>
+            <span id="rangeMonthLabel">…</span>
+            <button type="button" class="range-nav" id="rangeNext" title="Next month">›</button>
+          </div>
+          <div class="range-weekdays" id="rangeWeekdays"></div>
+          <div class="range-days" id="rangeDays"></div>
+          <div class="range-actions">
+            <button type="button" class="btn btn-secondary" id="rangeClear">Clear</button>
+            <button type="button" class="btn btn-primary" id="rangeApply">Apply</button>
+          </div>
+        </div>
       </div>
     </div>
 

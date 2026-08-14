@@ -121,8 +121,236 @@ function initDateRange() {
     const endDateInput = document.getElementById("endDate");
     if (!startDateInput.value) startDateInput.value = dates[0];
     if (!endDateInput.value) endDateInput.value = dates[dates.length - 1];
+    rangePicker.start = startDateInput.value;
+    rangePicker.end = endDateInput.value;
+    updateRangeTrigger();
   }
 }
+
+// ===== Custom date range picker =====
+const rangePicker = {
+  start: "",
+  end: "",
+  viewYear: null, // displayed calendar month (year)
+  viewMonth: null, // displayed calendar month (0-based)
+};
+
+function toISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function todayISO() {
+  return toISODate(new Date());
+}
+
+function fmtISO(dateStr) {
+  return dateStr ? dateStr : "—";
+}
+
+function updateRangeTrigger() {
+  const label = document.getElementById("rangeLabel");
+  if (rangePicker.start && rangePicker.end) {
+    label.textContent = `${fmtISO(rangePicker.start)} → ${fmtISO(rangePicker.end)}`;
+  } else if (rangePicker.start || rangePicker.end) {
+    label.textContent = rangePicker.start ? fmtISO(rangePicker.start) : `Until ${fmtISO(rangePicker.end)}`;
+  } else {
+    label.textContent = "All Time";
+  }
+}
+
+function syncRangeInputs() {
+  document.getElementById("startDate").value = rangePicker.start;
+  document.getElementById("endDate").value = rangePicker.end;
+  updateRangeTrigger();
+}
+
+function renderCalendar() {
+  document.getElementById("rangeMonthLabel").textContent =
+    new Date(rangePicker.viewYear, rangePicker.viewMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  const daysEl = document.getElementById("rangeDays");
+  daysEl.innerHTML = "";
+
+  const startWeekday = new Date(rangePicker.viewYear, rangePicker.viewMonth, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(rangePicker.viewYear, rangePicker.viewMonth + 1, 0).getDate();
+  const today = todayISO();
+  // A start-only selection means a single day, so highlight it as start = end.
+  const start = rangePicker.start;
+  const end = rangePicker.end || rangePicker.start;
+
+  for (let i = 0; i < startWeekday; i++) daysEl.appendChild(document.createElement("div"));
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = `${rangePicker.viewYear}-${String(rangePicker.viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "range-day";
+    btn.textContent = day;
+    btn.title = iso;
+    btn.dataset.date = iso;
+    if (iso === today) btn.classList.add("today");
+    if (iso === start) btn.classList.add("range-start");
+    if (iso === end) btn.classList.add("range-end");
+    if (start && end && iso >= start && iso <= end) btn.classList.add("in-range");
+    btn.addEventListener("click", (e) => {
+      // Stop propagation so re-rendering (which detaches this button) can't
+      // make the document-level click handler misread it as an outside click.
+      e.stopPropagation();
+      onRangeDayClick(iso);
+    });
+    daysEl.appendChild(btn);
+  }
+}
+
+function onRangeDayClick(iso) {
+  if (!rangePicker.start || (rangePicker.start && rangePicker.end)) {
+    // Begin a fresh selection.
+    rangePicker.start = iso;
+    rangePicker.end = "";
+  } else {
+    // Complete the range (swap if picked backwards).
+    let s = rangePicker.start, e = iso;
+    if (e < s) { const t = s; s = e; e = t; }
+    rangePicker.start = s;
+    rangePicker.end = e;
+  }
+  syncRangeInputs();
+  renderCalendar();
+}
+
+function applyRange() {
+  syncRangeInputs();
+  renderCalendar();
+  renderDashboard();
+  closeRangePicker();
+}
+
+function openRangePicker() {
+  const popup = document.getElementById("rangePopup");
+  if (!popup.hidden) { closeRangePicker(); return; }
+  if (rangePicker.viewYear === null) {
+    const ref = rangePicker.end || rangePicker.start || todayISO();
+    rangePicker.viewYear = +ref.slice(0, 4);
+    rangePicker.viewMonth = +ref.slice(5, 7) - 1;
+  }
+  renderCalendar();
+  popup.hidden = false;
+  document.getElementById("rangeTrigger").classList.add("open");
+}
+
+function closeRangePicker() {
+  document.getElementById("rangePopup").hidden = true;
+  document.getElementById("rangeTrigger").classList.remove("open");
+}
+
+function shiftRangeMonth(delta) {
+  rangePicker.viewMonth += delta;
+  if (rangePicker.viewMonth < 0) { rangePicker.viewMonth = 11; rangePicker.viewYear--; }
+  if (rangePicker.viewMonth > 11) { rangePicker.viewMonth = 0; rangePicker.viewYear++; }
+  renderCalendar();
+}
+
+function applyPreset(name) {
+  const now = new Date();
+  switch (name) {
+    case "today": rangePicker.start = todayISO(); rangePicker.end = todayISO(); break;
+    case "all": rangePicker.start = ""; rangePicker.end = ""; break;
+    case "7d": {
+      const s = new Date(); s.setDate(s.getDate() - 6);
+      rangePicker.start = toISODate(s); rangePicker.end = toISODate(now);
+      break;
+    }
+    case "30d": {
+      const s = new Date(); s.setDate(s.getDate() - 29);
+      rangePicker.start = toISODate(s); rangePicker.end = toISODate(now);
+      break;
+    }
+    case "month":
+      rangePicker.start = toISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+      rangePicker.end = toISODate(now);
+      break;
+    case "lastMonth":
+      rangePicker.start = toISODate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      rangePicker.end = toISODate(new Date(now.getFullYear(), now.getMonth(), 0));
+      break;
+  }
+  if (rangePicker.start) {
+    rangePicker.viewYear = +rangePicker.start.slice(0, 4);
+    rangePicker.viewMonth = +rangePicker.start.slice(5, 7) - 1;
+  }
+  syncRangeInputs();
+  renderCalendar();
+  renderDashboard();
+  closeRangePicker();
+}
+
+function clearRange() {
+  rangePicker.start = "";
+  rangePicker.end = "";
+  syncRangeInputs();
+  renderCalendar();
+  renderDashboard();
+}
+
+// ===== Custom dropdowns =====
+// Mirrors a hidden native <select> (source of truth for value/change) into a styled popup.
+function initCustomSelect(selectId, triggerId, labelId, panelId, optionsId) {
+  const select = document.getElementById(selectId);
+  const trigger = document.getElementById(triggerId);
+  const label = document.getElementById(labelId);
+  const panel = document.getElementById(panelId);
+  const optionsEl = document.getElementById(optionsId);
+
+  function refresh() {
+    optionsEl.innerHTML = "";
+    for (const opt of select.options) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "select-option" + (opt.selected ? " selected" : "");
+      item.textContent = opt.textContent;
+      item.title = opt.value;
+      item.addEventListener("click", (e) => {
+        select.value = opt.value;
+        label.textContent = opt.textContent;
+        close();
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      optionsEl.appendChild(item);
+    }
+    const selected = select.selectedOptions[0];
+    if (selected) label.textContent = selected.textContent;
+  }
+
+  function open() {
+    // Only one dropdown open at a time.
+    document.querySelectorAll(".select-panel:not([hidden])").forEach((p) => { p.hidden = true; });
+    document.querySelectorAll(".select-trigger.open").forEach((t) => t.classList.remove("open"));
+    refresh();
+    panel.hidden = false;
+    trigger.classList.add("open");
+  }
+
+  function close() {
+    panel.hidden = true;
+    trigger.classList.remove("open");
+  }
+
+  trigger.addEventListener("click", (e) => {
+    panel.hidden ? open() : close();
+  });
+  document.addEventListener("click", (e) => {
+    if (panel.hidden) return;
+    if (!e.target.closest("#" + triggerId) && !e.target.closest("#" + panelId)) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !panel.hidden) close();
+  });
+
+  return { refresh, close };
+}
+
+const wsCustom = initCustomSelect("workspaceSelect", "wsSelectTrigger", "wsSelectLabel", "wsSelectPanel", "wsSelectOptions");
+const modelCustom = initCustomSelect("modelSelect", "modelSelectTrigger", "modelSelectLabel", "modelSelectPanel", "modelSelectOptions");
 
 function updateDropdowns() {
   const wsSelect = document.getElementById("workspaceSelect");
@@ -156,6 +384,9 @@ function updateDropdowns() {
     modelSelect.appendChild(option);
   }
   modelSelect.value = currentModel;
+
+  wsCustom.refresh();
+  modelCustom.refresh();
 }
 
 // Model rate rules. A rule matches when the (lowercased) model name includes ALL of its
@@ -254,7 +485,8 @@ function renderDashboard() {
   const selectedWS = document.getElementById("workspaceSelect").value;
   const selectedModel = document.getElementById("modelSelect").value;
   const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
+  let endDate = document.getElementById("endDate").value;
+  if (startDate && !endDate) endDate = startDate; // Single-day selection counts as exactly that day.
 
   filteredRecordsCache = [];
   let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
@@ -618,27 +850,38 @@ async function loadFromExtension() {
 function rateRowHTML(rule) {
   const esc = (v) => String(v ?? "").replace(/"/g, "&quot;");
   const kw = (rule.keywords || []).join(",");
+  // Number field with custom − / + steppers (rates default to 0.1 steps).
+  const num = (cls, label, value, step = "0.1") =>
+    `<label>${label} <span class="num-field">` +
+    `<button type="button" class="num-btn" data-dir="down" aria-label="Decrease">&minus;</button>` +
+    `<input class="${cls}" type="number" step="${step}" value="${value}">` +
+    `<button type="button" class="num-btn" data-dir="up" aria-label="Increase">+</button></span></label>`;
   if (rule.tier) {
     const t = rule.tier;
     const low = t.low || {};
     const high = t.high || {};
+    // One rate-group per line: fixed title column + fields (Low / High each on its own row).
+    const group = (title, inner) =>
+      `<div class="rate-group"><span class="rate-group-title">${title}</span>${inner}</div>`;
     return `
       <div class="rate-row" data-tier="1">
         <div class="rate-main">
           <input class="rate-label" value="${esc(rule.label || "")}" placeholder="Name">
           <input class="rate-kw" value="${esc(kw)}" placeholder="Keywords (comma separated)">
         </div>
-        <div class="rate-fields">
-          <label>&le;Limit <input class="tier-limit" type="number" step="any" value="${t.limit ?? 0}"></label>
-          <label>Low In <input class="tier-low-input" type="number" step="any" value="${low.input ?? 0}"></label>
-          <label>Low Out <input class="tier-low-output" type="number" step="any" value="${low.output ?? 0}"></label>
-          <label>Low CR <input class="tier-low-cr" type="number" step="any" value="${low.cacheRead ?? 0}"></label>
-          <label>Low CW <input class="tier-low-cw" type="number" step="any" value="${low.cacheWrite ?? 0}"></label>
-          <label>High In <input class="tier-high-input" type="number" step="any" value="${high.input ?? 0}"></label>
-          <label>High Out <input class="tier-high-output" type="number" step="any" value="${high.output ?? 0}"></label>
-          <label>High CR <input class="tier-high-cr" type="number" step="any" value="${high.cacheRead ?? 0}"></label>
-          <label>High CW <input class="tier-high-cw" type="number" step="any" value="${high.cacheWrite ?? 0}"></label>
-          <button class="rate-del">Del</button>
+        <div class="rate-fields tier-fields">
+          ${group("Tier", num("tier-limit", "&le;Limit", t.limit ?? 0, "1"))}
+          ${group("Low",
+            num("tier-low-input", "In", low.input ?? 0) +
+            num("tier-low-output", "Out", low.output ?? 0) +
+            num("tier-low-cr", "CR", low.cacheRead ?? 0) +
+            num("tier-low-cw", "CW", low.cacheWrite ?? 0))}
+          ${group("High",
+            num("tier-high-input", "In", high.input ?? 0) +
+            num("tier-high-output", "Out", high.output ?? 0) +
+            num("tier-high-cr", "CR", high.cacheRead ?? 0) +
+            num("tier-high-cw", "CW", high.cacheWrite ?? 0) +
+            `<button class="rate-del">Del</button>`)}
         </div>
       </div>`;
   }
@@ -649,13 +892,26 @@ function rateRowHTML(rule) {
         <input class="rate-kw" value="${esc(kw)}" placeholder="Keywords (comma separated)">
       </div>
       <div class="rate-fields">
-        <label>Input <input class="rate-input" type="number" step="any" value="${rule.input ?? 0}"></label>
-        <label>Output <input class="rate-output" type="number" step="any" value="${rule.output ?? 0}"></label>
-        <label>CacheRead <input class="rate-cr" type="number" step="any" value="${rule.cacheRead ?? 0}"></label>
-        <label>CacheWrite <input class="rate-cw" type="number" step="any" value="${rule.cacheWrite ?? 0}"></label>
+        ${num("rate-input", "Input", rule.input ?? 0)}
+        ${num("rate-output", "Output", rule.output ?? 0)}
+        ${num("rate-cr", "CacheRead", rule.cacheRead ?? 0)}
+        ${num("rate-cw", "CacheWrite", rule.cacheWrite ?? 0)}
         <button class="rate-del">Del</button>
       </div>
     </div>`;
+}
+
+function wireSteppers(scope) {
+  scope.querySelectorAll(".num-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = btn.closest(".num-field").querySelector("input");
+      const step = parseFloat(input.step) || 1;
+      const val = parseFloat(input.value) || 0;
+      const delta = btn.dataset.dir === "down" ? -step : step;
+      // Round to 4 decimals to avoid float artifacts (e.g. 0.1 + 0.2).
+      input.value = Math.round((val + delta) * 10000) / 10000;
+    });
+  });
 }
 
 function wireDelete(btn) {
@@ -666,6 +922,7 @@ function renderRateList() {
   const list = document.getElementById("ratesList");
   list.innerHTML = getRates().map((r) => rateRowHTML(r)).join("");
   list.querySelectorAll(".rate-del").forEach(wireDelete);
+  wireSteppers(list);
 }
 
 function collectRates() {
@@ -736,7 +993,9 @@ document.getElementById("ratesModal").addEventListener("click", (e) => {
 document.getElementById("ratesAdd").addEventListener("click", () => {
   const list = document.getElementById("ratesList");
   list.insertAdjacentHTML("beforeend", rateRowHTML({ label: "", keywords: [], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }));
-  wireDelete(list.lastElementChild.querySelector(".rate-del"));
+  const row = list.lastElementChild;
+  wireDelete(row.querySelector(".rate-del"));
+  wireSteppers(row);
 });
 document.getElementById("ratesSave").addEventListener("click", () => {
   saveRates(collectRates());
@@ -749,7 +1008,19 @@ document.getElementById("ratesReset").addEventListener("click", () => {
 });
 document.getElementById("workspaceSelect").addEventListener("change", renderDashboard);
 document.getElementById("modelSelect").addEventListener("change", renderDashboard);
-document.getElementById("startDate").addEventListener("change", renderDashboard);
-document.getElementById("endDate").addEventListener("change", renderDashboard);
+
+// Custom date range picker
+document.getElementById("rangeTrigger").addEventListener("click", openRangePicker);
+document.getElementById("rangePrev").addEventListener("click", () => shiftRangeMonth(-1));
+document.getElementById("rangeNext").addEventListener("click", () => shiftRangeMonth(1));
+document.getElementById("rangeClear").addEventListener("click", clearRange);
+document.getElementById("rangeApply").addEventListener("click", applyRange);
+document.querySelectorAll(".range-presets button").forEach((btn) => {
+  btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+});
+document.addEventListener("click", (e) => {
+  if (document.getElementById("rangePopup").hidden) return;
+  if (!e.target.closest(".date-range-group")) closeRangePicker();
+});
 
 loadFromExtension();
