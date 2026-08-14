@@ -813,20 +813,26 @@ function showEmptyStateIfNeeded() {
   container.prepend(notice);
 }
 
+// ===== Auto-load: always pull the merged OPFS snapshot from the background =====
+// The background reads OPFS directly when an opencode.ai tab is open, and falls
+// back to its persistent cached snapshot otherwise - so the dashboard keeps its
+// data across refreshes forever, without any manual import.
 async function loadFromExtension() {
   try {
-    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) return;
-    const { dashboardData } = await chrome.storage.local.get("dashboardData");
-    if (!dashboardData) {
+    if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.sendMessage) {
+      showEmptyStateIfNeeded();
+      return;
+    }
+    const res = await chrome.runtime.sendMessage({ type: "get-dashboard-data" });
+    if (!res || !res.ok || !res.data) {
       showEmptyStateIfNeeded();
       return;
     }
 
-    const data = JSON.parse(dashboardData);
+    const data = JSON.parse(res.data);
     for (const [id, rec] of Object.entries(data)) {
       globalCache[id] = rec;
     }
-    await chrome.storage.local.remove("dashboardData");
     initDateRange();
     updateDropdowns();
     renderDashboard();
@@ -837,12 +843,14 @@ async function loadFromExtension() {
       const notice = document.createElement("div");
       notice.className = "notice";
       notice.innerHTML =
-        `Auto-loaded <strong style="color:var(--success)">` +
-        `${Object.keys(data).length.toLocaleString()} records</strong> from the extension.`;
+        `Loaded <strong style="color:var(--success)">` +
+        `${Object.keys(data).length.toLocaleString()} records</strong> from OPFS` +
+        (res.fromCache ? ` <span style="opacity:.75">(cached snapshot)</span>.` : ".");
       container.prepend(notice);
     }
   } catch (e) {
-    console.error("Failed to load extension data", e);
+    console.error("Failed to load data", e);
+    showEmptyStateIfNeeded();
   }
 }
 

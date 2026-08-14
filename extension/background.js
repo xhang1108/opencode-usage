@@ -124,6 +124,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
+
+    case "get-dashboard-data":
+      // Dashboard page always fetches from here (on every load/refresh), so it
+      // never depends on a one-shot payload that can be consumed once.
+      sendDashboardData()
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+      return true;
   }
 });
 
@@ -219,53 +227,48 @@ async function stashMergedData(tabId) {
   }
 }
 
-async function handleOpenDashboard() {
-  let data = null;
-  let count = 0;
-  let fileCount = 0;
-  let fromCache = false;
-
-  // When an opencode.ai tab is open, fetch fresh data and refresh the cache.
+// Merged OPFS snapshot for the dashboard. Tries a live export from any open
+// opencode.ai tab (which reads OPFS directly); falls back to the last cached
+// snapshot so the dashboard survives refreshes even with no tab open.
+async function sendDashboardData() {
   const tab = await findAnyOpencodeTab();
   if (tab) {
     try {
       const res = await sendMessageToTab(tab.id, { type: "export-json" });
       if (res && res.ok) {
-        data = res.data;
-        count = res.count;
-        fileCount = res.fileCount;
         await chrome.storage.local.set({
-          cachedData: data,
+          cachedData: res.data,
           cachedMeta: {
-            count,
-            fileCount,
+            count: res.count,
+            fileCount: res.fileCount,
             files: res.files || [],
             lastRecord: res.lastRecord || null,
             updatedAt: Date.now(),
           },
         });
+        return { ok: true, data: res.data, count: res.count, fileCount: res.fileCount, fromCache: false };
       }
     } catch (e) {
       // Content script unavailable - fall back to cache
     }
   }
-
-  // No page open - use the last cached data.
-  if (!data) {
-    const { cachedData, cachedMeta } = await chrome.storage.local.get(["cachedData", "cachedMeta"]);
-    if (cachedData) {
-      data = cachedData;
-      count = (cachedMeta && cachedMeta.count) || 0;
-      fileCount = (cachedMeta && cachedMeta.fileCount) || 0;
-      fromCache = true;
-    }
+  const { cachedData, cachedMeta } = await chrome.storage.local.get(["cachedData", "cachedMeta"]);
+  if (cachedData) {
+    return {
+      ok: true,
+      data: cachedData,
+      count: (cachedMeta && cachedMeta.count) || 0,
+      fileCount: (cachedMeta && cachedMeta.fileCount) || 0,
+      fromCache: true,
+    };
   }
+  return { ok: false, error: "No usage data yet - open the opencode.ai usage page and click Crawl Now in the popup" };
+}
 
-  if (data) {
-    await chrome.storage.local.set({ dashboardData: data });
-  } else {
-    await chrome.storage.local.remove("dashboardData");
-  }
+async function handleOpenDashboard() {
+  // Refresh the OPFS snapshot now so the dashboard tab (and later refreshes)
+  // have current data. The dashboard itself re-fetches on every load too.
+  const res = await sendDashboardData();
   await chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
-  return { ok: true, count, fileCount, fromCache };
+  return { ok: true, count: res.count || 0, fileCount: res.fileCount || 0, fromCache: !!res.fromCache };
 }
