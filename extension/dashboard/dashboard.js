@@ -101,6 +101,17 @@ function sortBy(arr, col, dir) {
 const fmtMoney = (v, digits = 4) =>
   (Number(v) || 0).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
+// Escape strings that come from external data (model names, workspace IDs) before
+// they are injected via innerHTML into table cells.
+const escHTML = (s) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
+
 function markSortHeader(tableId, col, dir) {
   document.querySelectorAll(`#${tableId} th[data-col]`).forEach((th) => {
     if (th.dataset.base === undefined) th.dataset.base = th.textContent;
@@ -167,6 +178,15 @@ function syncRangeInputs() {
 function renderCalendar() {
   document.getElementById("rangeMonthLabel").textContent =
     new Date(rangePicker.viewYear, rangePicker.viewMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Weekday header row (Su..Sa).
+  const weekdaysEl = document.getElementById("rangeWeekdays");
+  weekdaysEl.innerHTML = "";
+  for (const w of ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]) {
+    const span = document.createElement("span");
+    span.textContent = w;
+    weekdaysEl.appendChild(span);
+  }
 
   const daysEl = document.getElementById("rangeDays");
   daysEl.innerHTML = "";
@@ -458,9 +478,11 @@ function saveRates(rates) {
   localStorage.setItem(RATES_KEY, JSON.stringify(rates));
 }
 
-function getRecordCostAndSavings(record) {
+// `rates` is passed in by renderDashboard to avoid re-reading + parsing
+// localStorage for every record on every render.
+function getRecordCostAndSavings(record, rates = getRates()) {
   const modelName = (record.model || "").toLowerCase();
-  for (const rule of getRates()) {
+  for (const rule of rates) {
     const kws = rule.keywords || [];
     if (kws.length === 0) continue;
     if (!kws.every((k) => modelName.includes(String(k).toLowerCase()))) continue;
@@ -491,6 +513,7 @@ function renderDashboard() {
   filteredRecordsCache = [];
   let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
   const dailyMap = {}, dailyTokenMap = {}, modelMap = {}, wsMap = {}, singleModelDailyMap = {};
+  const rates = getRates(); // Hoisted: one read instead of one per record.
 
   for (const [id, rec] of Object.entries(globalCache)) {
     const wsID = rec.workspaceID || "wrk_unknown";
@@ -503,7 +526,7 @@ function renderDashboard() {
     if (!wsMap[wsID]) {
       wsMap[wsID] = { req: 0, tokens: 0, prompt: 0, cacheRead: 0, cost: 0 };
     }
-    const { cost, savings } = getRecordCostAndSavings(rec);
+    const { cost, savings } = getRecordCostAndSavings(rec, rates);
     const cacheWriteTotal = (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
     const tokens = (rec.input || 0) + (rec.output || 0) + (rec.reasoning || 0) + (rec.cacheRead || 0) + cacheWriteTotal;
     const promptTokens = (rec.input || 0) + (rec.cacheRead || 0);
@@ -581,7 +604,7 @@ function renderDashboard() {
     const hitRate = `${stats.hitRate.toFixed(2)}%`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><span class="badge">${stats.ws}</span></td>
+      <td><span class="badge">${escHTML(stats.ws)}</span></td>
       <td>${stats.req}</td>
       <td>${stats.tokens.toLocaleString()}</td>
       <td>${hitRate}</td>
@@ -622,7 +645,7 @@ function renderDashboard() {
     for (const stats of sortBy(modelRows, sortState.model.col, sortState.model.dir)) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><strong>${stats.model}</strong></td>
+        <td><strong>${escHTML(stats.model)}</strong></td>
         <td>${stats.req}</td>
         <td>${stats.input.toLocaleString()}</td>
         <td>${stats.output.toLocaleString()}</td>
@@ -657,7 +680,7 @@ function renderDashboard() {
     for (const stats of sortBy(dateRows, sortState.model.col, sortState.model.dir)) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><strong>${stats.date}</strong></td>
+        <td><strong>${escHTML(stats.date)}</strong></td>
         <td>${stats.req}</td>
         <td>${stats.input.toLocaleString()}</td>
         <td>${stats.output.toLocaleString()}</td>

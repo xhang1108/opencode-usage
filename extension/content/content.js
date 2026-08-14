@@ -15,6 +15,7 @@
   let crawling = false;
   let lastServerID = null;
   let pendingCrawl = null; // Pending crawl awaiting a serverID { forceRescan }
+  let exportCache = null;  // In-memory merged export cache (see readAllCache)
 
   const notify = (msg) => {
     try {
@@ -416,6 +417,11 @@
     let newRecordCountTotal = 0;
     let fileHandle;
     let stopReason = "";
+    // Persist incrementally every N pages so a mid-crawl interruption (closed
+    // tab, network failure) doesn't lose the whole session's progress.
+    const WRITE_EVERY_PAGES = 20;
+    let lastProgressAt = 0;
+    let crawlError = null;
 
     try {
       const root = await navigator.storage.getDirectory();
@@ -429,127 +435,156 @@
 
     const parseSafe = (val) => (val && val !== "null") ? parseInt(val, 10) : 0;
 
-    while (hasMoreData) {
-      const bodyPayload =
-        `{"t":{"t":9,"i":0,"l":2,"a":[{"t":1,"s":"${workspaceID}"},{"t":0,"s":${page}}],"o":0},"f":31,"m":[]}`;
-      let response = null;
-      let retries = 0;
-
-      while (retries <= 3) {
-        try {
-          response = await fetch("https://opencode.ai/_server", {
-            headers: {
-              accept: "*/*",
-              "content-type": "application/json",
-              "x-server-id": serverID,
-              "x-server-instance": "server-fn:1",
-            },
-            body: bodyPayload,
-            method: "POST",
-            credentials: "include",
-          });
-
-          if (response.status === 429) {
-            notify({ type: "progress", message: `HTTP 429 rate limited, waiting 8s (${retries + 1}/3)` });
-            await new Promise((r) => setTimeout(r, 8000));
-            retries++;
-            continue;
-          }
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          break;
-        } catch (e) {
-          retries++;
-          if (retries <= 3) await new Promise((r) => setTimeout(r, 8000));
-          else {
-            hasMoreData = false;
-            throw new Error(`Request failed: ${e.message}`);
-          }
-        }
-      }
-
-      if (!hasMoreData || !response || !response.ok) {
-        stopReason = `Request not OK (HTTP ${response ? response.status : "no response"}) on page ${page}`;
-        notify({ type: "info", message: `Crawl stopped: ${stopReason}` });
-        break;
-      }
-
-      const text = await response.text();
-      if (!text.includes("inputTokens:")) {
-        // No data rows in the response. Show a hint so we can tell a stale server
-        // ID / session expiry from a genuinely empty page.
-        const snippet = text.slice(0, 160).replace(/\s+/g, " ");
-        stopReason = `page ${page} response has no records. Server said: ${snippet}`;
-        notify({ type: "info", message: `Crawl stopped: ${stopReason}` });
-        break; // Last page reached / no usable data
-      }
-
-      const regex =
-        /id:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null)/g;
-
-      let match;
-      let newRecordCount = 0; // Genuinely new (not previously cached)
-      let pageWriteCount = 0; // Records written on this page (new + time backfill)
-
-      while ((match = regex.exec(text)) !== null) {
-        const id = match[1];
-
-        const existed = !!(localCache[id] && localCache[id].date && localCache[id].workspaceID);
-        if (!forceRescan && existed && localCache[id].time) {
-          continue; // Fully synced already (has time); always overwrite during rescan
-        }
-
-        const dateIso = match[2];
-        const dateObj = new Date(dateIso);
-        const dateStr = !isNaN(dateObj.getTime())
-          ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
-          : "Unknown";
-
-        const record = {
-          workspaceID: workspaceID,
-          time: dateIso,
-          date: dateStr,
-          model: match[3],
-          input: parseSafe(match[4]),
-          output: parseSafe(match[5]),
-          reasoning: parseSafe(match[6]),
-          cacheRead: parseSafe(match[7]),
-          cacheWrite5m: parseSafe(match[8]),
-          cacheWrite1h: parseSafe(match[9]),
-        };
-
-        localCache[id] = record;
-        pageWriteCount++;
-        if (!existed) newRecordCount++; // Existing records only get `time` backfilled, not counted as new
-      }
-
-      newRecordCountTotal += newRecordCount;
-      notify({
-        type: "progress",
-        page,
-        workspace: getWorkspaceID(),
-        message: `Page ${page} done: wrote ${pageWriteCount} (new ${newRecordCount}, total new ${newRecordCountTotal})`,
-      });
-
-      if (!forceRescan && pageWriteCount === 0) {
-        stopReason = `page ${page} fully synced (all records already have timestamps)`;
-        notify({
-          type: "info",
-          message: `Crawl stopped: ${stopReason}`,
-        });
-        break; // Entire page synced - reached the sync point
-      }
-
-      await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 100) + 100));
-      page++;
-    }
-
-    try {
+    const writeCache = async () => {
       const writable = await fileHandle.createWritable();
       await writable.write(JSON.stringify(localCache));
       await writable.close();
+    };
+
+    try {
+      while (hasMoreData) {
+        const bodyPayload =
+          `{"t":{"t":9,"i":0,"l":2,"a":[{"t":1,"s":"${workspaceID}"},{"t":0,"s":${page}}],"o":0},"f":31,"m":[]}`;
+        let response = null;
+        let retries = 0;
+
+        while (retries <= 3) {
+          try {
+            response = await fetch("https://opencode.ai/_server", {
+              headers: {
+                accept: "*/*",
+                "content-type": "application/json",
+                "x-server-id": serverID,
+                "x-server-instance": "server-fn:1",
+              },
+              body: bodyPayload,
+              method: "POST",
+              credentials: "include",
+            });
+
+            if (response.status === 429) {
+              notify({ type: "progress", message: `HTTP 429 rate limited, waiting 8s (${retries + 1}/3)` });
+              await new Promise((r) => setTimeout(r, 8000));
+              retries++;
+              continue;
+            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            break;
+          } catch (e) {
+            retries++;
+            if (retries <= 3) await new Promise((r) => setTimeout(r, 8000));
+            else {
+              hasMoreData = false;
+              throw new Error(`Request failed: ${e.message}`);
+            }
+          }
+        }
+
+        if (!hasMoreData || !response || !response.ok) {
+          stopReason = `Request not OK (HTTP ${response ? response.status : "no response"}) on page ${page}`;
+          notify({ type: "info", message: `Crawl stopped: ${stopReason}` });
+          break;
+        }
+
+        const text = await response.text();
+        if (!text.includes("inputTokens:")) {
+          // No data rows in the response. Show a hint so we can tell a stale server
+          // ID / session expiry from a genuinely empty page.
+          const snippet = text.slice(0, 160).replace(/\s+/g, " ");
+          stopReason = `page ${page} response has no records. Server said: ${snippet}`;
+          notify({ type: "info", message: `Crawl stopped: ${stopReason}` });
+          break; // Last page reached / no usable data
+        }
+
+        const regex =
+          /id:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null)/g;
+
+        let match;
+        let newRecordCount = 0; // Genuinely new (not previously cached)
+        let pageWriteCount = 0; // Records written on this page (new + time backfill)
+
+        while ((match = regex.exec(text)) !== null) {
+          const id = match[1];
+
+          const existed = !!(localCache[id] && localCache[id].date && localCache[id].workspaceID);
+          if (!forceRescan && existed && localCache[id].time) {
+            continue; // Fully synced already (has time); always overwrite during rescan
+          }
+
+          const dateIso = match[2];
+          const dateObj = new Date(dateIso);
+          const dateStr = !isNaN(dateObj.getTime())
+            ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
+            : "Unknown";
+
+          const record = {
+            workspaceID: workspaceID,
+            time: dateIso,
+            date: dateStr,
+            model: match[3],
+            input: parseSafe(match[4]),
+            output: parseSafe(match[5]),
+            reasoning: parseSafe(match[6]),
+            cacheRead: parseSafe(match[7]),
+            cacheWrite5m: parseSafe(match[8]),
+            cacheWrite1h: parseSafe(match[9]),
+          };
+
+          localCache[id] = record;
+          pageWriteCount++;
+          if (!existed) newRecordCount++; // Existing records only get `time` backfilled, not counted as new
+        }
+
+        newRecordCountTotal += newRecordCount;
+        // Throttled progress: at most one notification per second so long crawls
+        // don't spam storage writes / badge updates on every page.
+        const now = Date.now();
+        if (page === 0 || now - lastProgressAt >= 1000) {
+          lastProgressAt = now;
+          notify({
+            type: "progress",
+            page,
+            workspace: getWorkspaceID(),
+            message: `Page ${page} done: wrote ${pageWriteCount} (new ${newRecordCount}, total new ${newRecordCountTotal})`,
+          });
+        }
+
+        if (!forceRescan && pageWriteCount === 0) {
+          stopReason = `page ${page} fully synced (all records already have timestamps)`;
+          notify({
+            type: "info",
+            message: `Crawl stopped: ${stopReason}`,
+          });
+          break; // Entire page synced - reached the sync point
+        }
+
+        // Best-effort incremental persist; failures are tolerated here because
+        // the final write in `finally` still runs.
+        if (page > 0 && page % WRITE_EVERY_PAGES === 0) {
+          try {
+            await writeCache();
+          } catch (e) {}
+        }
+
+        await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 100) + 100));
+        page++;
+      }
     } catch (e) {
-      throw new Error(`Cache write failed: ${e.message}`);
+      crawlError = e;
+    } finally {
+      // Always persist whatever was captured so far, even after an error.
+      try {
+        await writeCache();
+      } catch (e) {
+        if (!crawlError) crawlError = new Error(`Cache write failed: ${e.message}`);
+      }
+      // Invalidate the merged-export cache so the next fetch re-reads the
+      // freshly written files (the fingerprint check would also catch it, but
+      // this also covers the no-op-write edge case).
+      exportCache = null;
     }
+
+    if (crawlError) throw crawlError;
 
     return {
       workspaceID,
@@ -561,15 +596,33 @@
   }
 
   // ---------- Read and merge all workspace caches ----------
+  // The dashboard re-fetches this on every refresh, so re-reading + re-parsing +
+  // re-stringifying all OPFS files each time gets slow as the cache grows. We
+  // fingerprint the cache files by (name, size, lastModified) - cheap, no content
+  // read - and only rebuild the merged export when a file actually changed.
+  // Invalidated by a completed crawl (see startCrawling) and whenever the
+  // fingerprint changes.
   async function readAllCache() {
     const root = await navigator.storage.getDirectory();
-    const globalCache = {};
-    const files = [];
-
+    const entries = [];
     for await (const [name, handle] of root.entries()) {
       if (handle.kind !== "file") continue;
       if (!name.startsWith("opencode_token_cache_") || !name.endsWith(".json")) continue;
+      entries.push([name, handle]);
+    }
 
+    // Cheap staleness check: only file metadata, no content read.
+    const metas = [];
+    for (const [name, handle] of entries) {
+      const f = await handle.getFile();
+      metas.push(`${name}:${f.size}:${f.lastModified}`);
+    }
+    const fp = metas.sort().join("|");
+    if (exportCache && exportCache.fp === fp) return exportCache;
+
+    const globalCache = {};
+    const files = [];
+    for (const [name, handle] of entries) {
       const inferredWS = name.replace("opencode_token_cache_", "").replace(".json", "");
       const file = await handle.getFile();
       const text = await file.text();
@@ -583,7 +636,15 @@
       files.push({ name, count: Object.keys(data).length });
     }
 
-    return { globalCache, files };
+    exportCache = {
+      fp,
+      data: JSON.stringify(globalCache),
+      count: Object.keys(globalCache).length,
+      fileCount: files.length,
+      files,
+      lastRecord: computeLastRecord(globalCache),
+    };
+    return exportCache;
   }
 
   // Find the latest record: max by `time` (fall back to `date` for legacy records).
@@ -600,26 +661,26 @@
 
   // ---------- Export (merged across all workspace caches) ----------
   async function exportMergedJSON() {
-    const { globalCache, files } = await readAllCache();
+    const c = await readAllCache();
     return {
       ok: true,
       filename: "opencode_all_accounts_records.json",
-      data: JSON.stringify(globalCache),
-      count: Object.keys(globalCache).length,
-      fileCount: files.length,
-      files,
-      lastRecord: computeLastRecord(globalCache),
+      data: c.data,
+      count: c.count,
+      fileCount: c.fileCount,
+      files: c.files,
+      lastRecord: c.lastRecord,
     };
   }
 
   // ---------- Status (OPFS overview) ----------
   async function getStatus() {
-    const { globalCache, files } = await readAllCache();
+    const c = await readAllCache();
     return {
       ok: true,
-      totalRecords: Object.keys(globalCache).length,
-      files,
-      lastRecord: computeLastRecord(globalCache),
+      totalRecords: c.count,
+      files: c.files,
+      lastRecord: c.lastRecord,
     };
   }
 })();

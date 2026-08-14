@@ -55,7 +55,8 @@ async function loadStatus() {
   const progressEl = $("#crawl-progress");
   if (cs && cs.running) {
     progressRow.style.display = "flex";
-    progressEl.textContent = "Syncing...";
+    const msg = cs.message ? cs.message : "Syncing...";
+    progressEl.textContent = msg.length > 40 ? msg.slice(0, 40) + "…" : msg;
   } else if (cs && cs.error) {
     progressRow.style.display = "flex";
     progressEl.textContent = `Error: ${cs.error}`;
@@ -67,6 +68,10 @@ async function loadStatus() {
   if (stored.lastSyncCount !== undefined) $("#last-sync-count").textContent = stored.lastSyncCount;
   if (stored.totalRecords !== undefined) $("#total-records").textContent = stored.totalRecords;
   renderLastRecord(stored.cachedMeta && stored.cachedMeta.lastRecord);
+
+  // While a crawl is running the progress ticks already arrive via storage;
+  // skip the live query because it re-parses the whole OPFS cache on every tick.
+  if (cs && cs.running) return;
 
   // Live status from the content script; falls back to the cached overview.
   const res = await chrome.runtime.sendMessage({ type: "get-status" });
@@ -113,9 +118,18 @@ loadStatus();
 
 // Live-refresh while a crawl is running: storage changes (progress, completion)
 // immediately update the popup instead of requiring a reopen.
+// Throttled: a long crawl updates crawlState on every page, so reload at most
+// every 300ms. A running->done/error transition always reloads to show the result.
+let lastStatusReload = 0;
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes.crawlState || changes.lastSyncAt || changes.totalRecords) {
-    loadStatus();
-  }
+  if (!(changes.crawlState || changes.lastSyncAt || changes.totalRecords || changes.cachedMeta)) return;
+  const cs = changes.crawlState;
+  const wasRunning = !!(cs && cs.oldValue && cs.oldValue.running);
+  const nowRunning = !!(cs && cs.newValue && cs.newValue.running);
+  if (wasRunning && !nowRunning) lastStatusReload = 0; // Completion always renders
+  const now = Date.now();
+  if (now - lastStatusReload < 300) return;
+  lastStatusReload = now;
+  loadStatus();
 });
