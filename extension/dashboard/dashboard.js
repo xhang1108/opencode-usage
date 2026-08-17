@@ -409,98 +409,272 @@ function updateDropdowns() {
   modelCustom.refresh();
 }
 
-// Model rate rules. A rule matches when the (lowercased) model name includes ALL of its
-// keywords; the first matching rule wins. Rates are USD per million tokens. Rules with a
-// `tier` apply different rates above/below a token threshold.
+// ===== v2 費率設定 =====
+// 每個 rule 以精確 model 名稱比對（rule.model === record.model）。
+// rates 陣列：每筆版本含生效時間範圍（from/to，null=無邊界）+ 計費模式。
+//   Flat：pricing.flat（不分時段）
+//   Time-based：windows.peak（peak 時段，off-peak 自動為補集）+ pricing.peak + pricing.offpeak
+// 價格表可選 tier（依 input+cacheRead 總 context 分低/高兩級）。
+// 費率為每百萬 token 的 USD 價格。
+const RATES_VERSION = 2;
+const RATES_KEY = "opencode_model_rates_v2";
+
 const DEFAULT_MODEL_RATES = [
-  // Free models with no paid counterpart - no known price yet, keep at $0
-  // (edit via Rate Settings once priced). Free variants that map to a paid
-  // model (e.g. deepseek-v4-flash-free) are priced by that rule below.
-  { id: "r1", label: "Big Pickle", keywords: ["big", "pickle"], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  { id: "r2", label: "Hy3 Free", keywords: ["hy3", "free"], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  { id: "r3", label: "Laguna S 2.1 Free", keywords: ["laguna", "free"], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  { id: "r4", label: "Ling 3.0 Tiny Free", keywords: ["ling", "tiny", "free"], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  { id: "r5", label: "Nemotron 3 Ultra Free", keywords: ["nemotron", "ultra", "free"], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  { id: "r6", label: "Nemotron 3.5 Lightning Free", keywords: ["nemotron", "lightning", "free"], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  { id: "r7", label: "DeepSeek V4 Flash", keywords: ["deepseek", "flash"], input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
-  { id: "r8", label: "GLM 5.2", keywords: ["glm", "5.2"], input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
-  { id: "r9", label: "Kimi K2.7 Code", keywords: ["kimi", "k2.7", "code"], input: 0.95, output: 4.0, cacheRead: 0.19, cacheWrite: 0 },
-  { id: "r10", label: "Kimi K2.6", keywords: ["kimi", "k2.6"], input: 0.95, output: 4.0, cacheRead: 0.16, cacheWrite: 0 },
-  { id: "r11", label: "Grok 4.5", keywords: ["grok", "4.5"], input: 2.0, output: 6.0, cacheRead: 0.5, cacheWrite: 0 },
-  { id: "r12", label: "GLM 5.1", keywords: ["glm", "5.1"], input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
-  { id: "r13", label: "Kimi K3", keywords: ["kimi", "k3"], input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 0 },
-  { id: "r14", label: "Mimo V2.5 Pro", keywords: ["mimo", "v2.5", "pro"], input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 },
-  { id: "r15", label: "Mimo V2.5", keywords: ["mimo", "v2.5"], input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
-  { id: "r16", label: "MiniMax M3", keywords: ["minimax", "m3"], input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 },
-  { id: "r17", label: "MiniMax M2.7", keywords: ["minimax", "m2.7"], input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 },
-  { id: "r18", label: "DeepSeek V4 Pro", keywords: ["deepseek", "v4", "pro"], input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 },
-  { id: "r19", label: "Qwen 3.8 Max", keywords: ["3.8", "max"], input: 2.0, output: 6.0, cacheRead: 0.25, cacheWrite: 2.5 },
-  { id: "r20", label: "Qwen 3.7 Max", keywords: ["qwen", "3.7", "max"], input: 2.5, output: 7.5, cacheRead: 0.5, cacheWrite: 3.125 },
+  // Free models - 無已知價格，維持 $0
+  { id: "r1", label: "Big Pickle", model: "big-pickle", rates: [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+  { id: "r2", label: "Hy3 Free", model: "hy3-free", rates: [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+  { id: "r3", label: "Laguna S 2.1 Free", model: "laguna-s-2.1-free", rates: [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+  { id: "r4", label: "Ling 3.0 Tiny Free", model: "ling-3.0-tiny-free", rates: [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+  { id: "r5", label: "Nemotron 3 Ultra Free", model: "nemotron-3-ultra-free", rates: [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+  { id: "r6", label: "Nemotron 3.5 Lightning Free", model: "nemotron-3.5-lightning-free", rates: [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+
+  // DeepSeek V4 Flash - 2026-08-16T16:00:00Z 起改為 peak/off-peak 計費
+  {
+    id: "r7",
+    label: "DeepSeek V4 Flash",
+    model: "deepseek-v4-flash",
+    rates: [
+      { from: null, to: "2026-08-16T16:00:00Z", pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
+      {
+        from: "2026-08-16T16:00:00Z",
+        to: null,
+        windows: {
+          peak: [
+            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
+            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.44, output: 1.32, cacheRead: 0.014, cacheWrite: 0 },
+          offpeak: { input: 0.22, output: 0.66, cacheRead: 0.007, cacheWrite: 0 },
+        },
+      },
+    ],
+  },
+  // DeepSeek V4 Flash Free - 同模型不同來源，費率重複填寫
+  {
+    id: "r7b",
+    label: "DeepSeek V4 Flash (Free)",
+    model: "deepseek-v4-flash-free",
+    rates: [
+      { from: null, to: "2026-08-16T16:00:00Z", pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
+      {
+        from: "2026-08-16T16:00:00Z",
+        to: null,
+        windows: {
+          peak: [
+            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
+            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.44, output: 1.32, cacheRead: 0.014, cacheWrite: 0 },
+          offpeak: { input: 0.22, output: 0.66, cacheRead: 0.007, cacheWrite: 0 },
+        },
+      },
+    ],
+  },
+
+  // DeepSeek V4 Pro - 2026-08-16T16:00:00Z 起改為 peak/off-peak 計費
+  {
+    id: "r18",
+    label: "DeepSeek V4 Pro",
+    model: "deepseek-v4-pro",
+    rates: [
+      { from: null, to: "2026-08-16T16:00:00Z", pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } },
+      {
+        from: "2026-08-16T16:00:00Z",
+        to: null,
+        windows: {
+          peak: [
+            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
+            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 1.32, output: 3.96, cacheRead: 0.044, cacheWrite: 0 },
+          offpeak: { input: 0.66, output: 1.98, cacheRead: 0.022, cacheWrite: 0 },
+        },
+      },
+    ],
+  },
+  // DeepSeek V4 Pro Free - 同模型不同來源，費率重複填寫
+  {
+    id: "r18b",
+    label: "DeepSeek V4 Pro (Free)",
+    model: "deepseek-v4-pro-free",
+    rates: [
+      { from: null, to: "2026-08-16T16:00:00Z", pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } },
+      {
+        from: "2026-08-16T16:00:00Z",
+        to: null,
+        windows: {
+          peak: [
+            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
+            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 1.32, output: 3.96, cacheRead: 0.044, cacheWrite: 0 },
+          offpeak: { input: 0.66, output: 1.98, cacheRead: 0.022, cacheWrite: 0 },
+        },
+      },
+    ],
+  },
+
+  // 其餘模型 - 單筆 flat 版本，不分時段
+  { id: "r8", label: "GLM 5.3", model: "glm-5.3", rates: [{ from: null, to: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
+  { id: "r8b", label: "GLM 5.2", model: "glm-5.2", rates: [{ from: null, to: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
+  { id: "r12", label: "GLM 5.1", model: "glm-5.1", rates: [{ from: null, to: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
+  { id: "r9", label: "Kimi K2.7 Code", model: "kimi-k2.7-code", rates: [{ from: null, to: null, pricing: { flat: { input: 0.95, output: 4.0, cacheRead: 0.19, cacheWrite: 0 } } }] },
+  { id: "r10", label: "Kimi K2.6", model: "kimi-k2.6", rates: [{ from: null, to: null, pricing: { flat: { input: 0.95, output: 4.0, cacheRead: 0.16, cacheWrite: 0 } } }] },
+  { id: "r13", label: "Kimi K3", model: "kimi-k3", rates: [{ from: null, to: null, pricing: { flat: { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 0 } } }] },
+  { id: "r11", label: "Grok 4.5", model: "grok-4.5", rates: [{ from: null, to: null, pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.3, cacheWrite: 0 } } }] },
+  { id: "r14", label: "MiMo V2.5 Pro", model: "mimo-v2.5-pro", rates: [{ from: null, to: null, pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } }] },
+  { id: "r15", label: "MiMo V2.5", model: "mimo-v2.5", rates: [{ from: null, to: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } }] },
+  { id: "r16", label: "MiniMax M3", model: "minimax-m3", rates: [{ from: null, to: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 } } }] },
+  { id: "r17", label: "MiniMax M2.7", model: "minimax-m2.7", rates: [{ from: null, to: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } }] },
+  { id: "r17b", label: "MiniMax M2.5", model: "minimax-m2.5", rates: [{ from: null, to: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } }] },
+  { id: "r19", label: "Qwen 3.8 Max", model: "qwen-3.8-max", rates: [{ from: null, to: null, pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.25, cacheWrite: 2.5 } } }] },
+  { id: "r20", label: "Qwen 3.7 Max", model: "qwen-3.7-max", rates: [{ from: null, to: null, pricing: { flat: { input: 2.5, output: 7.5, cacheRead: 0.5, cacheWrite: 3.125 } } }] },
   {
     id: "r21",
     label: "Qwen 3.7 Plus",
-    keywords: ["qwen", "3.7", "plus"],
-    tier: {
-      limit: 256000,
-      low: { input: 0.4, output: 1.6, cacheRead: 0.04, cacheWrite: 0.5 },
-      high: { input: 1.2, output: 4.8, cacheRead: 0.12, cacheWrite: 1.5 },
-    },
+    model: "qwen-3.7-plus",
+    rates: [{ from: null, to: null, pricing: { flat: { tier: { limit: 256000, low: { input: 0.4, output: 1.6, cacheRead: 0.04, cacheWrite: 0.5 }, high: { input: 1.2, output: 4.8, cacheRead: 0.12, cacheWrite: 1.5 } } } } }],
   },
   {
     id: "r22",
     label: "Qwen 3.6 Plus",
-    keywords: ["qwen", "3.6", "plus"],
-    tier: {
-      limit: 256000,
-      low: { input: 0.5, output: 3.0, cacheRead: 0.05, cacheWrite: 0.625 },
-      high: { input: 2.0, output: 6.0, cacheRead: 0.2, cacheWrite: 2.5 },
-    },
+    model: "qwen-3.6-plus",
+    rates: [{ from: null, to: null, pricing: { flat: { tier: { limit: 256000, low: { input: 0.5, output: 3.0, cacheRead: 0.05, cacheWrite: 0.625 }, high: { input: 2.0, output: 6.0, cacheRead: 0.2, cacheWrite: 2.5 } } } } }],
   },
-  { id: "r23", label: "GPT 5.6 Luna", keywords: ["5.6", "luna"], input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25 },
-  { id: "r24", label: "Hy3", keywords: ["hy3"], input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 },
+  {
+    id: "r23",
+    label: "GPT 5.6 Luna",
+    model: "gpt-5.6-luna",
+    rates: [{ from: null, to: null, pricing: { flat: { tier: { limit: 272000, low: { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25 }, high: { input: 0.4, output: 1.8, cacheRead: 0.04, cacheWrite: 0.5 } } } } }],
+  },
+  { id: "r24", label: "Hy3", model: "hy3", rates: [{ from: null, to: null, pricing: { flat: { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 } } }] },
 ];
 
-const RATES_KEY = "opencode_model_rates_v1";
-
-// User-edited rates take priority; fall back to the built-in defaults.
+// 版本升級 = 直接覆蓋：儲存版本 ≠ 目前版本 → 使用新版內建預設值。
+// 同一版本內使用者的編輯會保留（存回同 key）。
 function getRates() {
   try {
     const raw = localStorage.getItem(RATES_KEY);
     if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length > 0) return arr;
+      const cfg = JSON.parse(raw);
+      if (cfg && cfg.version === RATES_VERSION && Array.isArray(cfg.models) && cfg.models.length > 0) {
+        return cfg.models;
+      }
     }
   } catch (e) {}
   return DEFAULT_MODEL_RATES;
 }
 
-function saveRates(rates) {
-  localStorage.setItem(RATES_KEY, JSON.stringify(rates));
+function saveRates(models) {
+  localStorage.setItem(RATES_KEY, JSON.stringify({ version: RATES_VERSION, timezone: "UTC", models }));
 }
 
-// `rates` is passed in by renderDashboard to avoid re-reading + parsing
-// localStorage for every record on every render.
-function getRecordCostAndSavings(record, rates = getRates()) {
-  const modelName = (record.model || "").toLowerCase();
-  for (const rule of rates) {
-    const kws = rule.keywords || [];
-    if (kws.length === 0) continue;
-    if (!kws.every((k) => modelName.includes(String(k).toLowerCase()))) continue;
-
-    let r = rule;
-    if (rule.tier) {
-      r = (record.input || 0) <= rule.tier.limit ? rule.tier.low : rule.tier.high;
-    }
-    const inputRate = r.input || 0;
-    const outputRate = r.output || 0;
-    const cacheReadRate = r.cacheRead || 0;
-    const cacheWriteRate = r.cacheWrite || 0;
-    const cacheWriteTokens = (record.cacheWrite5m || 0) + (record.cacheWrite1h || 0);
-    const cost = ((record.input || 0) * inputRate + (record.cacheRead || 0) * cacheReadRate + cacheWriteTokens * cacheWriteRate + (record.output || 0) * outputRate) / 1000000;
-    const savings = (record.cacheRead || 0) * (inputRate - cacheReadRate) / 1000000;
-    return { cost, savings };
+// ===== 模型比對與計算邏輯 =====
+// 精確比對：rule.model === record.model，無關鍵字、無碰撞。
+function matchRule(modelName, rules) {
+  for (const rule of rules) {
+    if (rule.model === modelName) return rule;
   }
-  return { cost: 0, savings: 0 };
+  return null;
+}
+
+// 解析 from/to 邊界為 timestamp；null/空字串 → null（無邊界）。
+function parseBound(bound) {
+  if (bound == null || bound === "") return null;
+  const t = new Date(bound).getTime();
+  return isNaN(t) ? null : t;
+}
+
+// 依記錄時間選取費率版本；時間無法解析時用最新版本（to: null 或最後一筆）。
+function getRateEntry(rule, recordTime) {
+  const ts = new Date(recordTime).getTime();
+  const validTs = isNaN(ts) ? null : ts;
+  let fallback = null;
+  for (const entry of rule.rates || []) {
+    const fromTs = parseBound(entry.from);
+    const toTs = parseBound(entry.to);
+    if (validTs !== null) {
+      if (fromTs !== null && validTs < fromTs) continue;
+      if (toTs !== null && validTs > toTs) continue;
+      return entry;
+    }
+    if (toTs === null) fallback = entry; // 無邊界版本作為 fallback
+  }
+  return fallback || (rule.rates && rule.rates[rule.rates.length - 1]) || null;
+}
+
+function toMinutes(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || "").trim());
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+// 判定時段：無 windows → flat；落在任一 peak window → peak；否則 offpeak（補集）。
+function getWindow(record, entry) {
+  const peakWindows = entry.windows && entry.windows.peak;
+  if (!peakWindows || peakWindows.length === 0) return "flat";
+  const t = new Date(record.time);
+  if (isNaN(t.getTime())) return "flat";
+  const weekday = t.getUTCDay(); // 固定 UTC
+  const minutes = t.getUTCHours() * 60 + t.getUTCMinutes();
+  for (const w of peakWindows) {
+    const days = w.days || [];
+    if (days.length > 0 && !days.includes(weekday)) continue;
+    const start = toMinutes(w.start);
+    const end = toMinutes(w.end);
+    if (start == null || end == null) continue;
+    if (start <= end) {
+      if (minutes >= start && minutes < end) return "peak";
+    } else {
+      // 跨午夜：start 之後或 end 之前
+      if (minutes >= start || minutes < end) return "peak";
+    }
+  }
+  return "offpeak";
+}
+
+// 解析價格表：依 window 取表，缺漏時沿用另一時段（保守）；tier 依 input+cacheRead 總 context 分級。
+function resolveTable(entry, window, inputTokens, cacheReadTokens) {
+  const pricing = entry.pricing || {};
+  let table = pricing[window];
+  if (!table) table = window === "peak" ? pricing.offpeak : pricing.peak; // 缺漏時沿用另一時段
+  if (!table) return null;
+  if (table.tier) {
+    const context = (inputTokens || 0) + (cacheReadTokens || 0);
+    const tierTable = context <= table.tier.limit ? table.tier.low : table.tier.high;
+    if (tierTable) return tierTable;
+    // tier 不完整 → 退回表層費率
+    if (table.input !== undefined || table.output !== undefined) return table;
+    return null;
+  }
+  return table;
+}
+
+// 計算單筆 cost 與 savings。回傳 window 供拆分顯示，unpriced 標記未定價。
+function getRecordCostAndSavings(record, rates = getRates()) {
+  const rule = matchRule(record.model || "", rates);
+  if (!rule) return { cost: 0, savings: 0, window: null, unpriced: true };
+  const entry = getRateEntry(rule, record.time);
+  if (!entry) return { cost: 0, savings: 0, window: null, unpriced: true };
+  const window = getWindow(record, entry);
+  const table = resolveTable(entry, window, record.input, record.cacheRead);
+  if (!table) return { cost: 0, savings: 0, window, unpriced: true };
+  const inputRate = table.input || 0;
+  const outputRate = table.output || 0;
+  const cacheReadRate = table.cacheRead || 0;
+  const cacheWriteRate = table.cacheWrite || 0;
+  const cacheWriteTokens = (record.cacheWrite5m || 0) + (record.cacheWrite1h || 0);
+  const cost = ((record.input || 0) * inputRate + (record.cacheRead || 0) * cacheReadRate + cacheWriteTokens * cacheWriteRate + (record.output || 0) * outputRate) / 1000000;
+  const savings = (record.cacheRead || 0) * (inputRate - cacheReadRate) / 1000000;
+  return { cost, savings, window, unpriced: false };
 }
 
 function renderDashboard() {
@@ -512,8 +686,11 @@ function renderDashboard() {
 
   filteredRecordsCache = [];
   let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
+  let totalPeakCost = 0, totalOffpeakCost = 0;
   const dailyMap = {}, dailyTokenMap = {}, modelMap = {}, wsMap = {}, singleModelDailyMap = {};
+  const unpricedModels = new Set();
   const rates = getRates(); // Hoisted: one read instead of one per record.
+  const splitEnabled = document.getElementById("splitToggle").checked;
 
   for (const [id, rec] of Object.entries(globalCache)) {
     const wsID = rec.workspaceID || "wrk_unknown";
@@ -526,7 +703,8 @@ function renderDashboard() {
     if (!wsMap[wsID]) {
       wsMap[wsID] = { req: 0, tokens: 0, prompt: 0, cacheRead: 0, cost: 0 };
     }
-    const { cost, savings } = getRecordCostAndSavings(rec, rates);
+    const { cost, savings, window, unpriced } = getRecordCostAndSavings(rec, rates);
+    if (unpriced) unpricedModels.add(modelName);
     const cacheWriteTotal = (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
     const tokens = (rec.input || 0) + (rec.output || 0) + (rec.reasoning || 0) + (rec.cacheRead || 0) + cacheWriteTotal;
     const promptTokens = (rec.input || 0) + (rec.cacheRead || 0);
@@ -540,7 +718,7 @@ function renderDashboard() {
     if (selectedWS !== "ALL" && wsID !== selectedWS) continue;
     if (selectedModel !== "ALL" && modelName !== selectedModel) continue;
 
-    filteredRecordsCache.push({ id, ...rec, cost, savings, tokens });
+    filteredRecordsCache.push({ id, ...rec, cost, savings, tokens, window, unpriced });
 
     totalReq++;
     totalCost += cost;
@@ -548,6 +726,8 @@ function renderDashboard() {
     totalTokens += tokens;
     totalPrompt += promptTokens;
     totalCacheRead += (rec.cacheRead || 0);
+    if (window === "peak") totalPeakCost += cost;
+    else if (window === "offpeak") totalOffpeakCost += cost;
 
     const date = rec.date || "Unknown";
     dailyMap[date] = (dailyMap[date] || 0) + cost;
@@ -563,13 +743,15 @@ function renderDashboard() {
     singleModelDailyMap[date].cost += cost;
 
     if (!modelMap[modelName]) {
-      modelMap[modelName] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0 };
+      modelMap[modelName] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0, peakCost: 0, offpeakCost: 0 };
     }
     modelMap[modelName].req++;
     modelMap[modelName].input += (rec.input || 0);
     modelMap[modelName].output += (rec.output || 0);
     modelMap[modelName].cacheRead += (rec.cacheRead || 0);
     modelMap[modelName].cost += cost;
+    if (window === "peak") modelMap[modelName].peakCost += cost;
+    else if (window === "offpeak") modelMap[modelName].offpeakCost += cost;
   }
 
   document.getElementById("statRequests").innerText = totalReq.toLocaleString();
@@ -579,6 +761,26 @@ function renderDashboard() {
   document.getElementById("statHitRate").innerText = totalPrompt > 0 ? `${((totalCacheRead / totalPrompt) * 100).toFixed(2)}%` : "0.00%";
   document.getElementById("statAvgCostPerReq").innerText = `Avg per request: $${totalReq > 0 ? fmtMoney(totalCost / totalReq, 5) : "0.00000"}`;
   document.getElementById("statAvgTokens").innerText = `Avg tokens/request: ${totalReq > 0 ? Math.round(totalTokens / totalReq).toLocaleString() : 0}`;
+  const statSplit = document.getElementById("statSplit");
+  if (statSplit) {
+    statSplit.innerText = splitEnabled
+      ? `Peak: $${fmtMoney(totalPeakCost)} · Off-peak: $${fmtMoney(totalOffpeakCost)}`
+      : "";
+  }
+
+  // 未定價 / 不完整模型清單
+  const unpricedEl = document.getElementById("unpricedList");
+  if (unpricedEl) {
+    if (unpricedModels.size > 0) {
+      unpricedEl.hidden = false;
+      unpricedEl.innerHTML =
+        `<strong>未定價模型（${unpricedModels.size}）</strong>：` +
+        Array.from(unpricedModels).sort().map((m) => `<span class="badge">${escHTML(m)}</span>`).join(" ") +
+        ` <span style="opacity:.75">— 在 Rate Settings 新增對應 rule 即可計價。</span>`;
+    } else {
+      unpricedEl.hidden = true;
+    }
+  }
 
   let topModel = "-", maxModelCost = 0;
   for (const [m, stats] of Object.entries(modelMap)) {
@@ -630,6 +832,7 @@ function renderDashboard() {
         <th data-col="output">Output</th>
         <th data-col="cacheRead">Cache Read</th>
         <th data-col="hitRate">Cache Hit Rate</th>
+        ${splitEnabled ? `<th data-col="peakCost">Peak Cost</th><th data-col="offpeakCost">Off-peak Cost</th>` : ""}
         <th data-col="cost">Estimated Cost</th>
       </tr>
     `;
@@ -640,6 +843,8 @@ function renderDashboard() {
       output: stats.output,
       cacheRead: stats.cacheRead,
       hitRate: stats.input + stats.cacheRead > 0 ? (stats.cacheRead / (stats.input + stats.cacheRead)) * 100 : 0,
+      peakCost: stats.peakCost,
+      offpeakCost: stats.offpeakCost,
       cost: stats.cost,
     }));
     for (const stats of sortBy(modelRows, sortState.model.col, sortState.model.dir)) {
@@ -651,6 +856,7 @@ function renderDashboard() {
         <td>${stats.output.toLocaleString()}</td>
         <td>${stats.cacheRead.toLocaleString()}</td>
         <td>${stats.hitRate.toFixed(2)}%</td>
+        ${splitEnabled ? `<td>$${fmtMoney(stats.peakCost)}</td><td>$${fmtMoney(stats.offpeakCost)}</td>` : ""}
         <td>$${fmtMoney(stats.cost)}</td>
       `;
       tbody.appendChild(tr);
@@ -792,7 +998,7 @@ function exportFilteredCSV() {
     alert("No filtered data to export.");
     return;
   }
-  const headers = ["ID", "WorkspaceID", "Date", "Model", "Input", "Output", "Reasoning", "CacheRead", "CacheWrite5m", "CacheWrite1h", "SavingsUSD", "CostUSD"];
+  const headers = ["ID", "WorkspaceID", "Date", "Model", "Window", "Input", "Output", "Reasoning", "CacheRead", "CacheWrite5m", "CacheWrite1h", "SavingsUSD", "CostUSD"];
   const rows = [headers.join(",")];
 
   for (const rec of filteredRecordsCache) {
@@ -801,6 +1007,7 @@ function exportFilteredCSV() {
       rec.workspaceID || "",
       rec.date || "",
       rec.model || "",
+      rec.window || "",
       rec.input || 0,
       rec.output || 0,
       rec.reasoning || 0,
@@ -878,57 +1085,121 @@ async function loadFromExtension() {
 }
 
 // ===== Rate settings modal =====
+const escAttr = (v) => String(v ?? "").replace(/"/g, "&quot;");
+
+// Number field with custom − / + steppers (rates default to 0.1 steps).
+const numField = (cls, label, value, step = "0.1") =>
+  `<label>${label} <span class="num-field">` +
+  `<button type="button" class="num-btn" data-dir="down" aria-label="Decrease">&minus;</button>` +
+  `<input class="${cls}" type="number" step="${step}" value="${value}">` +
+  `<button type="button" class="num-btn" data-dir="up" aria-label="Increase">+</button></span></label>`;
+
+// 價格表（可選 tier：依 input+cacheRead 總 context 分低/高兩級）
+function priceTableHTML(prefix, table) {
+  const t = table && table.tier;
+  const flat = table && !table.tier ? table : {};
+  const low = (t && t.low) || {};
+  const high = (t && t.high) || {};
+  const group = (title, inner) => `<div class="rate-group"><span class="rate-group-title">${title}</span>${inner}</div>`;
+  return `
+    <div class="price-table">
+      <label class="pt-tier-toggle"><input type="checkbox" class="pt-has-tier" ${t ? "checked" : ""}> Tier</label>
+      <div class="pt-tier" ${t ? "" : "hidden"}>
+        ${group("Tier", numField(`${prefix}-tier-limit`, "&le;Limit", (t && t.limit) ?? 0, "1"))}
+        ${group("Low",
+          numField(`${prefix}-tier-low-input`, "In", low.input ?? 0) +
+          numField(`${prefix}-tier-low-output`, "Out", low.output ?? 0) +
+          numField(`${prefix}-tier-low-cr`, "CR", low.cacheRead ?? 0) +
+          numField(`${prefix}-tier-low-cw`, "CW", low.cacheWrite ?? 0))}
+        ${group("High",
+          numField(`${prefix}-tier-high-input`, "In", high.input ?? 0) +
+          numField(`${prefix}-tier-high-output`, "Out", high.output ?? 0) +
+          numField(`${prefix}-tier-high-cr`, "CR", high.cacheRead ?? 0) +
+          numField(`${prefix}-tier-high-cw`, "CW", high.cacheWrite ?? 0))}
+      </div>
+      <div class="pt-flat" ${t ? "hidden" : ""}>
+        ${numField(`${prefix}-input`, "In", flat.input ?? 0) +
+          numField(`${prefix}-output`, "Out", flat.output ?? 0) +
+          numField(`${prefix}-cr`, "CR", flat.cacheRead ?? 0) +
+          numField(`${prefix}-cw`, "CW", flat.cacheWrite ?? 0)}
+      </div>
+    </div>`;
+}
+
+// Peak 時段列（off-peak 自動為補集，不需填）
+function windowRowHTML(w) {
+  const days = w && w.days ? w.days.join(",") : "";
+  return `
+    <div class="rv-window">
+      <input class="rv-window-days" value="${escAttr(days)}" placeholder="Days 0-6">
+      <input class="rv-window-start" value="${escAttr((w && w.start) || "")}" placeholder="Start HH:MM">
+      <input class="rv-window-end" value="${escAttr((w && w.end) || "")}" placeholder="End HH:MM">
+      <button type="button" class="rv-window-del" aria-label="Remove window">&times;</button>
+    </div>`;
+}
+
+// 單筆費率版本
+// 每個版本用唯一 uid 產生 class 前綴（data-prefix），避免刪除版本後索引錯位。
+let versionUid = 0;
+function rateVersionHTML(entry, idx) {
+  const mode = entry.windows && entry.windows.peak && entry.windows.peak.length > 0 ? "time" : "flat";
+  const windows = (entry.windows && entry.windows.peak) || [];
+  const uid = "rv" + (++versionUid);
+  return `
+    <div class="rate-version" data-mode="${mode}" data-prefix="${uid}">
+      <div class="rv-head">
+        <span class="rv-title">Version ${idx + 1}</span>
+        <button type="button" class="rv-del">Del</button>
+      </div>
+      <div class="rv-dates">
+        <label>From <input class="rv-from" value="${escAttr(entry.from || "")}" placeholder="2026-08-16T16:00:00Z"></label>
+        <label>To <input class="rv-to" value="${escAttr(entry.to || "")}" placeholder="(empty = no end)"></label>
+      </div>
+      <div class="rv-mode">
+        <label>Mode
+          <select class="rv-mode-select">
+            <option value="flat" ${mode === "flat" ? "selected" : ""}>Flat</option>
+            <option value="time" ${mode === "time" ? "selected" : ""}>Time-based</option>
+          </select>
+        </label>
+      </div>
+      <div class="rv-flat-section" ${mode === "flat" ? "" : "hidden"}>
+        ${priceTableHTML(`${uid}-flat`, entry.pricing && entry.pricing.flat)}
+      </div>
+      <div class="rv-time-section" ${mode === "time" ? "" : "hidden"}>
+        <div class="rv-windows">
+          <div class="rv-windows-title">Peak Windows（off-peak = 其餘時間）</div>
+          ${windows.map((w) => windowRowHTML(w)).join("")}
+          <button type="button" class="rv-window-add">+ Peak Window</button>
+        </div>
+        <div class="rv-tables">
+          <div class="rv-table-block">
+            <div class="rv-table-title">Peak</div>
+            ${priceTableHTML(`${uid}-peak`, entry.pricing && entry.pricing.peak)}
+          </div>
+          <div class="rv-table-block">
+            <div class="rv-table-title">Off-peak</div>
+            ${priceTableHTML(`${uid}-offpeak`, entry.pricing && entry.pricing.offpeak)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// 單條 rule（精確 model 名稱 + 費率版本列表）
 function rateRowHTML(rule) {
-  const esc = (v) => String(v ?? "").replace(/"/g, "&quot;");
-  const kw = (rule.keywords || []).join(",");
-  // Number field with custom − / + steppers (rates default to 0.1 steps).
-  const num = (cls, label, value, step = "0.1") =>
-    `<label>${label} <span class="num-field">` +
-    `<button type="button" class="num-btn" data-dir="down" aria-label="Decrease">&minus;</button>` +
-    `<input class="${cls}" type="number" step="${step}" value="${value}">` +
-    `<button type="button" class="num-btn" data-dir="up" aria-label="Increase">+</button></span></label>`;
-  if (rule.tier) {
-    const t = rule.tier;
-    const low = t.low || {};
-    const high = t.high || {};
-    // One rate-group per line: fixed title column + fields (Low / High each on its own row).
-    const group = (title, inner) =>
-      `<div class="rate-group"><span class="rate-group-title">${title}</span>${inner}</div>`;
-    return `
-      <div class="rate-row" data-tier="1">
-        <div class="rate-main">
-          <input class="rate-label" value="${esc(rule.label || "")}" placeholder="Name">
-          <input class="rate-kw" value="${esc(kw)}" placeholder="Keywords (comma separated)">
-        </div>
-        <div class="rate-fields tier-fields">
-          ${group("Tier", num("tier-limit", "&le;Limit", t.limit ?? 0, "1"))}
-          ${group("Low",
-            num("tier-low-input", "In", low.input ?? 0) +
-            num("tier-low-output", "Out", low.output ?? 0) +
-            num("tier-low-cr", "CR", low.cacheRead ?? 0) +
-            num("tier-low-cw", "CW", low.cacheWrite ?? 0))}
-          ${group("High",
-            num("tier-high-input", "In", high.input ?? 0) +
-            num("tier-high-output", "Out", high.output ?? 0) +
-            num("tier-high-cr", "CR", high.cacheRead ?? 0) +
-            num("tier-high-cw", "CW", high.cacheWrite ?? 0) +
-            `<button class="rate-del">Del</button>`)}
-        </div>
-      </div>`;
-  }
+  const rates = rule.rates && rule.rates.length > 0 ? rule.rates : [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }];
   return `
     <div class="rate-row">
       <div class="rate-main">
-        <input class="rate-label" value="${esc(rule.label || "")}" placeholder="Name">
-        <input class="rate-kw" value="${esc(kw)}" placeholder="Keywords (comma separated)">
-      </div>
-      <div class="rate-fields">
-        ${num("rate-input", "Input", rule.input ?? 0)}
-        ${num("rate-output", "Output", rule.output ?? 0)}
-        ${num("rate-cr", "CacheRead", rule.cacheRead ?? 0)}
-        ${num("rate-cw", "CacheWrite", rule.cacheWrite ?? 0)}
+        <input class="rate-model" value="${escAttr(rule.model || "")}" placeholder="Model name (exact)">
+        <input class="rate-label" value="${escAttr(rule.label || "")}" placeholder="Label">
         <button class="rate-del">Del</button>
       </div>
+      <div class="rate-versions">
+        ${rates.map((e, i) => rateVersionHTML(e, i)).join("")}
+      </div>
+      <button type="button" class="rv-add-version">+ Add Rate Version</button>
     </div>`;
 }
 
@@ -945,49 +1216,168 @@ function wireSteppers(scope) {
   });
 }
 
+// 模式切換：flat / time-based
+function wireModeSelect(select) {
+  select.addEventListener("change", () => {
+    const version = select.closest(".rate-version");
+    const mode = select.value;
+    version.dataset.mode = mode;
+    version.querySelector(".rv-flat-section").hidden = mode !== "flat";
+    version.querySelector(".rv-time-section").hidden = mode !== "time";
+  });
+}
+
+// tier 開關：勾選顯示 low/high，取消顯示單一價格
+function wireTierToggle(checkbox) {
+  checkbox.addEventListener("change", () => {
+    const pt = checkbox.closest(".price-table");
+    pt.querySelector(".pt-tier").hidden = !checkbox.checked;
+    pt.querySelector(".pt-flat").hidden = checkbox.checked;
+  });
+}
+
 function wireDelete(btn) {
   btn.addEventListener("click", () => btn.closest(".rate-row").remove());
+}
+
+function wireVersionDel(btn) {
+  btn.addEventListener("click", () => btn.closest(".rate-version").remove());
+}
+
+function wireWindowDel(btn) {
+  btn.addEventListener("click", () => btn.closest(".rv-window").remove());
+}
+
+function wireWindowAdd(btn) {
+  btn.addEventListener("click", () => {
+    btn.insertAdjacentHTML("beforebegin", windowRowHTML({}));
+    const row = btn.previousElementSibling;
+    wireWindowDel(row.querySelector(".rv-window-del"));
+  });
+}
+
+function wireVersionAdd(btn) {
+  btn.addEventListener("click", () => {
+    const versions = btn.closest(".rate-row").querySelector(".rate-versions");
+    versions.insertAdjacentHTML("beforeend", rateVersionHTML({ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }, versions.children.length));
+    const version = versions.lastElementChild;
+    wireVersionControls(version);
+  });
+}
+
+function wireVersionControls(version) {
+  wireModeSelect(version.querySelector(".rv-mode-select"));
+  wireVersionDel(version.querySelector(".rv-del"));
+  version.querySelectorAll(".pt-has-tier").forEach(wireTierToggle);
+  version.querySelectorAll(".rv-window-del").forEach(wireWindowDel);
+  version.querySelectorAll(".rv-window-add").forEach(wireWindowAdd);
+  wireSteppers(version);
 }
 
 function renderRateList() {
   const list = document.getElementById("ratesList");
   list.innerHTML = getRates().map((r) => rateRowHTML(r)).join("");
   list.querySelectorAll(".rate-del").forEach(wireDelete);
-  wireSteppers(list);
+  list.querySelectorAll(".rv-add-version").forEach(wireVersionAdd);
+  list.querySelectorAll(".rate-version").forEach(wireVersionControls);
 }
 
+// 從 DOM 收集費率設定（含結構驗證）
 function collectRates() {
   const rules = [];
   document.querySelectorAll("#ratesList .rate-row").forEach((row, idx) => {
+    const model = row.querySelector(".rate-model").value.trim();
     const label = row.querySelector(".rate-label").value.trim();
-    const kw = row.querySelector(".rate-kw").value.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean);
-    if (kw.length === 0) return;
+    // 保留空 model 的 rule，讓 validateRates 攔截並提示（不靜默丟棄）
     const num = (el) => parseFloat(el.value) || 0;
-    const id = `r${Date.now()}_${idx}`;
-    if (row.dataset.tier === "1") {
-      rules.push({
-        id,
-        label,
-        keywords: kw,
-        tier: {
-          limit: num(row.querySelector(".tier-limit")),
-          low: { input: num(row.querySelector(".tier-low-input")), output: num(row.querySelector(".tier-low-output")), cacheRead: num(row.querySelector(".tier-low-cr")), cacheWrite: num(row.querySelector(".tier-low-cw")) },
-          high: { input: num(row.querySelector(".tier-high-input")), output: num(row.querySelector(".tier-high-output")), cacheRead: num(row.querySelector(".tier-high-cr")), cacheWrite: num(row.querySelector(".tier-high-cw")) },
-        },
-      });
-    } else {
-      rules.push({
-        id,
-        label,
-        keywords: kw,
-        input: num(row.querySelector(".rate-input")),
-        output: num(row.querySelector(".rate-output")),
-        cacheRead: num(row.querySelector(".rate-cr")),
-        cacheWrite: num(row.querySelector(".rate-cw")),
-      });
-    }
+    const rates = [];
+    row.querySelectorAll(".rate-version").forEach((version) => {
+      const mode = version.dataset.mode || "flat";
+      const prefix = version.dataset.prefix || "rv0"; // 唯一前綴，避免刪除版本後索引錯位
+      const from = version.querySelector(".rv-from").value.trim() || null;
+      const to = version.querySelector(".rv-to").value.trim() || null;
+      const readTable = (p) => {
+        const hasTier = version.querySelector(`.${p}-tier-limit`) !== null &&
+          !version.querySelector(`.${p}-tier-limit`).closest(".pt-tier").hidden;
+        if (hasTier) {
+          return {
+            tier: {
+              limit: num(version.querySelector(`.${p}-tier-limit`)),
+              low: {
+                input: num(version.querySelector(`.${p}-tier-low-input`)),
+                output: num(version.querySelector(`.${p}-tier-low-output`)),
+                cacheRead: num(version.querySelector(`.${p}-tier-low-cr`)),
+                cacheWrite: num(version.querySelector(`.${p}-tier-low-cw`)),
+              },
+              high: {
+                input: num(version.querySelector(`.${p}-tier-high-input`)),
+                output: num(version.querySelector(`.${p}-tier-high-output`)),
+                cacheRead: num(version.querySelector(`.${p}-tier-high-cr`)),
+                cacheWrite: num(version.querySelector(`.${p}-tier-high-cw`)),
+              },
+            },
+          };
+        }
+        return {
+          input: num(version.querySelector(`.${p}-input`)),
+          output: num(version.querySelector(`.${p}-output`)),
+          cacheRead: num(version.querySelector(`.${p}-cr`)),
+          cacheWrite: num(version.querySelector(`.${p}-cw`)),
+        };
+      };
+      const entry = { from, to };
+      if (mode === "time") {
+        const windows = [];
+        version.querySelectorAll(".rv-window").forEach((w) => {
+          const days = w.querySelector(".rv-window-days").value.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean).map(Number);
+          const start = w.querySelector(".rv-window-start").value.trim();
+          const end = w.querySelector(".rv-window-end").value.trim();
+          if (start && end) windows.push({ days, start, end });
+        });
+        entry.windows = { peak: windows };
+        entry.pricing = {
+          peak: readTable(`${prefix}-peak`),
+          offpeak: readTable(`${prefix}-offpeak`),
+        };
+      } else {
+        entry.pricing = { flat: readTable(`${prefix}-flat`) };
+      }
+      rates.push(entry);
+    });
+    rules.push({ id: `r${Date.now()}_${idx}`, label, model, rates });
   });
   return rules;
+}
+
+// 結構驗證：model 必填、至少一筆版本、版本範圍不重疊、價格表完整
+function validateRates(models) {
+  const errors = [];
+  for (const rule of models) {
+    if (!rule.model) { errors.push("有 rule 缺少 model 名稱"); continue; }
+    if (!rule.rates || rule.rates.length === 0) { errors.push(`${rule.model} 至少需要一筆費率版本`); continue; }
+    const ranges = rule.rates.map((e) => [parseBound(e.from), parseBound(e.to)]);
+    for (let i = 0; i < ranges.length; i++) {
+      for (let j = i + 1; j < ranges.length; j++) {
+        const aStart = ranges[i][0] === null ? -Infinity : ranges[i][0];
+        const aEnd = ranges[i][1] === null ? Infinity : ranges[i][1];
+        const bStart = ranges[j][0] === null ? -Infinity : ranges[j][0];
+        const bEnd = ranges[j][1] === null ? Infinity : ranges[j][1];
+        if (aStart <= bEnd && bStart <= aEnd) {
+          errors.push(`${rule.model} 的費率版本 ${i + 1} 與 ${j + 1} 時間範圍重疊`);
+        }
+      }
+    }
+    for (const entry of rule.rates) {
+      const pricing = entry.pricing || {};
+      const mode = entry.windows && entry.windows.peak && entry.windows.peak.length > 0 ? "time" : "flat";
+      if (mode === "flat") {
+        if (!pricing.flat) errors.push(`${rule.model} 版本缺 flat 價格表`);
+      } else {
+        if (!pricing.peak || !pricing.offpeak) errors.push(`${rule.model} 版本缺 peak/offpeak 價格表`);
+      }
+    }
+  }
+  return errors;
 }
 
 function openRatesModal() {
@@ -997,6 +1387,41 @@ function openRatesModal() {
 
 function closeRatesModal() {
   document.getElementById("ratesModal").style.display = "none";
+}
+
+// ===== JSON 匯入 / 匯出 =====
+function exportRatesJSON() {
+  const cfg = { version: RATES_VERSION, timezone: "UTC", models: getRates() };
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "opencode_model_rates.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importRatesJSON(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const cfg = JSON.parse(reader.result);
+      const models = Array.isArray(cfg) ? cfg : cfg.models;
+      if (!Array.isArray(models) || models.length === 0) throw new Error("Invalid config");
+      const errors = validateRates(models);
+      if (errors.length > 0) {
+        alert("匯入的設定有問題：\n" + errors.join("\n"));
+        return;
+      }
+      saveRates(models);
+      renderRateList();
+      renderDashboard();
+      alert(`已匯入 ${models.length} 條 rule`);
+    } catch (e) {
+      alert("匯入失敗：不是有效的 JSON 設定");
+    }
+  };
+  reader.readAsText(file);
 }
 
 // ===== Event wiring (MV3 CSP forbids inline handlers) =====
@@ -1023,13 +1448,20 @@ document.getElementById("ratesModal").addEventListener("click", (e) => {
 });
 document.getElementById("ratesAdd").addEventListener("click", () => {
   const list = document.getElementById("ratesList");
-  list.insertAdjacentHTML("beforeend", rateRowHTML({ label: "", keywords: [], input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }));
+  list.insertAdjacentHTML("beforeend", rateRowHTML({ label: "", model: "", rates: [{ from: null, to: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] }));
   const row = list.lastElementChild;
   wireDelete(row.querySelector(".rate-del"));
-  wireSteppers(row);
+  wireVersionAdd(row.querySelector(".rv-add-version"));
+  wireVersionControls(row.querySelector(".rate-version"));
 });
 document.getElementById("ratesSave").addEventListener("click", () => {
-  saveRates(collectRates());
+  const models = collectRates();
+  const errors = validateRates(models);
+  if (errors.length > 0) {
+    alert("無法儲存：\n" + errors.join("\n"));
+    return;
+  }
+  saveRates(models);
   closeRatesModal();
   renderDashboard();
 });
@@ -1037,6 +1469,16 @@ document.getElementById("ratesReset").addEventListener("click", () => {
   localStorage.removeItem(RATES_KEY);
   renderRateList();
 });
+document.getElementById("ratesExport").addEventListener("click", exportRatesJSON);
+document.getElementById("ratesImport").addEventListener("click", () => {
+  document.getElementById("ratesImportFile").click();
+});
+document.getElementById("ratesImportFile").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) importRatesJSON(file);
+  e.target.value = "";
+});
+document.getElementById("splitToggle").addEventListener("change", renderDashboard);
 document.getElementById("workspaceSelect").addEventListener("change", renderDashboard);
 document.getElementById("modelSelect").addEventListener("change", renderDashboard);
 

@@ -226,6 +226,86 @@
     .rate-del:hover { background: rgba(204, 111, 102, 0.2); }
     .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
 
+    /* v2 Rate Settings: rule + version + price table + windows */
+    .rate-row { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 12px; }
+    .rate-main { display: flex; gap: 8px; margin-bottom: 10px; }
+    .rate-main input {
+      flex: 1;
+      background: var(--bg-content); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: 7px 10px; font-size: 12.5px; font-family: var(--font-mono); outline: none;
+    }
+    .rate-main input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
+    .rate-versions { display: flex; flex-direction: column; gap: 10px; }
+    .rate-version {
+      border: 1px dashed var(--border); border-radius: var(--radius-md);
+      padding: 10px 12px; background: rgba(255,255,255,0.02);
+    }
+    .rv-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .rv-title { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .rv-del {
+      background: rgba(204, 111, 102, 0.12); color: #d99c96;
+      border: 1px solid rgba(204, 111, 102, 0.35);
+      border-radius: var(--radius-sm); padding: 3px 8px;
+      font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+    }
+    .rv-del:hover { background: rgba(204, 111, 102, 0.2); }
+    .rv-dates { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .rv-dates label { display: flex; flex-direction: column; font-size: 11px; color: var(--text-muted); gap: 3px; }
+    .rv-dates input {
+      background: var(--bg-content); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 5px 8px; font-size: 12px; font-family: var(--font-mono); outline: none;
+      width: 200px;
+    }
+    .rv-dates input:focus { border-color: var(--primary); }
+    .rv-mode { margin-bottom: 8px; }
+    .rv-mode label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .rv-mode select {
+      background: var(--bg-content); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; outline: none;
+    }
+    .rv-flat-section, .rv-time-section { margin-top: 8px; }
+    .rv-windows { margin-bottom: 10px; }
+    .rv-windows-title { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+    .rv-window { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+    .rv-window input {
+      background: var(--bg-content); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 4px 8px; font-size: 12px; font-family: var(--font-mono); outline: none;
+    }
+    .rv-window input:focus { border-color: var(--primary); }
+    .rv-window-days { width: 110px; }
+    .rv-window-start, .rv-window-end { width: 80px; }
+    .rv-window-del {
+      background: none; border: none; color: var(--text-disabled);
+      font-size: 14px; cursor: pointer; padding: 0 4px;
+    }
+    .rv-window-del:hover { color: #d99c96; }
+    .rv-window-add, .rv-add-version {
+      background: rgba(106, 143, 192, 0.1); color: var(--primary);
+      border: 1px dashed rgba(106, 143, 192, 0.4);
+      border-radius: var(--radius-sm); padding: 4px 10px;
+      font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+    }
+    .rv-window-add:hover, .rv-add-version:hover { background: rgba(106, 143, 192, 0.2); }
+    .rv-add-version { margin-top: 8px; width: 100%; }
+    .rv-tables { display: flex; flex-wrap: wrap; gap: 12px; }
+    .rv-table-block { flex: 1 1 300px; min-width: 260px; }
+    .rv-table-title { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .price-table {
+      border: 1px solid var(--border-muted); border-radius: var(--radius-sm);
+      padding: 8px 10px; background: rgba(255,255,255,0.02);
+    }
+    .pt-tier-toggle {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text-muted); cursor: pointer; margin-bottom: 6px;
+    }
+    .pt-tier-toggle input { accent-color: var(--primary); }
+    .pt-tier .rate-group { margin-bottom: 4px; }
+    .pt-flat { display: flex; flex-wrap: wrap; gap: 8px; }
+
     /* Custom date range picker */
     .date-range-group { position: relative; }
     .range-trigger {
@@ -442,7 +522,15 @@
           </div>
         </div>
       </div>
+      <div class="filter-group">
+        <label for="splitToggle" style="cursor:pointer;">
+          <input type="checkbox" id="splitToggle" style="accent-color:var(--primary);"> Split Peak / Off-peak
+        </label>
+      </div>
     </div>
+
+    <!-- 未定價 / 不完整模型清單 -->
+    <div class="notice" id="unpricedList" hidden></div>
 
     <!-- Key metric KPI cards -->
     <div class="stats-grid">
@@ -455,6 +543,7 @@
         <div class="title">Estimated Cost (USD)</div>
         <div class="value" id="statCost">$0.00</div>
         <div class="sub" id="statSavings">Cache savings: $0.00</div>
+        <div class="sub" id="statSplit"></div>
       </div>
       <div class="card">
         <div class="title">Total Tokens</div>
@@ -548,10 +637,13 @@
         <h3>Model Rate Settings</h3>
         <button class="modal-close" id="ratesClose">✕</button>
       </div>
-      <p class="modal-hint">Each rule matches a model name by keywords (all must match), and the first matching rule wins. Rates are USD per million tokens. Changes are saved locally and persist across dashboard sessions.</p>
+      <p class="modal-hint">每條 rule 以精確 model 名稱比對。費率為每百萬 token 的 USD 價格。每筆版本含生效時間範圍（from/to，留空 = 無邊界）與計費模式（Flat 或 Time-based）。Time-based 只需填 Peak 時段，off-peak 自動為其餘時間。Tier 依 input+cacheRead 總 context 分低/高兩級。設定存於本地，版本升級時會以新預設值覆蓋。</p>
       <div id="ratesList"></div>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="ratesReset">Reset to Defaults</button>
+        <button class="btn btn-secondary" id="ratesExport">Export JSON</button>
+        <button class="btn btn-secondary" id="ratesImport">Import JSON</button>
+        <input type="file" id="ratesImportFile" accept=".json,application/json" hidden>
         <button class="btn btn-secondary" id="ratesAdd">+ Add Rule</button>
         <button class="btn btn-primary" id="ratesSave">Save</button>
       </div>
