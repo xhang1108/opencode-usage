@@ -6,10 +6,21 @@ const globalCache = {};
 let filteredRecordsCache = [];
 
 let dailyChartInst = null;
+let hourlyChartInst = null;
 let modelChartInst = null;
 let tokenTypeChartInst = null;
-let workspaceChartInst = null;
 let hitRateChartInst = null;
+
+// Day pinned by clicking a point on the daily chart (drill-down into the 24h chart).
+// null = fall back to the last day of the selected range.
+let selectedHourlyDate = null;
+
+// Intraday chart view (Hybrid line / Heatmap).
+let hourlyView = "hybrid"; // hybrid | heatmap
+let lastHourlyMap = null;
+let lastHourlyDate = null;
+// Full-range hourly map (ignores the date range) used by the yearly calendar drill-down.
+let lastFullHourlyMap = null;
 
 // Table sort state. dir: 1 = ascending, -1 = descending.
 const sortState = {
@@ -112,6 +123,19 @@ const escHTML = (s) =>
     "'": "&#39;",
   }[c]));
 
+// Local date (YYYY-MM-DD) of a record, computed from its UTC `time` at display
+// time so it always reflects the viewer's timezone. Falls back to the stored
+// `date` for legacy records without a timestamp.
+function localDateOf(rec) {
+  if (rec.time) {
+    const t = new Date(rec.time);
+    if (!isNaN(t.getTime())) {
+      return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+    }
+  }
+  return rec.date || "Unknown";
+}
+
 function markSortHeader(tableId, col, dir) {
   document.querySelectorAll(`#${tableId} th[data-col]`).forEach((th) => {
     if (th.dataset.base === undefined) th.dataset.base = th.textContent;
@@ -124,7 +148,8 @@ function markSortHeader(tableId, col, dir) {
 function initDateRange() {
   const dates = [];
   for (const rec of Object.values(globalCache)) {
-    if (rec.date && rec.date !== "Unknown") dates.push(rec.date);
+    const d = localDateOf(rec);
+    if (d && d !== "Unknown") dates.push(d);
   }
   if (dates.length > 0) {
     dates.sort();
@@ -689,6 +714,350 @@ function getRecordCostAndSavings(record, rates = getRates()) {
   return { cost, savings, window, unpriced: false };
 }
 
+// Intraday drill-down chart: one day's cost/token curve. Clicking a point on
+// the daily chart pins that day; otherwise it defaults to the last day of the
+// selected range (falling back to the latest day that has data).
+// Two interchangeable views: Hybrid (line, styled like the daily chart) / Heatmap.
+function renderHourlyChart(hourlyMap, fallbackDate) {
+  let hourlyDate = null;
+  if (selectedHourlyDate && hourlyMap[selectedHourlyDate]) {
+    hourlyDate = selectedHourlyDate;
+  } else {
+    const availableDates = Object.keys(hourlyMap).sort();
+    if (availableDates.length > 0) {
+      hourlyDate = fallbackDate && hourlyMap[fallbackDate] ? fallbackDate : availableDates[availableDates.length - 1];
+    }
+  }
+
+  lastHourlyMap = hourlyMap;
+  lastHourlyDate = hourlyDate;
+
+  const dateEl = document.getElementById("hourlyChartDate");
+  if (dateEl) dateEl.textContent = hourlyDate || "—";
+
+  // Clear any previous chart / heatmap grid.
+  if (hourlyChartInst) hourlyChartInst.destroy();
+  hourlyChartInst = null;
+  const wrap = document.getElementById("hourlyChartWrap");
+  const canvas = document.getElementById("hourlyChart");
+  const oldGrid = wrap && wrap.querySelector(".heatmap");
+  if (oldGrid) oldGrid.remove();
+  if (canvas) canvas.style.display = "";
+  if (!hourlyDate) return;
+
+  if (hourlyView === "heatmap") renderHourlyHeatmap(hourlyMap, hourlyDate);
+  else renderHourlyHybrid(hourlyMap, hourlyDate);
+}
+
+// Heatmap view: 24h × 60min grid, colored by cost intensity (darker = higher).
+// Hovering a cell shows a tooltip with the exact time, cost and tokens.
+function renderHourlyHeatmap(hourlyMap, date) {
+  const wrap = document.getElementById("hourlyChartWrap");
+  const canvas = document.getElementById("hourlyChart");
+  canvas.style.display = "none";
+  const dayData = hourlyMap[date] || {};
+  let maxCost = 0;
+  for (const k in dayData) if (dayData[k].cost > maxCost) maxCost = dayData[k].cost;
+
+  const grid = document.createElement("div");
+  grid.className = "heatmap";
+  grid.style.cssText =
+    "display:grid; grid-template-columns: 30px repeat(60, 1fr); gap:1px; " +
+    "font-family:var(--font-mono); font-size:9px; color:var(--text-muted); align-items:center;";
+
+  const label = (text, align) => {
+    const d = document.createElement("div");
+    d.textContent = text;
+    d.style.cssText = `text-align:${align}; padding:0 4px;`;
+    return d;
+  };
+
+  // Custom hover tooltip (native title is slow and unstyled).
+  const tip = document.createElement("div");
+  tip.style.cssText =
+    "position:fixed; pointer-events:none; z-index:60; display:none; " +
+    "background:var(--surface); border:1px solid var(--border); border-radius:6px; " +
+    "padding:8px 10px; font-family:var(--font-mono); font-size:11px; color:var(--text); " +
+    "box-shadow:0 4px 16px rgba(0,0,0,.4);";
+  wrap.appendChild(tip);
+
+  grid.appendChild(label("", "right")); // corner
+  for (let m = 0; m < 60; m++) grid.appendChild(label(m % 15 === 0 ? String(m).padStart(2, "0") : "", "center"));
+  for (let h = 0; h < 24; h++) {
+    grid.appendChild(label(String(h).padStart(2, "0"), "right"));
+    for (let m = 0; m < 60; m++) {
+      const idx = h * 60 + m;
+      const d = dayData[idx];
+      const cell = document.createElement("div");
+      const opacity = d ? Math.max(0.1, Math.sqrt(d.cost / maxCost)) : 0.03;
+      cell.style.cssText = `background: rgba(106,143,192,${opacity}); border-radius:1px; aspect-ratio:1;`;
+      if (d) {
+        const time = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        cell.addEventListener("mouseenter", () => {
+          tip.innerHTML =
+            `<div style="color:var(--text-muted); margin-bottom:4px;">${time}</div>` +
+            `Cost: <strong>$${d.cost.toFixed(4)}</strong><br>` +
+            `Tokens: <strong>${d.tokens.toLocaleString()}</strong>`;
+          tip.style.display = "block";
+        });
+        cell.addEventListener("mousemove", (e) => {
+          tip.style.left = (e.clientX + 14) + "px";
+          tip.style.top = (e.clientY + 14) + "px";
+        });
+        cell.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+      }
+      grid.appendChild(cell);
+    }
+  }
+  wrap.appendChild(grid);
+}
+
+// Hybrid view: 24 hourly points, styled exactly like the Daily Cost chart
+// (solid filled cost line + dashed token line, dual axes, x-axis hover).
+function renderHourlyHybrid(hourlyMap, date) {
+  const dayData = hourlyMap[date] || {};
+  const labels = [], costs = [], tokens = [];
+  for (let h = 0; h < 24; h++) {
+    let c = 0, t = 0;
+    for (let m = h * 60; m < h * 60 + 60; m++) {
+      if (dayData[m]) { c += dayData[m].cost; t += dayData[m].tokens; }
+    }
+    labels.push(`${String(h).padStart(2, "0")}:00`);
+    costs.push(c);
+    tokens.push(t);
+  }
+  hourlyChartInst = new Chart(document.getElementById("hourlyChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Cost (USD)", data: costs, borderColor: CHART_COLORS.blue, backgroundColor: "rgba(106, 143, 192, 0.15)", yAxisID: "yCost", fill: true, tension: 0.3 },
+        { label: "Token Volume", data: tokens, borderColor: CHART_COLORS.blueDim, yAxisID: "yToken", borderDash: [5, 5], tension: 0.3 }
+      ]
+    },
+    options: chartOptions({
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        x: axis(),
+        yCost: axis({ type: "linear", position: "left" }),
+        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false } })
+      }
+    })
+  });
+}
+
+// Daily Line view: cost + token trend, click a day to drill into the 24h chart.
+function renderDailyLine(dailyMap, dailyTokenMap, hourlyMap, endDate) {
+  if (dailyChartInst) dailyChartInst.destroy();
+  dailyChartInst = null;
+  const dates = Object.keys(dailyMap).sort();
+  const dailyCosts = dates.map((d) => dailyMap[d]);
+  const dailyTokens = dates.map((d) => dailyTokenMap[d]);
+  dailyChartInst = new Chart(document.getElementById("dailyChart"), {
+    type: "line",
+    data: {
+      labels: dates,
+      datasets: [
+        { label: "Daily Cost (USD)", data: dailyCosts, borderColor: CHART_COLORS.blue, backgroundColor: "rgba(106, 143, 192, 0.15)", yAxisID: "yCost", fill: true, tension: 0.3 },
+        { label: "Token Volume", data: dailyTokens, borderColor: CHART_COLORS.blueDim, yAxisID: "yToken", borderDash: [5, 5], tension: 0.3 }
+      ]
+    },
+    options: chartOptions({
+      // Hover/click anywhere along the x-axis selects that day (no need to hit the point).
+      interaction: { mode: "index", intersect: false },
+      onClick: (evt, elements, chart) => {
+        if (elements && elements.length > 0) {
+          const date = chart.data.labels[elements[0].index];
+          if (date) {
+            selectedHourlyDate = date;
+            renderHourlyChart(hourlyMap, endDate);
+          }
+        }
+      },
+      scales: {
+        x: axis({
+          ticks: {
+            // Short axis labels ("JUL 11"); the tooltip still shows the full date.
+            callback: (value, index) => {
+              const d = dates[index];
+              if (!d) return "";
+              return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+            }
+          }
+        }),
+        yCost: axis({ type: "linear", position: "left" }),
+        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false } })
+      }
+    })
+  });
+}
+
+// GitHub-style yearly activity calendar: one cell per day for the last 365 days,
+// colored by cost intensity. Respects workspace/model filters (ignores the date
+// range). Hover shows cost/tokens; clicking a day drills into the 24h chart.
+function renderYearlyHeatmap() {
+  const wrap = document.getElementById("yearlyHeatmapWrap");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+
+  const selectedWS = document.getElementById("workspaceSelect").value;
+  const selectedModel = document.getElementById("modelSelect").value;
+  const rates = getRates();
+
+  // Aggregate cost/tokens per date (and per minute for drill-down), ignoring the date range.
+  const daily = {};
+  const hourly = {};
+  for (const rec of Object.values(globalCache)) {
+    const wsID = rec.workspaceID || "wrk_unknown";
+    const modelName = rec.model || "Unknown";
+    if (selectedWS !== "ALL" && wsID !== selectedWS) continue;
+    if (selectedModel !== "ALL" && modelName !== selectedModel) continue;
+    const date = localDateOf(rec);
+    if (date === "Unknown") continue;
+    const { cost } = getRecordCostAndSavings(rec, rates);
+    const tokens = (rec.input || 0) + (rec.output || 0) + (rec.reasoning || 0) + (rec.cacheRead || 0) + (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
+    if (!daily[date]) daily[date] = { cost: 0, tokens: 0 };
+    daily[date].cost += cost;
+    daily[date].tokens += tokens;
+    if (rec.time) {
+      const t = new Date(rec.time);
+      if (!isNaN(t.getTime())) {
+        const min = t.getHours() * 60 + t.getMinutes();
+        if (!hourly[date]) hourly[date] = {};
+        const h = hourly[date][min] || (hourly[date][min] = { cost: 0, tokens: 0 });
+        h.cost += cost;
+        h.tokens += tokens;
+      }
+    }
+  }
+  lastFullHourlyMap = hourly;
+
+  const dates = Object.keys(daily).sort();
+  if (dates.length === 0) {
+    wrap.innerHTML = '<div class="notice">No data for the current filters.</div>';
+    return;
+  }
+
+  // Window: last 365 days ending at the latest date with data.
+  const lastDate = new Date(dates[dates.length - 1] + "T00:00:00");
+  const firstDate = new Date(lastDate);
+  firstDate.setDate(firstDate.getDate() - 364);
+
+  // Grid: weeks as columns, Mon-Sun rows (GitHub style).
+  const start = new Date(firstDate);
+  start.setDate(firstDate.getDate() - ((firstDate.getDay() + 6) % 7)); // Monday of first week
+  const end = new Date(lastDate);
+  end.setDate(end.getDate() + (6 - ((end.getDay() + 6) % 7))); // Sunday of last week
+
+  const weeks = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    weeks.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+
+  // Group consecutive weeks by month for the top labels.
+  const monthGroups = [];
+  for (const w of weeks) {
+    const key = w.getFullYear() + "-" + w.getMonth();
+    const lastGroup = monthGroups[monthGroups.length - 1];
+    if (!lastGroup || lastGroup.key !== key) {
+      monthGroups.push({ key, year: w.getFullYear(), month: w.getMonth(), count: 1 });
+    } else {
+      lastGroup.count++;
+    }
+  }
+
+  let maxCost = 0;
+  for (const d of dates) if (daily[d].cost > maxCost) maxCost = daily[d].cost;
+
+  const GAP = 2;
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const label = (text, align) => {
+    const d = document.createElement("div");
+    d.textContent = text;
+    d.style.cssText = `text-align:${align}; padding:0 4px;`;
+    return d;
+  };
+
+  const grid = document.createElement("div");
+  grid.style.cssText =
+    "display:grid; width:100%; gap:" + GAP + "px; " +
+    `grid-template-columns: repeat(${weeks.length}, 1fr); ` +
+    "grid-template-rows: 18px repeat(7, auto); " +
+    "font-family:var(--font-mono); font-size:9px; color:var(--text-muted);";
+
+  // Custom hover tooltip.
+  const tip = document.createElement("div");
+  tip.style.cssText =
+    "position:fixed; pointer-events:none; z-index:60; display:none; " +
+    "background:var(--surface); border:1px solid var(--border); border-radius:6px; " +
+    "padding:8px 10px; font-family:var(--font-mono); font-size:11px; color:var(--text); " +
+    "box-shadow:0 4px 16px rgba(0,0,0,.4);";
+  wrap.appendChild(tip);
+
+  // Month labels (row 1).
+  for (const g of monthGroups) {
+    const name = new Date(g.year, g.month, 1).toLocaleDateString("en-US", { month: "short" });
+    const el = label(name, "left");
+    el.style.gridColumn = `span ${g.count}`;
+    grid.appendChild(el);
+  }
+
+  // Day rows (Mon-Sun), no labels.
+  for (let di = 0; di < 7; di++) {
+    for (let wi = 0; wi < weeks.length; wi++) {
+      const d = new Date(weeks[wi]);
+      d.setDate(d.getDate() + di);
+      const key = iso(d);
+      const has = Object.prototype.hasOwnProperty.call(daily, key);
+      const cell = document.createElement("div");
+      const opacity = has ? Math.max(0.08, Math.sqrt(daily[key].cost / maxCost)) : 0.03;
+      cell.style.cssText = `width:100%; aspect-ratio:1; background: rgba(106,143,192,${opacity}); border:1px solid rgba(255,255,255,0.05); border-radius:2px;`;
+      if (has) {
+        const cost = daily[key].cost;
+        const tokens = daily[key].tokens;
+        cell.style.cursor = "pointer";
+        cell.addEventListener("mouseenter", () => {
+          tip.innerHTML =
+            `<div style="color:var(--text-muted); margin-bottom:4px;">${key}</div>` +
+            `Cost: <strong>$${cost.toFixed(4)}</strong><br>` +
+            `Tokens: <strong>${tokens.toLocaleString()}</strong>`;
+          tip.style.display = "block";
+        });
+        cell.addEventListener("mousemove", (e) => {
+          tip.style.left = (e.clientX + 14) + "px";
+          tip.style.top = (e.clientY + 14) + "px";
+        });
+        cell.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+        cell.addEventListener("click", () => {
+          selectedHourlyDate = key;
+          renderHourlyChart(lastFullHourlyMap, key);
+        });
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  wrap.appendChild(grid);
+
+  // Legend (Less → More).
+  const legend = document.createElement("div");
+  legend.style.cssText = "display:flex; justify-content:center; align-items:center; gap:4px; margin-top:10px; font-family:var(--font-mono); font-size:10px; color:var(--text-muted);";
+  legend.appendChild(document.createTextNode("Less"));
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement("div");
+    const o = i === 0 ? 0.03 : 0.15 + i * 0.2;
+    s.style.cssText = `width:12px; height:12px; background:rgba(106,143,192,${o}); border-radius:2px; border:1px solid rgba(255,255,255,0.05);`;
+    legend.appendChild(s);
+  }
+  legend.appendChild(document.createTextNode("More"));
+  wrap.appendChild(legend);
+
+  const badge = document.getElementById("yearlyRange");
+  if (badge) badge.textContent = `${iso(firstDate)} → ${iso(lastDate)}`;
+}
+
 function renderDashboard(skipCharts = false) {
   // Preserve table scroll positions across re-renders (sorting resets them otherwise).
   const tableScrolls = Array.from(document.querySelectorAll(".table-container")).map((el) => ({ el, top: el.scrollTop }));
@@ -702,7 +1071,7 @@ function renderDashboard(skipCharts = false) {
   filteredRecordsCache = [];
   let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
   let totalPeakCost = 0, totalOffpeakCost = 0;
-  const dailyMap = {}, dailyTokenMap = {}, modelMap = {}, wsMap = {}, singleModelDailyMap = {};
+  const dailyMap = {}, dailyTokenMap = {}, modelMap = {}, wsMap = {}, singleModelDailyMap = {}, hourlyMap = {};
   const unpricedModels = new Set();
   const rates = getRates(); // Hoisted: one read instead of one per record.
   const splitEnabled = document.getElementById("splitToggle").checked;
@@ -710,7 +1079,7 @@ function renderDashboard(skipCharts = false) {
   for (const [id, rec] of Object.entries(globalCache)) {
     const wsID = rec.workspaceID || "wrk_unknown";
     const modelName = rec.model || "Unknown";
-    const recDate = rec.date || "";
+    const recDate = localDateOf(rec);
 
     if (startDate && recDate && recDate < startDate) continue;
     if (endDate && recDate && recDate > endDate) continue;
@@ -744,9 +1113,21 @@ function renderDashboard(skipCharts = false) {
     if (window === "peak") totalPeakCost += cost;
     else if (window === "offpeak") totalOffpeakCost += cost;
 
-    const date = rec.date || "Unknown";
+    const date = localDateOf(rec);
     dailyMap[date] = (dailyMap[date] || 0) + cost;
     dailyTokenMap[date] = (dailyTokenMap[date] || 0) + tokens;
+
+    // Minute-level buckets in local time, matching how `date` is derived (local date).
+    if (rec.time && date !== "Unknown") {
+      const t = new Date(rec.time);
+      if (!isNaN(t.getTime())) {
+        const min = t.getHours() * 60 + t.getMinutes();
+        if (!hourlyMap[date]) hourlyMap[date] = {};
+        const h = hourlyMap[date][min] || (hourlyMap[date][min] = { cost: 0, tokens: 0 });
+        h.cost += cost;
+        h.tokens += tokens;
+      }
+    }
 
     if (!singleModelDailyMap[date]) {
       singleModelDailyMap[date] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0 };
@@ -916,28 +1297,11 @@ function renderDashboard(skipCharts = false) {
 
   // Draw charts (skipped when only re-sorting tables to avoid layout shifts).
   if (!skipCharts) {
-  const dates = Object.keys(dailyMap).sort();
-  const dailyCosts = dates.map((d) => dailyMap[d]);
-  const dailyTokens = dates.map((d) => dailyTokenMap[d]);
+  renderDailyLine(dailyMap, dailyTokenMap, hourlyMap, endDate);
 
-  if (dailyChartInst) dailyChartInst.destroy();
-  dailyChartInst = new Chart(document.getElementById("dailyChart"), {
-    type: "line",
-    data: {
-      labels: dates,
-      datasets: [
-        { label: "Daily Cost (USD)", data: dailyCosts, borderColor: CHART_COLORS.blue, backgroundColor: "rgba(106, 143, 192, 0.15)", yAxisID: "yCost", fill: true, tension: 0.3 },
-        { label: "Token Volume", data: dailyTokens, borderColor: CHART_COLORS.blueDim, yAxisID: "yToken", borderDash: [5, 5], tension: 0.3 }
-      ]
-    },
-    options: chartOptions({
-      scales: {
-        x: axis(),
-        yCost: axis({ type: "linear", position: "left" }),
-        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false } })
-      }
-    })
-  });
+  renderHourlyChart(hourlyMap, endDate);
+
+  renderYearlyHeatmap();
 
   const models = Object.keys(modelMap);
   const modelCosts = models.map((m) => modelMap[m].cost);
@@ -967,24 +1331,6 @@ function renderDashboard(skipCharts = false) {
       scales: {
         x: axis({ stacked: true }),
         y: axis({ stacked: true })
-      }
-    })
-  });
-
-  const wsLabels = Object.keys(wsMap);
-  const wsCosts = wsLabels.map((w) => wsMap[w].cost);
-  if (workspaceChartInst) workspaceChartInst.destroy();
-  workspaceChartInst = new Chart(document.getElementById("workspaceChart"), {
-    type: "bar",
-    data: {
-      labels: wsLabels,
-      datasets: [{ label: "Estimated Cost (USD)", data: wsCosts, backgroundColor: CHART_COLORS.blue }]
-    },
-    options: chartOptions({
-      indexAxis: "y",
-      scales: {
-        x: axis(),
-        y: axis()
       }
     })
   });
@@ -1025,7 +1371,7 @@ function exportFilteredCSV() {
     const row = [
       rec.id,
       rec.workspaceID || "",
-      rec.date || "",
+      localDateOf(rec),
       rec.model || "",
       rec.window || "",
       rec.input || 0,
@@ -1668,6 +2014,18 @@ document.getElementById("ratesImportFile").addEventListener("change", (e) => {
 document.getElementById("splitToggle").addEventListener("change", renderDashboard);
 document.getElementById("workspaceSelect").addEventListener("change", renderDashboard);
 document.getElementById("modelSelect").addEventListener("change", renderDashboard);
+
+// Intraday chart view switcher.
+document.querySelectorAll(".hourly-view-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    hourlyView = btn.dataset.view;
+    document.querySelectorAll(".hourly-view-btn").forEach((b) => {
+      b.classList.toggle("btn-primary", b === btn);
+      b.classList.toggle("btn-secondary", b !== btn);
+    });
+    renderHourlyChart(lastHourlyMap, lastHourlyDate);
+  });
+});
 
 // Custom date range picker
 document.getElementById("rangeTrigger").addEventListener("click", openRangePicker);
