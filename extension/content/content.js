@@ -49,11 +49,11 @@
   function findPageControl(pattern) {
     try {
       const ariaSels = [
-        'button[aria-label*="下一頁"], button[aria-label*="next"], button[aria-label*="Next"]',
-        'button[title*="下一頁"], button[title*="Next"], button[title*="next"]',
-        'li[aria-label*="next"], li[aria-label*="下一頁"], li[title*="next"]',
-        '[role="button"][aria-label*="next"], [role="button"][aria-label*="下一頁"]',
-        'a[aria-label*="next"], a[aria-label*="下一頁"]',
+        'button[aria-label*="next"], button[aria-label*="Next"]',
+        'button[title*="Next"], button[title*="next"]',
+        'li[aria-label*="next"], li[title*="next"]',
+        '[role="button"][aria-label*="next"]',
+        'a[aria-label*="next"]',
       ];
       for (const sel of ariaSels) {
         const el = document.querySelector(sel);
@@ -133,8 +133,8 @@
     if (kickLock) return;
     kickLock = true;
     try {
-      let next = findPageControl(/下一頁|下一|Next|next|›|»|❯|⟩/);
-      let prev = findPageControl(/上一頁|上一|Prev|Previous|‹|«|❮|⟨/);
+      let next = findPageControl(/Next|next|›|»|❯|⟩/);
+      let prev = findPageControl(/Prev|Previous|‹|«|❮|⟨/);
       if (!next && !prev) {
         // Icon-only pagination (chevron svg buttons with no text).
         const icons = findIconPagination();
@@ -160,7 +160,7 @@
         if (dir === "next") {
           setTimeout(() => {
             try {
-              let back = findPageControl(/上一頁|上一|Prev|Previous|‹|«|❮|⟨/);
+              let back = findPageControl(/Prev|Previous|‹|«|❮|⟨/);
               if (!back) back = findIconPagination(true).prev; // Force fresh scan (cached one may be stale)
               if (back) {
                 const b = back.closest("button,a") || back.querySelector("button,a") || back;

@@ -67,6 +67,52 @@
       width: 100%;
     }
 
+    /* Switch toggle */
+    .switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .switch .track {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 999px;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .switch .track::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+    }
+    .switch input:checked + .track {
+      background: var(--primary);
+    }
+    .switch input:checked + .track::after {
+      transform: translateX(16px);
+    }
+    .switch input:focus-visible + .track {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
     /* KPI cards */
     .stats-grid {
       display: grid;
@@ -161,10 +207,6 @@
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15);
     }
-    .rate-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
-    .rate-fields label { display: flex; flex-direction: column; font-size: 11px; color: var(--text-muted); gap: 3px; }
-    /* Tier rows: Low on one line, High on the next, with a fixed label column. */
-    .tier-fields { flex-direction: column; align-items: stretch; }
     .rate-group { display: flex; align-items: center; gap: 6px; }
     .rate-group-title {
       width: 44px;
@@ -175,48 +217,29 @@
     }
     .rate-group .rate-del { margin-left: auto; }
 
-    /* Custom number steppers (hide native spinners) */
-    .rate-fields input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
-    .rate-fields input[type="number"]::-webkit-outer-spin-button,
-    .rate-fields input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .num-field {
-      display: inline-flex;
-      align-items: stretch;
-      width: 96px;
-      background: var(--bg-content);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    /* Plain number input: hide native spinner arrows, type value directly */
+    .price-table input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+    .price-table input[type="number"]::-webkit-outer-spin-button,
+    .price-table input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .nf {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 11px;
+      color: var(--text-muted);
     }
-    .num-field:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
-    .num-field input {
-      flex: 1;
-      min-width: 0;
-      background: none;
-      border: none;
+    .nf input {
+      width: 84px;
+      background: var(--bg-content);
       color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      font-size: 12px;
       font-family: var(--font-mono);
-      font-size: 12.5px;
-      padding: 5px 2px;
-      text-align: center;
       outline: none;
     }
-    .num-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-family: var(--font-mono);
-      font-size: 14px;
-      width: 22px;
-      padding: 0;
-      cursor: pointer;
-      line-height: 1;
-      user-select: none;
-      flex-shrink: 0;
-    }
-    .num-btn:hover { background: var(--surface-hover); color: var(--text); }
-    .num-btn:active { background: var(--primary); color: #fff; }
+    .nf input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
     .rate-del {
       background: rgba(204, 111, 102, 0.12); color: #d99c96;
       border: 1px solid rgba(204, 111, 102, 0.35);
@@ -256,7 +279,7 @@
       background: var(--bg-content); color: var(--text);
       border: 1px solid var(--border); border-radius: var(--radius-sm);
       padding: 5px 8px; font-size: 12px; font-family: var(--font-mono); outline: none;
-      width: 200px;
+      width: 230px;
     }
     .rv-dates input:focus { border-color: var(--primary); }
     .rv-mode { margin-bottom: 8px; }
@@ -269,15 +292,35 @@
     .rv-flat-section, .rv-time-section { margin-top: 8px; }
     .rv-windows { margin-bottom: 10px; }
     .rv-windows-title { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
-    .rv-window { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+    .rv-window { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; align-items: center; }
     .rv-window input {
       background: var(--bg-content); color: var(--text);
       border: 1px solid var(--border); border-radius: var(--radius-sm);
       padding: 4px 8px; font-size: 12px; font-family: var(--font-mono); outline: none;
     }
     .rv-window input:focus { border-color: var(--primary); }
-    .rv-window-days { width: 110px; }
-    .rv-window-start, .rv-window-end { width: 80px; }
+    .rv-window-days { display: inline-flex; gap: 2px; }
+    .rv-day {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 3px 6px;
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius-sm);
+      background: var(--bg-content);
+      user-select: none;
+      white-space: nowrap;
+    }
+    .rv-day:has(input:checked) {
+      background: rgba(106, 143, 192, 0.15);
+      border-color: rgba(106, 143, 192, 0.5);
+      color: var(--text);
+    }
+    .rv-day input { accent-color: var(--primary); margin: 0; }
+    .rv-window-start, .rv-window-end { width: 110px; }
     .rv-window-del {
       background: none; border: none; color: var(--text-disabled);
       font-size: 14px; cursor: pointer; padding: 0 4px;
@@ -388,9 +431,55 @@
       background: var(--primary);
       color: #fff;
       font-weight: 600;
+      border-radius: 0; /* square ends, matching the in-range strip in both pickers */
     }
     .range-actions { display: flex; margin-top: 12px; }
     .range-actions .btn { flex: 1; padding: 6px 10px; font-size: 12px; }
+
+    /* Single date+time picker (rate "effective from") — same look as the range picker */
+    .dt-picker { position: relative; }
+    .dt-trigger { width: 100%; }
+    .dt-popup { width: 300px; top: auto; left: auto; }
+    .dt-time {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-muted);
+    }
+    .dt-time .dt-time-label { font-size: 11px; color: var(--text-muted); margin-right: auto; }
+    .dt-time .dt-colon { color: var(--text-disabled); font-family: var(--font-mono); font-size: 14px; }
+    .dt-stepper { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .dt-stepper button {
+      background: var(--bg-content);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      width: 52px; height: 18px;
+      font-size: 9px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+    .dt-stepper button:hover { color: var(--text); border-color: var(--text-disabled); }
+    .dt-stepper input {
+      width: 52px;
+      background: var(--bg-content);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-align: center;
+      outline: none;
+    }
+    .dt-stepper input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
+    /* Hide native number spinners — the ▲▼ stepper buttons replace them */
+    .dt-stepper input::-webkit-outer-spin-button,
+    .dt-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .dt-stepper input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
     /* Custom dropdowns */
     .select-custom { position: relative; width: 100%; }
@@ -507,7 +596,6 @@
             <button type="button" data-preset="7d">Last 7 Days</button>
             <button type="button" data-preset="30d">Last 30 Days</button>
             <button type="button" data-preset="month">This Month</button>
-            <button type="button" data-preset="lastMonth">Last Month</button>
           </div>
           <div class="range-cal-head">
             <button type="button" class="range-nav" id="rangePrev" title="Previous month">‹</button>
@@ -523,13 +611,15 @@
         </div>
       </div>
       <div class="filter-group">
-        <label for="splitToggle" style="cursor:pointer;">
-          <input type="checkbox" id="splitToggle" style="accent-color:var(--primary);"> Split Peak / Off-peak
+        <label class="switch" for="splitToggle">
+          <input type="checkbox" id="splitToggle">
+          <span class="track"></span>
+          Split Peak / Off-peak
         </label>
       </div>
     </div>
 
-    <!-- 未定價 / 不完整模型清單 -->
+    <!-- Unpriced / incomplete model list -->
     <div class="notice" id="unpricedList" hidden></div>
 
     <!-- Key metric KPI cards -->
@@ -540,9 +630,9 @@
         <div class="sub" id="statAvgCostPerReq">Avg per request: $0.0000</div>
       </div>
       <div class="card">
-        <div class="title">Estimated Cost (USD)</div>
+        <div class="title">Estimated Cost</div>
         <div class="value" id="statCost">$0.00</div>
-        <div class="sub" id="statSavings">Cache savings: $0.00</div>
+        <div class="sub" id="statSavings">Cache saved: $0.00</div>
         <div class="sub" id="statSplit"></div>
       </div>
       <div class="card">
@@ -637,7 +727,7 @@
         <h3>Model Rate Settings</h3>
         <button class="modal-close" id="ratesClose">✕</button>
       </div>
-      <p class="modal-hint">每條 rule 以精確 model 名稱比對。費率為每百萬 token 的 USD 價格。每筆版本含生效時間範圍（from/to，留空 = 無邊界）與計費模式（Flat 或 Time-based）。Time-based 只需填 Peak 時段，off-peak 自動為其餘時間。Tier 依 input+cacheRead 總 context 分低/高兩級。設定存於本地，版本升級時會以新預設值覆蓋。</p>
+      <p class="modal-hint">Each rule matches by exact model name. Rates are USD per million tokens. Each version sets an "effective from" time (leave empty = effective from the earliest, stored in UTC, converted automatically on input); versions are ordered by effective time: each version applies until the next version's effective time, and the last version is permanent. Billing mode is Flat or Time-based; Time-based only requires filling in the Peak windows (select weekdays + start/end times), and off-peak is automatically the remaining time. Tiers split low/high by input+cacheRead total context. Settings are stored locally and are overwritten by new defaults on version upgrade.</p>
       <div id="ratesList"></div>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="ratesReset">Reset to Defaults</button>
