@@ -689,7 +689,10 @@ function getRecordCostAndSavings(record, rates = getRates()) {
   return { cost, savings, window, unpriced: false };
 }
 
-function renderDashboard() {
+function renderDashboard(skipCharts = false) {
+  // Preserve table scroll positions across re-renders (sorting resets them otherwise).
+  const tableScrolls = Array.from(document.querySelectorAll(".table-container")).map((el) => ({ el, top: el.scrollTop }));
+
   const selectedWS = document.getElementById("workspaceSelect").value;
   const selectedModel = document.getElementById("modelSelect").value;
   const startDate = document.getElementById("startDate").value;
@@ -911,7 +914,8 @@ function renderDashboard() {
   }
   markSortHeader("modelTable", sortState.model.col, sortState.model.dir);
 
-  // Draw charts.
+  // Draw charts (skipped when only re-sorting tables to avoid layout shifts).
+  if (!skipCharts) {
   const dates = Object.keys(dailyMap).sort();
   const dailyCosts = dates.map((d) => dailyMap[d]);
   const dailyTokens = dates.map((d) => dailyTokenMap[d]);
@@ -1003,6 +1007,10 @@ function renderDashboard() {
       }
     })
   });
+  }
+
+  // Restore table scroll positions after re-render.
+  for (const { el, top } of tableScrolls) el.scrollTop = top;
 }
 
 function exportFilteredCSV() {
@@ -1618,7 +1626,7 @@ document.addEventListener("click", (e) => {
     state.col = col;
     state.dir = -1;
   }
-  renderDashboard();
+  renderDashboard(true); // Skip chart re-render so the viewport doesn't jump.
 });
 document.getElementById("btnRates").addEventListener("click", openRatesModal);
 document.getElementById("ratesClose").addEventListener("click", closeRatesModal);
