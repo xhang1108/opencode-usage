@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The update checker compares the release tag with the installed
+      # manifest version, so they must match or users would see a perpetual
+      # "update available" banner.
+      - name: Verify manifest version matches tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST=$(node -p "require('./extension/manifest.json').version")
+          if [ "$TAG" != "$MANIFEST" ]; then
+            echo "Tag v$TAG does not match manifest version $MANIFEST" >&2
+            exit 1
+          fi
+
+      # Zip the extension folder so manifest.json sits at the zip root -
+      # users unzip and Load unpacked that folder directly.
+      - name: Package extension
+        run: |
+          cd extension
+          zip -r "../opencode-usage-${GITHUB_REF_NAME}.zip" . -x "*.DS_Store"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: opencode-usage-${{ github.ref_name }}.zip
+          generate_release_notes: true

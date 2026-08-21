@@ -38,6 +38,16 @@ function renderLastRecord(lr) {
   el.title = lr.model ? `${lr.model} · I${(lr.input || 0).toLocaleString()} O${(lr.output || 0).toLocaleString()}` : "";
 }
 
+// Show the update banner when the background found a newer GitHub release.
+async function renderUpdateBanner() {
+  const { updateInfo } = await chrome.storage.local.get("updateInfo");
+  const banner = $("#update-banner");
+  if (!banner || !updateInfo || !updateInfo.updateAvailable) return;
+  $("#update-version").textContent = updateInfo.latestVersion;
+  $("#update-link").href = updateInfo.releaseUrl;
+  banner.style.display = "block";
+}
+
 async function loadStatus() {
   const stored = await chrome.storage.local.get([
     "lastSyncAt",
@@ -79,6 +89,8 @@ async function loadStatus() {
     $("#total-records").textContent = res.totalRecords;
     if (res.lastRecord) renderLastRecord(res.lastRecord);
   }
+
+  renderUpdateBanner();
 }
 
 async function send(msg) {

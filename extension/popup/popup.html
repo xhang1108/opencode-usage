@@ -35,6 +35,18 @@
     #status.ok { color: var(--success); }
     #status.err { color: var(--danger); }
 
+    /* Update banner */
+    .update-banner {
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(106, 143, 192, 0.4);
+      background: rgba(106, 143, 192, 0.1);
+      border-radius: var(--radius-md);
+    }
+    .update-title { font-weight: 700; margin-bottom: 3px; }
+    .update-detail { font-size: 12px; color: var(--text-muted); }
+    .update-detail a { color: var(--primary); font-weight: 600; }
+
     /* Time reminder */
     .time-card { padding: 12px; margin-bottom: 10px; }
     .time-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
@@ -121,6 +133,11 @@
 </head>
 <body>
   <h1>Opencode Token Usage</h1>
+
+  <div class="update-banner" id="update-banner" style="display:none;">
+    <div class="update-title">Update available</div>
+    <div class="update-detail">v<span id="update-version">-</span> → <a id="update-link" href="#" target="_blank" rel="noopener">Download</a></div>
+  </div>
 
   <div class="card">
     <div class="row" id="crawl-progress-row" style="display:none;">

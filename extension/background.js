@@ -337,3 +337,58 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // Re-arm on service-worker start so the chain survives browser restarts and SW eviction.
 schedulePeakAlarm().catch(() => {});
+
+// ===== Update checker (GitHub Releases) =====
+// Unpacked extensions can't auto-update, so this polls GitHub Releases and
+// surfaces "update available" in the popup when a newer version exists.
+const UPDATE_REPO = "xhang1108/opencode-usage";
+const UPDATE_ALARM = "check-update";
+const UPDATE_INTERVAL_MIN = 6 * 60; // every 6 hours
+
+// Numeric semver compare: 1 if a > b, -1 if a < b, 0 if equal.
+// String comparison would misorder e.g. "0.10.0" vs "0.9.0".
+function compareVersions(a, b) {
+  const pa = String(a).replace(/^v/i, "").split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).replace(/^v/i, "").split(".").map((n) => parseInt(n, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na > nb) return 1;
+    if (na < nb) return -1;
+  }
+  return 0;
+}
+
+async function checkForUpdate() {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`);
+    if (!res.ok) return; // 404 (no releases) / 403 (rate limit) / offline - keep last result
+    const release = await res.json();
+    const latest = String(release.tag_name || "").replace(/^v/i, "");
+    const current = chrome.runtime.getManifest().version;
+    if (!latest) return;
+    await chrome.storage.local.set({
+      updateInfo: {
+        latestVersion: latest,
+        currentVersion: current,
+        updateAvailable: compareVersions(latest, current) > 0,
+        releaseUrl: release.html_url || `https://github.com/${UPDATE_REPO}/releases`,
+        checkedAt: Date.now(),
+      },
+    });
+  } catch (e) {
+    // Network failure - ignore; the next scheduled check retries
+  }
+}
+
+async function scheduleUpdateCheck() {
+  await chrome.alarms.create(UPDATE_ALARM, { periodInMinutes: UPDATE_INTERVAL_MIN });
+  checkForUpdate().catch(() => {});
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === UPDATE_ALARM) checkForUpdate().catch(() => {});
+});
+
+scheduleUpdateCheck().catch(() => {});
