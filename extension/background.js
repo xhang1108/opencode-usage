@@ -2,6 +2,8 @@
 // Captures x-server-id from opencode.ai/_server requests at the browser level.
 // (webRequest events wake the SW, so there is no cold-start race; even the first
 // request of a page load is intercepted.)
+importScripts("time-reminder.js");
+
 let lastCapturedServerID = null;
 
 chrome.webRequest.onBeforeSendHeaders.addListener(
@@ -272,3 +274,66 @@ async function handleOpenDashboard() {
   await chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
   return { ok: true, count: res.count || 0, fileCount: res.fileCount || 0, fromCache: !!res.fromCache };
 }
+
+// ===== Peak/off-peak notifications =====
+// Schedules a one-shot alarm at the next peak boundary (peak start or end).
+// When it fires, a system notification is shown and the following boundary is
+// scheduled. The alarm is re-scheduled whenever the toggle, rate config, or
+// selected model changes, and on every service-worker start.
+const PEAK_ALARM = "peak-boundary";
+
+async function getTimeReminderContext() {
+  const [rates, model, enabled] = await Promise.all([
+    loadTimeRates(),
+    loadTimeModel(),
+    loadTimeEnabled(),
+  ]);
+  return { rates, model, enabled, windows: collectPeakWindowsForModel(rates, model) };
+}
+
+async function schedulePeakAlarm() {
+  await chrome.alarms.clear(PEAK_ALARM);
+  const { enabled, windows } = await getTimeReminderContext();
+  if (!enabled || windows.length === 0) return;
+  const boundary = nextPeakBoundary(new Date(), windows);
+  if (!boundary) return;
+  chrome.alarms.create(PEAK_ALARM, { when: boundary.time.getTime() });
+}
+
+function boundaryLabel(date) {
+  return `${formatLocalTime(date)} local (${formatUtcTime(date)} UTC)`;
+}
+
+async function notifyBoundary() {
+  const { enabled, model, windows } = await getTimeReminderContext();
+  if (!enabled || windows.length === 0) return;
+  const now = new Date();
+  const entering = isPeakAt(now, windows);
+  const next = nextPeakBoundary(now, windows);
+  const suffix = model ? ` (${model})` : "";
+  chrome.notifications.create({
+    type: "basic",
+    iconUrl: chrome.runtime.getURL("icons/icon128.png"),
+    title: entering ? `Peak time started${suffix}` : `Off-peak started${suffix}`,
+    message: entering
+      ? `Higher rates apply until ${next ? boundaryLabel(next.time) : "the configured window ends"}.`
+      : `Lower rates now.${next ? ` Next peak starts at ${boundaryLabel(next.time)}.` : ""}`,
+  });
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== PEAK_ALARM) return;
+  notifyBoundary()
+    .catch(() => {})
+    .finally(() => schedulePeakAlarm().catch(() => {}));
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  if (changes[TIME_ENABLED_KEY] || changes[TIME_RATES_KEY] || changes[TIME_MODEL_KEY]) {
+    schedulePeakAlarm().catch(() => {});
+  }
+});
+
+// Re-arm on service-worker start so the chain survives browser restarts and SW eviction.
+schedulePeakAlarm().catch(() => {});

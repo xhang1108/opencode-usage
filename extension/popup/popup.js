@@ -133,3 +133,67 @@ chrome.storage.onChanged.addListener((changes, area) => {
   lastStatusReload = now;
   loadStatus();
 });
+
+// ===== Time reminder =====
+const timeStatusEl = $("#time-status");
+const timeCountdownEl = $("#time-countdown");
+const timeTimelineEl = $("#time-timeline");
+const timeToggleEl = $("#time-toggle");
+
+let timePeakWindows = [];
+let timeRates = null;
+
+function renderTimeReminder() {
+  const now = new Date();
+
+  const peak = isPeakAt(now, timePeakWindows);
+  const hasWindows = timePeakWindows.length > 0;
+
+  // Status badge
+  timeStatusEl.className = "time-status " + (hasWindows ? (peak ? "peak" : "offpeak") : "flat");
+  timeStatusEl.textContent = hasWindows ? (peak ? "PEAK" : "OFF-PEAK") : "NO RATES";
+
+  // 24h timeline (laid out in local time)
+  const timeline = buildTimeline(timePeakWindows);
+  const nowHour = now.getHours();
+  timeTimelineEl.innerHTML = timeline
+    .map((seg) => `<div class="seg ${seg.peak ? "peak" : ""} ${seg.hour === nowHour ? "now" : ""}" title="${String(seg.hour).padStart(2, "0")}:00"></div>`)
+    .join("");
+
+  // Countdown to the next peak boundary (start or end), ticking every second
+  if (hasWindows) {
+    timeCountdownEl.className = "time-countdown " + (peak ? "peak" : "offpeak");
+    const boundary = nextPeakBoundary(now, timePeakWindows);
+    timeCountdownEl.textContent = boundary ? formatCountdownClock(boundary.time - now) : "--:--:--";
+  } else {
+    timeCountdownEl.className = "time-countdown flat";
+    timeCountdownEl.textContent = "NO RATES";
+  }
+}
+
+async function initTimeReminder() {
+  // Load toggle state
+  timeToggleEl.checked = await loadTimeEnabled();
+  timeToggleEl.addEventListener("change", () => saveTimeEnabled(timeToggleEl.checked));
+
+  // Load the mirrored rate config.
+  timeRates = await loadTimeRates();
+
+  // Read the model selected in the dashboard (stored in chrome.storage).
+  const selected = await loadTimeModel();
+  timePeakWindows = collectPeakWindowsForModel(timeRates, selected);
+
+  // When the dashboard changes the selected model, update the popup live.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes[TIME_MODEL_KEY]) {
+      timePeakWindows = collectPeakWindowsForModel(timeRates, changes[TIME_MODEL_KEY].newValue);
+      renderTimeReminder();
+    }
+  });
+
+  renderTimeReminder();
+  setInterval(renderTimeReminder, 1000);
+}
+
+initTimeReminder();

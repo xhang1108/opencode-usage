@@ -19,6 +19,14 @@
       justify-content: space-between;
       align-items: center;
     }
+    #btnExportCSV {
+      background: rgba(242, 237, 237, 0.12);
+      color: var(--text);
+      border: 1px solid rgba(242, 237, 237, 0.25);
+    }
+    #btnExportCSV:hover:not(:disabled) {
+      background: rgba(242, 237, 237, 0.2);
+    }
     h1 {
       margin: 0;
       font-size: 26px;
@@ -87,7 +95,7 @@
       width: 36px;
       height: 20px;
       background: var(--border);
-      border-radius: 999px;
+      border-radius: var(--radius-sm);
       transition: background 0.2s ease;
       flex-shrink: 0;
     }
@@ -99,7 +107,7 @@
       width: 16px;
       height: 16px;
       background: #fff;
-      border-radius: 50%;
+      border-radius: var(--radius-sm);
       transition: transform 0.2s ease;
     }
     .switch input:checked + .track {
@@ -119,16 +127,25 @@
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
     }
+    .stats-grid .card {
+      padding: 18px 20px;
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+    }
     .card { padding: 20px; }
     .card .title { font-size: 12px; color: var(--text-muted); }
     .card .value {
       font-size: 22px;
       font-weight: 700;
-      margin-top: 6px;
+      margin-top: auto;
       color: var(--text);
       letter-spacing: -0.5px;
     }
-    .card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+    .card-divider { height: 1px; background: var(--border-muted); margin: 10px 0 6px; }
+    #statSplit { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; align-items: baseline; }
+    #statSplit span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
 
     /* Charts */
     .charts-grid {
@@ -537,9 +554,102 @@
       background: rgba(106, 143, 192, 0.12);
       color: var(--primary);
     }
+
+    /* Time reminder */
+    .time-card { padding: 16px 20px; }
+    .time-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .time-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .time-model {
+      min-width: 220px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      background: var(--bg-content);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+    }
+    .time-model:focus { border-color: var(--primary); }
+    .time-status { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-sm); }
+    .time-status.peak { background: rgba(176, 74, 74, 0.15); color: var(--peak); border: 1px solid rgba(176, 74, 74, 0.4); }
+    .time-status.offpeak { background: rgba(106, 143, 192, 0.15); color: var(--primary); border: 1px solid rgba(106, 143, 192, 0.4); }
+    .time-status.flat { background: rgba(161, 161, 166, 0.15); color: var(--text-muted); border: 1px solid var(--border); }
+    .time-body {
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+      margin-bottom: 14px;
+    }
+    .time-hero {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 4px 0;
+    }
+    .time-countdown {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .time-countdown.peak { color: var(--peak); }
+    .time-countdown.offpeak { color: var(--primary); }
+    .time-countdown.flat { color: var(--text-muted); }
+    .time-clocks {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 0 4px;
+      min-width: 150px;
+    }
+    .time-clocks .clock { display: flex; justify-content: space-between; gap: 12px; }
+    .time-clocks .clock b { color: var(--text); font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .timeline { display: flex; gap: 3px; height: 22px; margin-bottom: 6px; }
+    .timeline .seg { flex: 1; border-radius: 3px; background: var(--border-muted); position: relative; }
+    .timeline .seg.peak { background: var(--peak); }
+    .timeline .seg.now { outline: 2px solid var(--text); outline-offset: -1px; }
+    .timeline-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-disabled); margin-bottom: 12px; }
+    .time-legend { display: flex; gap: 16px; font-size: 11px; color: var(--text-muted); margin-bottom: 12px; }
+    .time-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+    .time-legend .dot.peak { background: var(--peak); }
+    .time-legend .dot.offpeak { background: var(--primary); }
+    .time-empty { font-size: 12px; color: var(--text-muted); }
+
+    /* Neural network decorative background */
+    .decor-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    .decor-bg[hidden] { display: none !important; }
+    .decor-bg canvas { width: 100%; height: 100%; display: block; }
+    .decor-center-blur {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      /* only the center area blurs the network behind — edges stay sharp */
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: radial-gradient(ellipse 60% 72% at 50% 50%, rgba(18,20,32,0.46) 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse 60% 72% at 50% 50%, black 32%, transparent 70%);
+      mask-image: radial-gradient(ellipse 60% 72% at 50% 50%, black 32%, transparent 70%);
+    }
+    .container { position: relative; z-index: 1; }
   </style>
 </head>
 <body>
+  <!-- Neural network background -->
+  <div class="decor-bg" id="decorBg" aria-hidden="true"><canvas id="neuralCanvas"></canvas><div class="decor-center-blur" aria-hidden="true"></div></div>
   <div class="container">
     <header>
       <h1>Opencode Token Usage</h1>
@@ -548,6 +658,38 @@
         <button class="btn btn-primary" id="btnExportCSV">Export Filtered Data (CSV)</button>
       </div>
     </header>
+
+    <!-- Time reminder -->
+    <div class="card time-card" id="time-card">
+      <div class="time-head">
+        <span class="time-title">Time Reminder <span class="time-status" id="time-status">—</span></span>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <select class="input time-model" id="time-model" title="Select model">
+            <option value="">Select model</option>
+          </select>
+          <label class="switch" for="time-toggle">
+            <input type="checkbox" id="time-toggle">
+            <span class="track"></span>
+            REMIND
+          </label>
+        </div>
+      </div>
+      <div class="time-body">
+        <div class="time-hero" id="time-hero">
+          <div class="time-countdown" id="time-countdown">--:--:--</div>
+        </div>
+        <div class="time-clocks">
+          <span class="clock">Local <b id="time-local">--:--</b></span>
+          <span class="clock">UTC <b id="time-utc">--:--</b></span>
+        </div>
+      </div>
+      <div class="timeline" id="time-timeline"></div>
+      <div class="timeline-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+      <div class="time-legend">
+        <span><span class="dot peak"></span>Peak</span>
+        <span><span class="dot offpeak"></span>Off-peak</span>
+      </div>
+    </div>
 
     <!-- Multi-dimension filter bar (flex-wrap to avoid layout breakage) -->
     <div class="filter-bar">
@@ -610,13 +752,6 @@
           </div>
         </div>
       </div>
-      <div class="filter-group">
-        <label class="switch" for="splitToggle">
-          <input type="checkbox" id="splitToggle">
-          <span class="track"></span>
-          Split Peak / Off-peak
-        </label>
-      </div>
     </div>
 
     <!-- Unpriced / incomplete model list -->
@@ -633,6 +768,7 @@
         <div class="title">Estimated Cost</div>
         <div class="value" id="statCost">$0.00</div>
         <div class="sub" id="statSavings">Cache saved: $0.00</div>
+        <div class="card-divider"></div>
         <div class="sub" id="statSplit"></div>
       </div>
       <div class="card">
@@ -643,10 +779,12 @@
       <div class="card">
         <div class="title">Avg Cache Hit Rate</div>
         <div class="value" id="statHitRate">0.00%</div>
+        <div class="sub" id="statHitRateMax">Max: -</div>
+        <div class="sub" id="statHitRateMin">Min: -</div>
       </div>
       <div class="card">
         <div class="title">Top Cost Model</div>
-        <div class="value" id="statTopModel" style="color:var(--warning);">-</div>
+        <div class="value" id="statTopModel">-</div>
         <div class="sub" id="statTopModelCost">Cost: $0.00</div>
       </div>
     </div>
@@ -751,6 +889,7 @@
     </div>
   </div>
 
+  <script src="../time-reminder.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

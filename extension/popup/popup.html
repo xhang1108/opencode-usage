@@ -30,9 +30,93 @@
       word-break: break-all;
     }
     .btn { margin-bottom: 8px; }
-    #status { min-height: 16px; color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+    #status { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+    #status:empty { display: none; }
     #status.ok { color: var(--success); }
     #status.err { color: var(--danger); }
+
+    /* Time reminder */
+    .time-card { padding: 12px; margin-bottom: 10px; }
+    .time-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+    .time-status { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: var(--radius-sm); }
+    .time-status.peak { background: rgba(176, 74, 74, 0.15); color: var(--peak); border: 1px solid rgba(176, 74, 74, 0.4); }
+    .time-status.offpeak { background: rgba(106, 143, 192, 0.15); color: var(--primary); border: 1px solid rgba(106, 143, 192, 0.4); }
+    .time-status.flat { background: rgba(161, 161, 166, 0.15); color: var(--text-muted); border: 1px solid var(--border); }
+    .time-hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-content);
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+      margin: 0 0 10px;
+    }
+    .time-countdown {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .time-countdown.peak { color: var(--peak); }
+    .time-countdown.offpeak { color: var(--primary); }
+    .time-countdown.flat { color: var(--text-muted); }
+    .timeline { display: flex; gap: 2px; height: 14px; margin-bottom: 10px; }
+    .timeline .seg { flex: 1; border-radius: 2px; background: var(--border-muted); }
+    .timeline .seg.peak { background: var(--peak); }
+    .timeline .seg.now { outline: 2px solid var(--text); outline-offset: -1px; }
+    .time-legend { display: flex; gap: 12px; font-size: 10px; color: var(--text-muted); }
+    .time-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+    .time-legend .dot.peak { background: var(--peak); }
+    .time-legend .dot.offpeak { background: var(--primary); }
+    .time-empty { font-size: 11px; color: var(--text-muted); }
+
+    /* Switch toggle */
+    .switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .switch .track {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: var(--radius-sm);
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .switch .track::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: var(--radius-sm);
+      transition: transform 0.2s ease;
+    }
+    .switch input:checked + .track {
+      background: var(--primary);
+    }
+    .switch input:checked + .track::after {
+      transform: translateX(16px);
+    }
+    .switch input:focus-visible + .track {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
   </style>
 </head>
 <body>
@@ -55,8 +139,28 @@
   <button class="btn btn-danger btn-block" id="btn-rescan">Rescan (overwrite, keep data)</button>
   -->
 
+  <div class="card time-card" id="time-card">
+    <div class="time-head">
+      <span class="time-status" id="time-status">—</span>
+      <label class="switch" for="time-toggle">
+        <input type="checkbox" id="time-toggle">
+        <span class="track"></span>
+        REMIND
+      </label>
+    </div>
+    <div class="time-hero">
+      <div class="time-countdown" id="time-countdown">--:--:--</div>
+    </div>
+    <div class="timeline" id="time-timeline"></div>
+    <div class="time-legend">
+      <span><span class="dot peak"></span>Peak</span>
+      <span><span class="dot offpeak"></span>Off-peak</span>
+    </div>
+  </div>
+
   <div id="status"></div>
 
+  <script src="../time-reminder.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

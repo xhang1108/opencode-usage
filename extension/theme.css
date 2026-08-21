@@ -57,6 +57,9 @@
   --warning: #d69b3c;
   --danger: #cc6f66;
 
+  /* Time reminder - peak uses a dark red to stand out */
+  --peak: #b04a4a;
+
   /* Typography - opencode uses a monospace stack for everything */
   --font-mono: "Berkeley Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 

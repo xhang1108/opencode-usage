@@ -61,6 +61,16 @@ function mergeDeep(...objects) {
   return out;
 }
 
+function compactTick(n) {
+  const abs = Math.abs(n);
+  let v, sfx = "";
+  if (abs >= 1e9) { v = n / 1e9; sfx = "b"; }
+  else if (abs >= 1e6) { v = n / 1e6; sfx = "m"; }
+  else if (abs >= 1e3) { v = n / 1e3; sfx = "k"; }
+  else return String(Math.round(n));
+  return `${Number(v.toFixed(1)).toString()}${sfx}`;
+}
+
 // Shared axis styling: muted ticks + subtle grid, mono font.
 function axis(extra = {}) {
   return mergeDeep(
@@ -604,6 +614,11 @@ function getRates() {
 
 function saveRates(models) {
   localStorage.setItem(RATES_KEY, JSON.stringify({ version: RATES_VERSION, timezone: "UTC", models }));
+  // Mirror the config into chrome.storage so the popup's time reminder can read
+  // the peak windows (popup can't access this page's localStorage).
+  try {
+    chrome.storage.local.set({ [TIME_RATES_KEY]: models });
+  } catch (e) {}
 }
 
 // ===== Model matching & calculation logic =====
@@ -840,9 +855,15 @@ function renderHourlyHybrid(hourlyMap, date) {
     options: chartOptions({
       interaction: { mode: "index", intersect: false },
       scales: {
-        x: axis(),
+        x: axis({
+          ticks: {
+            maxRotation: 0,
+            minRotation: 0,
+            autoSkip: true,
+          }
+        }),
         yCost: axis({ type: "linear", position: "left" }),
-        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false } })
+        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false }, ticks: { callback: (v) => compactTick(v) } })
       }
     })
   });
@@ -879,6 +900,11 @@ function renderDailyLine(dailyMap, dailyTokenMap, hourlyMap, endDate) {
       scales: {
         x: axis({
           ticks: {
+            // Keep labels horizontal (no auto-rotation) and skip some when dense.
+            maxRotation: 0,
+            minRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 12,
             // Short axis labels ("JUL 11"); the tooltip still shows the full date.
             callback: (value, index) => {
               const d = dates[index];
@@ -888,7 +914,7 @@ function renderDailyLine(dailyMap, dailyTokenMap, hourlyMap, endDate) {
           }
         }),
         yCost: axis({ type: "linear", position: "left" }),
-        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false } })
+        yToken: axis({ type: "linear", position: "right", grid: { drawOnChartArea: false }, ticks: { callback: (v) => compactTick(v) } })
       }
     })
   });
@@ -1072,11 +1098,10 @@ function renderDashboard(skipCharts = false) {
 
   filteredRecordsCache = [];
   let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
-  let totalPeakCost = 0, totalOffpeakCost = 0;
+  let totalPeakCost = 0, totalOffpeakCost = 0, totalFlatCost = 0;
   const dailyMap = {}, dailyTokenMap = {}, modelMap = {}, wsMap = {}, singleModelDailyMap = {}, hourlyMap = {};
   const unpricedModels = new Set();
   const rates = getRates(); // Hoisted: one read instead of one per record.
-  const splitEnabled = document.getElementById("splitToggle").checked;
 
   for (const [id, rec] of Object.entries(globalCache)) {
     const wsID = rec.workspaceID || "wrk_unknown";
@@ -1114,6 +1139,7 @@ function renderDashboard(skipCharts = false) {
     totalCacheRead += (rec.cacheRead || 0);
     if (window === "peak") totalPeakCost += cost;
     else if (window === "offpeak") totalOffpeakCost += cost;
+    else if (window === "flat") totalFlatCost += cost;
 
     const date = localDateOf(rec);
     dailyMap[date] = (dailyMap[date] || 0) + cost;
@@ -1141,7 +1167,7 @@ function renderDashboard(skipCharts = false) {
     singleModelDailyMap[date].cost += cost;
 
     if (!modelMap[modelName]) {
-      modelMap[modelName] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0, peakCost: 0, offpeakCost: 0 };
+      modelMap[modelName] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0, peakCost: 0, offpeakCost: 0, flatCost: 0 };
     }
     modelMap[modelName].req++;
     modelMap[modelName].input += (rec.input || 0);
@@ -1150,20 +1176,34 @@ function renderDashboard(skipCharts = false) {
     modelMap[modelName].cost += cost;
     if (window === "peak") modelMap[modelName].peakCost += cost;
     else if (window === "offpeak") modelMap[modelName].offpeakCost += cost;
+    else if (window === "flat") modelMap[modelName].flatCost += cost;
   }
+
+  // Per-model average cache hit rate; exclude models with 0% (no cache reads).
+  const modelHitRates = Object.values(modelMap)
+    .map((m) => {
+      const prompt = m.input + m.cacheRead;
+      return prompt > 0 ? (m.cacheRead / prompt) * 100 : 0;
+    })
+    .filter((rate) => rate > 0);
+  const maxHitRate = modelHitRates.length ? Math.max(...modelHitRates) : null;
+  const minHitRate = modelHitRates.length ? Math.min(...modelHitRates) : null;
 
   document.getElementById("statRequests").innerText = totalReq.toLocaleString();
   document.getElementById("statCost").innerText = `$${fmtMoney(totalCost)}`;
   document.getElementById("statSavings").innerText = `Cache savings: $${fmtMoney(totalSavings)}`;
   document.getElementById("statTokens").innerText = totalTokens.toLocaleString();
   document.getElementById("statHitRate").innerText = totalPrompt > 0 ? `${((totalCacheRead / totalPrompt) * 100).toFixed(2)}%` : "0.00%";
+  document.getElementById("statHitRateMax").innerText = maxHitRate !== null ? `Max: ${maxHitRate.toFixed(2)}%` : "Max: -";
+  document.getElementById("statHitRateMin").innerText = minHitRate !== null ? `Min: ${minHitRate.toFixed(2)}%` : "Min: -";
   document.getElementById("statAvgCostPerReq").innerText = `Avg per request: $${totalReq > 0 ? fmtMoney(totalCost / totalReq, 5) : "0.00000"}`;
   document.getElementById("statAvgTokens").innerText = `Avg tokens/request: ${totalReq > 0 ? Math.round(totalTokens / totalReq).toLocaleString() : 0}`;
   const statSplit = document.getElementById("statSplit");
   if (statSplit) {
-    statSplit.innerHTML = splitEnabled
-      ? `Peak: $${fmtMoney(totalPeakCost)}<br>Off-peak: $${fmtMoney(totalOffpeakCost)}`
-      : "";
+    statSplit.innerHTML =
+      `<span>Peak</span><span>$${fmtMoney(totalPeakCost)}</span>` +
+      `<span>Off-peak</span><span>$${fmtMoney(totalOffpeakCost)}</span>` +
+      `<span>Flat</span><span>$${fmtMoney(totalFlatCost)}</span>`;
   }
 
   // Unpriced / incomplete model list
@@ -1230,7 +1270,7 @@ function renderDashboard(skipCharts = false) {
         <th data-col="output">Output</th>
         <th data-col="cacheRead">Cache Read</th>
         <th data-col="hitRate">Cache Hit Rate</th>
-        ${splitEnabled ? `<th data-col="peakCost">Peak Cost</th><th data-col="offpeakCost">Off-peak Cost</th>` : ""}
+        <th data-col="peakCost">Peak Cost</th><th data-col="offpeakCost">Off-peak Cost</th><th data-col="flatCost">Flat Cost</th>
         <th data-col="cost">Estimated Cost</th>
       </tr>
     `;
@@ -1243,6 +1283,7 @@ function renderDashboard(skipCharts = false) {
       hitRate: stats.input + stats.cacheRead > 0 ? (stats.cacheRead / (stats.input + stats.cacheRead)) * 100 : 0,
       peakCost: stats.peakCost,
       offpeakCost: stats.offpeakCost,
+      flatCost: stats.flatCost,
       cost: stats.cost,
     }));
     for (const stats of sortBy(modelRows, sortState.model.col, sortState.model.dir)) {
@@ -1254,7 +1295,7 @@ function renderDashboard(skipCharts = false) {
         <td>${stats.output.toLocaleString()}</td>
         <td>${stats.cacheRead.toLocaleString()}</td>
         <td>${stats.hitRate.toFixed(2)}%</td>
-        ${splitEnabled ? `<td>$${fmtMoney(stats.peakCost)}</td><td>$${fmtMoney(stats.offpeakCost)}</td>` : ""}
+        <td>$${fmtMoney(stats.peakCost)}</td><td>$${fmtMoney(stats.offpeakCost)}</td><td>$${fmtMoney(stats.flatCost)}</td>
         <td>$${fmtMoney(stats.cost)}</td>
       `;
       tbody.appendChild(tr);
@@ -1416,6 +1457,11 @@ function showEmptyStateIfNeeded() {
 // back to its persistent cached snapshot otherwise - so the dashboard keeps its
 // data across refreshes forever, without any manual import.
 async function loadFromExtension() {
+  // Mirror the current rate config into chrome.storage so the popup's time
+  // reminder can read the peak windows even before the user opens Rate Settings.
+  try {
+    chrome.storage.local.set({ [TIME_RATES_KEY]: getRates() });
+  } catch (e) {}
   try {
     if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.sendMessage) {
       showEmptyStateIfNeeded();
@@ -2002,6 +2048,9 @@ document.getElementById("ratesSave").addEventListener("click", () => {
 });
 document.getElementById("ratesReset").addEventListener("click", () => {
   localStorage.removeItem(RATES_KEY);
+  try {
+    chrome.storage.local.set({ [TIME_RATES_KEY]: getRates() });
+  } catch (e) {}
   renderRateList();
 });
 document.getElementById("ratesExport").addEventListener("click", exportRatesJSON);
@@ -2013,7 +2062,6 @@ document.getElementById("ratesImportFile").addEventListener("change", (e) => {
   if (file) importRatesJSON(file);
   e.target.value = "";
 });
-document.getElementById("splitToggle").addEventListener("change", renderDashboard);
 document.getElementById("workspaceSelect").addEventListener("change", renderDashboard);
 document.getElementById("modelSelect").addEventListener("change", renderDashboard);
 
@@ -2047,3 +2095,312 @@ document.addEventListener("click", (e) => {
 });
 
 loadFromExtension();
+
+// ===== Time reminder =====
+const timeStatusEl = document.getElementById("time-status");
+const timeCountdownEl = document.getElementById("time-countdown");
+const timeLocalEl = document.getElementById("time-local");
+const timeUtcEl = document.getElementById("time-utc");
+const timeTimelineEl = document.getElementById("time-timeline");
+const timeToggleEl = document.getElementById("time-toggle");
+const timeModelEl = document.getElementById("time-model");
+
+let timeSelectedModel = "";
+// Cached peak windows for the selected model. Rebuilt only when the model or
+// the rate config changes, so the per-second render never re-parses rates.
+let timePeakWindows = [];
+
+function refreshTimePeakWindows() {
+  timePeakWindows = collectPeakWindowsForModel(getRates(), timeSelectedModel);
+}
+
+function renderTimeReminder() {
+  const now = new Date();
+  timeLocalEl.textContent = formatLocalTime(now);
+  timeUtcEl.textContent = formatUtcTime(now);
+
+  const peak = isPeakAt(now, timePeakWindows);
+  const hasWindows = timePeakWindows.length > 0;
+
+  timeStatusEl.className = "time-status " + (hasWindows ? (peak ? "peak" : "offpeak") : "flat");
+  timeStatusEl.textContent = hasWindows ? (peak ? "PEAK" : "OFF-PEAK") : "NO RATES";
+
+  const timeline = buildTimeline(timePeakWindows);
+  const nowHour = now.getHours();
+  timeTimelineEl.innerHTML = timeline
+    .map((seg) => `<div class="seg ${seg.peak ? "peak" : ""} ${seg.hour === nowHour ? "now" : ""}" title="${String(seg.hour).padStart(2, "0")}:00"></div>`)
+    .join("");
+
+  // Countdown to the next peak boundary (start or end), ticking every second
+  if (hasWindows) {
+    timeCountdownEl.className = "time-countdown " + (peak ? "peak" : "offpeak");
+    const boundary = nextPeakBoundary(now, timePeakWindows);
+    timeCountdownEl.textContent = boundary ? formatCountdownClock(boundary.time - now) : "--:--:--";
+  } else {
+    timeCountdownEl.className = "time-countdown flat";
+    timeCountdownEl.textContent = "NO RATES";
+  }
+}
+
+function populateTimeModels() {
+  const models = listPeakModels(getRates());
+  timeModelEl.innerHTML =
+    '<option value="">Select model</option>' + models.map((m) => `<option value="${m}">${m}</option>`).join("");
+  return models;
+}
+
+async function initTimeReminder() {
+  timeToggleEl.checked = await loadTimeEnabled();
+  timeToggleEl.addEventListener("change", () => saveTimeEnabled(timeToggleEl.checked));
+
+  const models = populateTimeModels();
+  let selected = await loadTimeModel();
+  if (!models.includes(selected)) selected = models[0] || "";
+  timeModelEl.value = selected;
+  timeSelectedModel = selected;
+  refreshTimePeakWindows();
+
+  timeModelEl.addEventListener("change", () => {
+    timeSelectedModel = timeModelEl.value;
+    saveTimeModel(timeModelEl.value);
+    refreshTimePeakWindows();
+    renderTimeReminder();
+  });
+
+  // Rebuild the cached peak windows whenever the rate config is mirrored into
+  // chrome.storage (i.e. after Rate Settings are saved/reset/imported).
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[TIME_RATES_KEY]) {
+      refreshTimePeakWindows();
+      renderTimeReminder();
+    }
+  });
+
+  renderTimeReminder();
+  setInterval(renderTimeReminder, 1000);
+}
+
+// ===== Neural network background (decorative) — always on =====
+let _neuralRAF = 0;
+let _neuralLayers = [];
+let _neuralEdges = [];
+let _neuralHighlights = [];
+let _neuralW = 0, _neuralH = 0;
+let _neuralNextHL = 0;
+
+
+
+function buildNeuralGraph() {
+  const xs = [0.03, 0.16, 0.30, 0.44, 0.60, 0.78, 0.97];
+  const counts = [5, 7, 10, 13, 10, 7, 5];
+  _neuralLayers = xs.map((xf, li) => {
+    const n = counts[li];
+    const isCenter = li === 3;
+    const isEdge = li === 0 || li === 6;
+    return Array.from({ length: n }, (_, i) => ({
+      x: xf * _neuralW,
+      baseX: xf * _neuralW,
+      baseY: ((i + 1) / (n + 1)) * _neuralH,
+      y: 0,
+      phase: Math.random() * Math.PI * 2,
+      driftPhase: Math.random() * Math.PI * 2,
+      driftSpeed: 0.22 + Math.random() * 0.32,
+      driftAmpX: 18 + Math.random() * 16,
+      driftAmpY: 16 + Math.random() * 16,
+      r: isCenter ? 2.6 : isEdge ? 1.4 : 1.9,
+    }));
+  });
+  _neuralEdges = [];
+  for (let li = 0; li < _neuralLayers.length - 1; li++) {
+    const keepProb = li === 3 ? 0.78 : li === 2 || li === 4 ? 0.68 : 0.52;
+    for (let a = 0; a < _neuralLayers[li].length; a++) {
+      for (let b = 0; b < _neuralLayers[li + 1].length; b++) {
+        if (Math.random() > keepProb) continue;
+        _neuralEdges.push({ li, a, b, skip: false });
+      }
+    }
+  }
+  for (let li = 0; li < _neuralLayers.length - 2; li++) {
+    for (let k = 0; k < 2; k++) {
+      const a = Math.floor(Math.random() * _neuralLayers[li].length);
+      const b = Math.floor(Math.random() * _neuralLayers[li + 2].length);
+      _neuralEdges.push({ li, a, b, skip: true });
+    }
+  }
+  _neuralHighlights = [];
+  _neuralNextHL = performance.now() + 300;
+}
+
+function startNeural() {
+  const canvas = document.getElementById("neuralCanvas");
+  if (!canvas) return;
+  stopNeural();
+  resizeNeural();
+  buildNeuralGraph();
+  window.addEventListener("resize", onNeuralResize);
+  tickNeural();
+}
+
+function stopNeural() {
+  if (_neuralRAF) cancelAnimationFrame(_neuralRAF);
+  _neuralRAF = 0;
+  window.removeEventListener("resize", onNeuralResize);
+}
+
+function onNeuralResize() { resizeNeural(); buildNeuralGraph(); }
+
+function resizeNeural() {
+  const canvas = document.getElementById("neuralCanvas");
+  if (!canvas) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  _neuralW = window.innerWidth;
+  _neuralH = window.innerHeight;
+  canvas.width = Math.floor(_neuralW * dpr);
+  canvas.height = Math.floor(_neuralH * dpr);
+  canvas.style.width = _neuralW + "px";
+  canvas.style.height = _neuralH + "px";
+  const ctx = canvas.getContext("2d");
+  if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+let _neuralRecentPaths = [];
+function spawnHighlight(now) {
+  if (now < _neuralNextHL) return;
+  _neuralNextHL = now + 650 + Math.random() * 1100;
+  let aIdx, pathKey, tries = 0;
+  do {
+    aIdx = Math.floor(Math.random() * _neuralLayers[0].length);
+    let tmp = aIdx, key = String(aIdx);
+    for (let li = 0; li < _neuralLayers.length - 1; li++) {
+      const curY = _neuralLayers[li][tmp].baseY;
+      let pool = [];
+      for (let b = 0; b < _neuralLayers[li + 1].length; b++) pool.push(b);
+      pool.sort(() => Math.random() - 0.5);
+      let best = pool[0], bestScore = Infinity;
+      for (const b of pool.slice(0, 4)) {
+        const d = Math.abs(_neuralLayers[li + 1][b].baseY - curY) + Math.random() * 36;
+        if (d < bestScore) { bestScore = d; best = b; }
+      }
+      tmp = best; key += "-" + tmp;
+    }
+    pathKey = key;
+    tries++;
+  } while (_neuralRecentPaths.includes(pathKey) && tries < 8);
+  _neuralRecentPaths.push(pathKey);
+  if (_neuralRecentPaths.length > 6) _neuralRecentPaths.shift();
+  for (let li = 0; li < _neuralLayers.length - 1; li++) {
+    const curY = _neuralLayers[li][aIdx].baseY;
+    let pool = [];
+    for (let b = 0; b < _neuralLayers[li + 1].length; b++) pool.push(b);
+    pool.sort(() => Math.random() - 0.5);
+    let best = pool[0], bestScore = Infinity;
+    for (const b of pool.slice(0, 4)) {
+      const d = Math.abs(_neuralLayers[li + 1][b].baseY - curY) + Math.random() * 36;
+      if (d < bestScore) { bestScore = d; best = b; }
+    }
+    _neuralHighlights.push({ li, a: aIdx, b: best, life: 0, maxLife: 420 + Math.random() * 280 });
+    aIdx = best;
+  }
+}
+
+function tickNeural() {
+  const canvas = document.getElementById("neuralCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const now = performance.now();
+  const tSec = now * 0.001;
+  ctx.clearRect(0, 0, _neuralW, _neuralH);
+  const glow = ctx.createRadialGradient(_neuralW * 0.5, _neuralH * 0.18, 0, _neuralW * 0.5, _neuralH * 0.18, _neuralW * 0.85);
+  glow.addColorStop(0, "rgba(106,143,192,0.07)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, _neuralW, _neuralH);
+
+  for (const layer of _neuralLayers) {
+    for (const n of layer) {
+      n.x = n.baseX + Math.sin(tSec * n.driftSpeed + n.driftPhase) * n.driftAmpX + Math.cos(tSec * n.driftSpeed * 0.62 + n.driftPhase * 1.3) * n.driftAmpX * 0.35;
+      n.y = n.baseY + Math.sin(tSec * 0.55 + n.phase) * 7 + Math.cos(tSec * n.driftSpeed * 0.71 + n.driftPhase * 0.9) * n.driftAmpY * 0.5;
+    }
+  }
+
+  spawnHighlight(now);
+
+  for (const e of _neuralEdges) {
+    const a = _neuralLayers[e.li][e.a];
+    const bLayer = e.skip ? _neuralLayers[e.li + 2] : _neuralLayers[e.li + 1];
+    const b = bLayer[e.b];
+    if (!a || !b) continue;
+    const alpha = e.skip ? 0.028 : 0.095;
+    ctx.strokeStyle = `rgba(106,143,192,${alpha})`;
+    ctx.lineWidth = e.skip ? 0.6 : 0.75;
+    ctx.beginPath();
+    if (e.skip) {
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2 - 18;
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(mx, my, b.x, b.y);
+    } else {
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.stroke();
+  }
+
+  // thinking highlight: pulse a whole path, line glow only (no flying dot)
+  for (let i = _neuralHighlights.length - 1; i >= 0; i--) {
+    const h = _neuralHighlights[i];
+    h.life += 16;
+    if (h.life > h.maxLife) { _neuralHighlights.splice(i, 1); continue; }
+    const a = _neuralLayers[h.li][h.a];
+    const b = _neuralLayers[h.li + 1][h.b];
+    if (!a || !b) continue;
+    const p = h.life / h.maxLife; // 0..1
+    const env = p < 0.15 ? p / 0.15 : p > 0.75 ? (1 - p) / 0.25 : 1; // attack + release
+    ctx.strokeStyle = `rgba(130,170,255,${(0.52 * env).toFixed(3)})`;
+    ctx.lineWidth = 1.7;
+    ctx.shadowColor = "rgba(106,143,192,0.95)";
+    ctx.shadowBlur = 11;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `rgba(190,210,255,${(0.22 * env).toFixed(3)})`;
+    ctx.lineWidth = 3.2;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+
+  for (let li = 0; li < _neuralLayers.length; li++) {
+    for (let i = 0; i < _neuralLayers[li].length; i++) {
+      const n = _neuralLayers[li][i];
+      const pulse = 0.55 + 0.45 * Math.sin(tSec * 1.35 + n.phase * 1.7);
+      const hl = _neuralHighlights.find((h) => (h.li === li && h.a === i) || (h.li === li - 1 && h.b === i));
+      const env = hl ? (() => { const p = hl.life / hl.maxLife; return p < 0.15 ? p / 0.15 : p > 0.75 ? (1 - p) / 0.25 : 1; })() : 0;
+      const isActive = env > 0.08;
+      const baseA = isActive ? 0.32 + env * 0.18 : 0.18;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(106,143,192,${(baseA + pulse * 0.12).toFixed(3)})`;
+      ctx.fill();
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(106,143,192,${(0.035 * pulse).toFixed(3)})`;
+      ctx.fill();
+      if (isActive) {
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 2.2, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(130,170,255,${(0.35 + env * 0.25).toFixed(2)})`;
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+      }
+    }
+  }
+
+  _neuralRAF = requestAnimationFrame(tickNeural);
+}
+
+function initDecorBg() {
+  startNeural();
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { if (_neuralRAF) cancelAnimationFrame(_neuralRAF); _neuralRAF = 0; }
+    else if (!_neuralRAF) tickNeural();
+  });
+}
+
+initTimeReminder();
+initDecorBg();
