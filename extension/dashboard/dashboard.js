@@ -1086,7 +1086,8 @@ function renderYearlyHeatmap() {
   if (badge) badge.textContent = `${iso(firstDate)} → ${iso(lastDate)}`;
 }
 
-function renderDashboard(skipCharts = false) {
+function renderDashboard(skipCharts) {
+  skipCharts = skipCharts === true;
   // Preserve table scroll positions across re-renders (sorting resets them otherwise).
   const tableScrolls = Array.from(document.querySelectorAll(".table-container")).map((el) => ({ el, top: el.scrollTop }));
 
@@ -1338,13 +1339,16 @@ function renderDashboard(skipCharts = false) {
   }
   markSortHeader("modelTable", sortState.model.col, sortState.model.dir);
 
+  // Yearly heatmap ignores the date range and must always reflect the
+  // current workspace/model filters — keep it outside the skipCharts guard
+  // so sorting tables or any future skipCharts path can never stale it.
+  renderYearlyHeatmap();
+
   // Draw charts (skipped when only re-sorting tables to avoid layout shifts).
   if (!skipCharts) {
   renderDailyLine(dailyMap, dailyTokenMap, hourlyMap, endDate);
 
   renderHourlyChart(hourlyMap, endDate);
-
-  renderYearlyHeatmap();
 
   const models = Object.keys(modelMap);
   const modelCosts = models.map((m) => modelMap[m].cost);
@@ -2062,8 +2066,8 @@ document.getElementById("ratesImportFile").addEventListener("change", (e) => {
   if (file) importRatesJSON(file);
   e.target.value = "";
 });
-document.getElementById("workspaceSelect").addEventListener("change", renderDashboard);
-document.getElementById("modelSelect").addEventListener("change", renderDashboard);
+document.getElementById("workspaceSelect").addEventListener("change", () => renderDashboard());
+document.getElementById("modelSelect").addEventListener("change", () => renderDashboard());
 
 // Intraday chart view switcher.
 document.querySelectorAll(".hourly-view-btn").forEach((btn) => {
