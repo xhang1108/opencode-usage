@@ -462,7 +462,7 @@ function updateDropdowns() {
 //   Time-based: windows.peak (peak windows, off-peak is the complement) + pricing.peak + pricing.offpeak
 // Price tables may be tiered (low/high by input+cacheRead total context).
 // Rates are USD per million tokens.
-const RATES_VERSION = 5;
+const RATES_VERSION = 6;
 const RATES_KEY = "opencode_model_rates_v2";
 
 const DEFAULT_MODEL_RATES = [
@@ -502,6 +502,28 @@ const DEFAULT_MODEL_RATES = [
   {
     id: "r7b",
     model: "deepseek-v4-flash-free",
+    rates: [
+      { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
+      {
+        from: "2026-08-16T16:00:00Z",
+        windows: {
+          peak: [
+            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
+            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.44, output: 1.32, cacheRead: 0.014, cacheWrite: 0 },
+          offpeak: { input: 0.22, output: 0.66, cacheRead: 0.007, cacheWrite: 0 },
+        },
+      },
+    ],
+  },
+
+  // DeepSeek V4 Flash Vision Exp - same rates as deepseek-v4-flash
+  {
+    id: "r7c",
+    model: "deepseek-v4-flash-vision-exp",
     rates: [
       { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
       {
@@ -630,11 +652,11 @@ function matchRule(modelName, rules) {
   return null;
 }
 
-// Parse effective-from bounds to timestamps; null/empty string → null (earliest).
+// Parse effective-from bounds to timestamps; null/empty string → null (earliest), invalid → NaN.
 function parseBound(bound) {
   if (bound == null || bound === "") return null;
   const t = new Date(bound).getTime();
-  return isNaN(t) ? null : t;
+  return isNaN(t) ? NaN : t;
 }
 
 // Pick the rate version by record time: versions are sorted by "effective from",
@@ -645,6 +667,11 @@ function getRateEntry(rule, recordTime) {
   const versions = (rule.rates || []).slice().sort((a, b) => {
     const aFrom = parseBound(a.from);
     const bFrom = parseBound(b.from);
+    const aNaN = typeof aFrom === "number" && isNaN(aFrom);
+    const bNaN = typeof bFrom === "number" && isNaN(bFrom);
+    if (aNaN && bNaN) return 0;
+    if (aNaN) return 1;
+    if (bNaN) return -1;
     if (aFrom === null && bFrom === null) return 0;
     if (aFrom === null) return -1; // null = earliest
     if (bFrom === null) return 1;
@@ -1502,479 +1529,36 @@ async function loadFromExtension() {
   }
 }
 
-// ===== Rate settings modal =====
-const escAttr = (v) => String(v ?? "").replace(/"/g, "&quot;");
-
-// datetime-local ↔ UTC ISO conversion: stored as UTC ISO, input in local time
-function toLocalInput(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+// ===== Rate settings modal — JSON only =====
+function stringifyRates(models) {
+  return JSON.stringify({ version: RATES_VERSION, timezone: "UTC", models }, null, 2);
 }
-function fromLocalInput(v) {
-  if (!v) return null;
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? null : d.toISOString();
+function parseRatesJson(text) {
+  const raw = String(text || "").trim();
+  if (!raw) throw new Error("JSON is empty");
+  const parsed = JSON.parse(raw);
+  const models = Array.isArray(parsed) ? parsed : parsed.models;
+  if (!Array.isArray(models)) throw new Error('JSON must be an array or an object with a "models" array');
+  return models;
 }
-
-// Plain number input: type value directly, no spinner buttons
-const numField = (cls, label, value, step = "0.1") =>
-  `<label class="nf">${label}<input class="${cls}" type="number" step="${step}" value="${value}"></label>`;
-
-// Price table (optional tier: low/high by input+cacheRead total context)
-function priceTableHTML(prefix, table) {
-  const t = table && table.tier;
-  const flat = table && !table.tier ? table : {};
-  const low = (t && t.low) || {};
-  const high = (t && t.high) || {};
-  const group = (title, inner) => `<div class="rate-group"><span class="rate-group-title">${title}</span>${inner}</div>`;
-  return `
-    <div class="price-table">
-      <label class="pt-tier-toggle"><input type="checkbox" class="pt-has-tier" ${t ? "checked" : ""}> Tier</label>
-      <div class="pt-tier" ${t ? "" : "hidden"}>
-        ${group("Tier", numField(`${prefix}-tier-limit`, "&le;Limit", (t && t.limit) ?? 0, "1"))}
-        ${group("Low",
-          numField(`${prefix}-tier-low-input`, "In", low.input ?? 0) +
-          numField(`${prefix}-tier-low-output`, "Out", low.output ?? 0) +
-          numField(`${prefix}-tier-low-cr`, "CR", low.cacheRead ?? 0) +
-          numField(`${prefix}-tier-low-cw`, "CW", low.cacheWrite ?? 0))}
-        ${group("High",
-          numField(`${prefix}-tier-high-input`, "In", high.input ?? 0) +
-          numField(`${prefix}-tier-high-output`, "Out", high.output ?? 0) +
-          numField(`${prefix}-tier-high-cr`, "CR", high.cacheRead ?? 0) +
-          numField(`${prefix}-tier-high-cw`, "CW", high.cacheWrite ?? 0))}
-      </div>
-      <div class="pt-flat" ${t ? "hidden" : ""}>
-        ${numField(`${prefix}-input`, "In", flat.input ?? 0) +
-          numField(`${prefix}-output`, "Out", flat.output ?? 0) +
-          numField(`${prefix}-cr`, "CR", flat.cacheRead ?? 0) +
-          numField(`${prefix}-cw`, "CW", flat.cacheWrite ?? 0)}
-      </div>
-    </div>`;
+function showRatesError(msg) {
+  const el = document.getElementById("ratesError");
+  const ta = document.getElementById("ratesJson");
+  if (!el || !ta) return;
+  if (!msg) { el.hidden = true; el.textContent = ""; ta.classList.remove("invalid"); return; }
+  el.textContent = msg;
+  el.hidden = false;
+  ta.classList.add("invalid");
 }
-
-// Peak window rows (off-peak is the complement, no need to fill)
-// Weekdays use toggle buttons (0=Sun … 6=Sat), no need to memorize numeric codes.
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-function windowRowHTML(w) {
-  const days = w && w.days && w.days.length > 0 ? w.days : [0, 1, 2, 3, 4, 5, 6]; // Default: every day
-  const dayToggles = DAY_LABELS.map((label, i) =>
-    `<label class="rv-day"><input type="checkbox" class="rv-window-day" value="${i}" ${days.includes(i) ? "checked" : ""}>${label}</label>`
-  ).join("");
-  return `
-    <div class="rv-window">
-      <span class="rv-window-days">${dayToggles}</span>
-      <input type="time" class="rv-window-start" value="${escAttr((w && w.start) || "")}">
-      <input type="time" class="rv-window-end" value="${escAttr((w && w.end) || "")}">
-      <button type="button" class="rv-window-del" aria-label="Remove window">&times;</button>
-    </div>`;
-}
-
-// Single rate version
-// Each version uses a unique uid for the class prefix (data-prefix) to avoid index misalignment after deleting versions.
-let versionUid = 0;
-function rateVersionHTML(entry, idx) {
-  const mode = entry.windows && entry.windows.peak && entry.windows.peak.length > 0 ? "time" : "flat";
-  const windows = (entry.windows && entry.windows.peak) || [];
-  const uid = "rv" + (++versionUid);
-  const fromLocal = toLocalInput(entry.from);
-  const fromLabel = fromLocal ? fromLocal.replace("T", " ") : "earliest";
-  return `
-    <div class="rate-version" data-mode="${mode}" data-prefix="${uid}">
-      <div class="rv-head">
-        <span class="rv-title">Version ${idx + 1} · effective from ${fromLabel}</span>
-        <button type="button" class="rv-del">Del</button>
-      </div>
-      <div class="rv-dates">
-        <label>Effective from
-          <div class="dt-picker">
-            <button type="button" class="input range-trigger dt-trigger" title="Pick effective-from date & time">
-              <span class="dt-label">${fromLabel}</span>
-              <span class="range-caret">▾</span>
-            </button>
-            <input type="hidden" class="rv-from" value="${escAttr(fromLocal)}">
-            <div class="range-popup dt-popup" hidden>
-              <div class="range-cal-head">
-                <button type="button" class="range-nav dt-prev" title="Previous month">‹</button>
-                <span class="dt-month-label">…</span>
-                <button type="button" class="range-nav dt-next" title="Next month">›</button>
-              </div>
-              <div class="range-weekdays dt-weekdays"></div>
-              <div class="range-days dt-days"></div>
-              <div class="dt-time">
-                <span class="dt-time-label">Time</span>
-                <div class="dt-stepper">
-                  <button type="button" class="dt-step-up" data-field="hour" tabindex="-1" title="Hour up">▲</button>
-                  <input type="number" class="dt-hour" min="0" max="23" placeholder="HH" inputmode="numeric">
-                  <button type="button" class="dt-step-down" data-field="hour" tabindex="-1" title="Hour down">▼</button>
-                </div>
-                <span class="dt-colon">:</span>
-                <div class="dt-stepper">
-                  <button type="button" class="dt-step-up" data-field="minute" tabindex="-1" title="Minute up">▲</button>
-                  <input type="number" class="dt-minute" min="0" max="59" placeholder="MM" inputmode="numeric">
-                  <button type="button" class="dt-step-down" data-field="minute" tabindex="-1" title="Minute down">▼</button>
-                </div>
-              </div>
-              <div class="range-actions">
-                <button type="button" class="btn btn-secondary dt-clear">Earliest</button>
-                <button type="button" class="btn btn-primary dt-apply">Apply</button>
-              </div>
-            </div>
-          </div>
-        </label>
-      </div>
-      <div class="rv-mode">
-        <label>Mode
-          <select class="rv-mode-select">
-            <option value="flat" ${mode === "flat" ? "selected" : ""}>Flat</option>
-            <option value="time" ${mode === "time" ? "selected" : ""}>Time-based</option>
-          </select>
-        </label>
-      </div>
-      <div class="rv-flat-section" ${mode === "flat" ? "" : "hidden"}>
-        ${priceTableHTML(`${uid}-flat`, entry.pricing && entry.pricing.flat)}
-      </div>
-      <div class="rv-time-section" ${mode === "time" ? "" : "hidden"}>
-        <div class="rv-windows">
-          <div class="rv-windows-title">Peak Windows (off-peak = remaining time)</div>
-          ${windows.map((w) => windowRowHTML(w)).join("")}
-          <button type="button" class="rv-window-add">+ Peak Window</button>
-        </div>
-        <div class="rv-tables">
-          <div class="rv-table-block">
-            <div class="rv-table-title">Peak</div>
-            ${priceTableHTML(`${uid}-peak`, entry.pricing && entry.pricing.peak)}
-          </div>
-          <div class="rv-table-block">
-            <div class="rv-table-title">Off-peak</div>
-            ${priceTableHTML(`${uid}-offpeak`, entry.pricing && entry.pricing.offpeak)}
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-// Single rule (exact model name + list of rate versions)
-function rateRowHTML(rule) {
-  const rates = rule.rates && rule.rates.length > 0 ? rule.rates : [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }];
-  return `
-    <div class="rate-row">
-      <div class="rate-main">
-        <input class="rate-model" value="${escAttr(rule.model || "")}" placeholder="Model name (exact)">
-        <button class="rate-del">Del</button>
-      </div>
-      <div class="rate-versions">
-        ${rates.map((e, i) => rateVersionHTML(e, i)).join("")}
-      </div>
-      <button type="button" class="rv-add-version">+ Add Rate Version</button>
-    </div>`;
-}
-
-// Mode switch: flat / time-based
-function wireModeSelect(select) {
-  select.addEventListener("change", () => {
-    const version = select.closest(".rate-version");
-    const mode = select.value;
-    version.dataset.mode = mode;
-    version.querySelector(".rv-flat-section").hidden = mode !== "flat";
-    version.querySelector(".rv-time-section").hidden = mode !== "time";
-  });
-}
-
-// Tier toggle: checked shows low/high, unchecked shows a single price
-function wireTierToggle(checkbox) {
-  checkbox.addEventListener("change", () => {
-    const pt = checkbox.closest(".price-table");
-    pt.querySelector(".pt-tier").hidden = !checkbox.checked;
-    pt.querySelector(".pt-flat").hidden = checkbox.checked;
-  });
-}
-
-function wireDelete(btn) {
-  btn.addEventListener("click", () => btn.closest(".rate-row").remove());
-}
-
-function wireVersionDel(btn) {
-  btn.addEventListener("click", () => btn.closest(".rate-version").remove());
-}
-
-function wireWindowDel(btn) {
-  btn.addEventListener("click", () => btn.closest(".rv-window").remove());
-}
-
-function wireWindowAdd(btn) {
-  btn.addEventListener("click", () => {
-    btn.insertAdjacentHTML("beforebegin", windowRowHTML({}));
-    const row = btn.previousElementSibling;
-    wireWindowDel(row.querySelector(".rv-window-del"));
-  });
-}
-
-function wireVersionAdd(btn) {
-  btn.addEventListener("click", () => {
-    const versions = btn.closest(".rate-row").querySelector(".rate-versions");
-    versions.insertAdjacentHTML("beforeend", rateVersionHTML({ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }, versions.children.length));
-    const version = versions.lastElementChild;
-    wireVersionControls(version);
-  });
-}
-
-function wireVersionControls(version) {
-  wireModeSelect(version.querySelector(".rv-mode-select"));
-  wireVersionDel(version.querySelector(".rv-del"));
-  version.querySelectorAll(".pt-has-tier").forEach(wireTierToggle);
-  version.querySelectorAll(".rv-window-del").forEach(wireWindowDel);
-  version.querySelectorAll(".rv-window-add").forEach(wireWindowAdd);
-  version.querySelectorAll(".dt-picker").forEach(initDtPicker);
-}
-
-// ===== Single date+time picker (rate "effective from") =====
-// Same look as the date-range picker; writes "YYYY-MM-DDTHH:mm" (local) into a hidden .rv-from input.
-let openDtPicker = null;
-
-function closeDtPickers() {
-  if (openDtPicker && openDtPicker._dtClose) openDtPicker._dtClose();
-}
-
-function initDtPicker(picker) {
-  const trigger = picker.querySelector(".dt-trigger");
-  const label = picker.querySelector(".dt-label");
-  const popup = picker.querySelector(".dt-popup");
-  const hidden = picker.querySelector(".rv-from");
-  const monthLabel = popup.querySelector(".dt-month-label");
-  const weekdaysEl = popup.querySelector(".dt-weekdays");
-  const daysEl = popup.querySelector(".dt-days");
-  const hourInput = popup.querySelector(".dt-hour");
-  const minuteInput = popup.querySelector(".dt-minute");
-
-  const state = { date: "", hour: 0, minute: 0, viewYear: null, viewMonth: null };
-
-  function parseValue() {
-    const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/.exec(hidden.value || "");
-    if (m) { state.date = m[1]; state.hour = +m[2]; state.minute = +m[3]; }
-    else { state.date = ""; state.hour = 0; state.minute = 0; }
-  }
-
-  function updateLabel() {
-    label.textContent = state.date
-      ? `${state.date} ${String(state.hour).padStart(2, "0")}:${String(state.minute).padStart(2, "0")}`
-      : "earliest";
-  }
-
-  function renderCalendar() {
-    monthLabel.textContent =
-      new Date(state.viewYear, state.viewMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    renderCalendarGrid(weekdaysEl, daysEl, state.viewYear, state.viewMonth, (btn) => {
-      if (btn.dataset.date === state.date) btn.classList.add("range-start", "range-end");
-    }, (iso) => {
-      state.date = iso;
-      renderCalendar();
-    });
-  }
-
-  function shiftMonth(delta) {
-    shiftViewMonth(state, delta);
-    renderCalendar();
-  }
-
-  function open() {
-    closeDtPickers();
-    parseValue();
-    if (state.viewYear === null) {
-      const ref = state.date || todayISO();
-      state.viewYear = +ref.slice(0, 4);
-      state.viewMonth = +ref.slice(5, 7) - 1;
-    }
-    hourInput.value = state.date ? String(state.hour).padStart(2, "0") : "";
-    minuteInput.value = state.date ? String(state.minute).padStart(2, "0") : "";
-    renderCalendar();
-    // Fixed positioning so the popup is never clipped by the scrollable rates list.
-    const rect = trigger.getBoundingClientRect();
-    popup.style.position = "fixed";
-    popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 310)) + "px";
-    if (rect.bottom + 330 + 8 > window.innerHeight) {
-      popup.style.top = "auto";
-      popup.style.bottom = (window.innerHeight - rect.top + 8) + "px";
-    } else {
-      popup.style.bottom = "auto";
-      popup.style.top = (rect.bottom + 6) + "px";
-    }
-    popup.hidden = false;
-    trigger.classList.add("open");
-    openDtPicker = picker;
-  }
-
-  function close() {
-    popup.hidden = true;
-    trigger.classList.remove("open");
-    if (openDtPicker === picker) openDtPicker = null;
-  }
-
-  function apply() {
-    if (state.date) {
-      const h = Math.min(23, Math.max(0, parseInt(hourInput.value, 10) || 0));
-      const m = Math.min(59, Math.max(0, parseInt(minuteInput.value, 10) || 0));
-      state.hour = h; state.minute = m;
-      hidden.value = `${state.date}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-    } else {
-      hidden.value = "";
-    }
-    updateLabel();
-    close();
-  }
-
-  function clear() {
-    state.date = "";
-    hidden.value = "";
-    updateLabel();
-    close();
-  }
-
-  // Stepper: ▲/▼ adjust hour/minute with wraparound; typing still allowed.
-  function stepField(field, delta) {
-    const input = field === "hour" ? hourInput : minuteInput;
-    const max = field === "hour" ? 23 : 59;
-    let v = parseInt(input.value, 10);
-    if (isNaN(v)) v = 0;
-    v = (v + delta + max + 1) % (max + 1);
-    input.value = String(v).padStart(2, "0");
-    if (field === "hour") state.hour = v; else state.minute = v;
-  }
-
-  picker._dtClose = close;
-  trigger.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (!popup.hidden) { close(); return; }
-    open();
-  });
-  popup.addEventListener("click", (e) => e.stopPropagation());
-  popup.querySelector(".dt-prev").addEventListener("click", () => shiftMonth(-1));
-  popup.querySelector(".dt-next").addEventListener("click", () => shiftMonth(1));
-  popup.querySelector(".dt-clear").addEventListener("click", clear);
-  popup.querySelector(".dt-apply").addEventListener("click", apply);
-  popup.querySelectorAll(".dt-step-up").forEach((b) => b.addEventListener("click", () => stepField(b.dataset.field, 1)));
-  popup.querySelectorAll(".dt-step-down").forEach((b) => b.addEventListener("click", () => stepField(b.dataset.field, -1)));
-
-  updateLabel();
-}
-
-function renderRateList() {
-  const list = document.getElementById("ratesList");
-  list.innerHTML = getRates().map((r) => rateRowHTML(r)).join("");
-  list.querySelectorAll(".rate-del").forEach(wireDelete);
-  list.querySelectorAll(".rv-add-version").forEach(wireVersionAdd);
-  list.querySelectorAll(".rate-version").forEach(wireVersionControls);
-}
-
-// Collect rate settings from the DOM (with structural validation)
-function collectRates() {
-  const rules = [];
-  document.querySelectorAll("#ratesList .rate-row").forEach((row, idx) => {
-    const model = row.querySelector(".rate-model").value.trim();
-    // Keep rules with empty model so validateRates can catch and report them (don't silently drop)
-    const num = (el) => parseFloat(el.value) || 0;
-    const rates = [];
-    row.querySelectorAll(".rate-version").forEach((version) => {
-      const mode = version.dataset.mode || "flat";
-      const prefix = version.dataset.prefix || "rv0"; // Unique prefix to avoid index misalignment after deleting versions
-      const from = fromLocalInput(version.querySelector(".rv-from").value);
-      const readTable = (p) => {
-        const hasTier = version.querySelector(`.${p}-tier-limit`) !== null &&
-          !version.querySelector(`.${p}-tier-limit`).closest(".pt-tier").hidden;
-        if (hasTier) {
-          return {
-            tier: {
-              limit: num(version.querySelector(`.${p}-tier-limit`)),
-              low: {
-                input: num(version.querySelector(`.${p}-tier-low-input`)),
-                output: num(version.querySelector(`.${p}-tier-low-output`)),
-                cacheRead: num(version.querySelector(`.${p}-tier-low-cr`)),
-                cacheWrite: num(version.querySelector(`.${p}-tier-low-cw`)),
-              },
-              high: {
-                input: num(version.querySelector(`.${p}-tier-high-input`)),
-                output: num(version.querySelector(`.${p}-tier-high-output`)),
-                cacheRead: num(version.querySelector(`.${p}-tier-high-cr`)),
-                cacheWrite: num(version.querySelector(`.${p}-tier-high-cw`)),
-              },
-            },
-          };
-        }
-        return {
-          input: num(version.querySelector(`.${p}-input`)),
-          output: num(version.querySelector(`.${p}-output`)),
-          cacheRead: num(version.querySelector(`.${p}-cr`)),
-          cacheWrite: num(version.querySelector(`.${p}-cw`)),
-        };
-      };
-      const entry = { from };
-      if (mode === "time") {
-        const windows = [];
-        version.querySelectorAll(".rv-window").forEach((w) => {
-          let days = Array.from(w.querySelectorAll(".rv-window-day:checked")).map((c) => parseInt(c.value, 10));
-          if (days.length === 0) days = [0, 1, 2, 3, 4, 5, 6]; // None checked = every day
-          const start = w.querySelector(".rv-window-start").value.trim();
-          const end = w.querySelector(".rv-window-end").value.trim();
-          if (start && end) windows.push({ days, start, end });
-        });
-        entry.windows = { peak: windows };
-        entry.pricing = {
-          peak: readTable(`${prefix}-peak`),
-          offpeak: readTable(`${prefix}-offpeak`),
-        };
-      } else {
-        entry.pricing = { flat: readTable(`${prefix}-flat`) };
-      }
-      rates.push(entry);
-    });
-    rules.push({ id: `r${Date.now()}_${idx}`, model, rates });
-  });
-  return rules;
-}
-
-// Structural validation: model required, at least one version, unique effective-from dates, complete price tables
-function validateRates(models) {
-  const errors = [];
-  for (const rule of models) {
-    if (!rule.model) { errors.push("A rule is missing a model name"); continue; }
-    if (!rule.rates || rule.rates.length === 0) { errors.push(`${rule.model} needs at least one rate version`); continue; }
-    // Effective-from dates must be unique (same from = ambiguous which version applies)
-    const seen = new Map();
-    for (let i = 0; i < rule.rates.length; i++) {
-      const from = parseBound(rule.rates[i].from);
-      const key = from === null ? "null" : String(from);
-      if (seen.has(key)) {
-        errors.push(`${rule.model} versions ${seen.get(key) + 1} and ${i + 1} have the same effective-from time`);
-      } else {
-        seen.set(key, i);
-      }
-    }
-    for (const entry of rule.rates) {
-      const pricing = entry.pricing || {};
-      const mode = entry.windows && entry.windows.peak && entry.windows.peak.length > 0 ? "time" : "flat";
-      if (mode === "flat") {
-        if (!pricing.flat) errors.push(`${rule.model} version is missing the flat price table`);
-      } else {
-        if (!pricing.peak || !pricing.offpeak) errors.push(`${rule.model} version is missing the peak/offpeak price tables`);
-      }
-    }
-  }
-  return errors;
-}
-
 function openRatesModal() {
-  renderRateList();
+  const ta = document.getElementById("ratesJson");
+  if (ta) ta.value = stringifyRates(getRates());
+  showRatesError("");
   document.getElementById("ratesModal").style.display = "flex";
 }
-
 function closeRatesModal() {
-  closeDtPickers();
   document.getElementById("ratesModal").style.display = "none";
 }
-
-// ===== JSON import / export =====
 function exportRatesJSON() {
   const cfg = { version: RATES_VERSION, timezone: "UTC", models: getRates() };
   const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" });
@@ -1985,7 +1569,6 @@ function exportRatesJSON() {
   a.click();
   URL.revokeObjectURL(url);
 }
-
 function importRatesJSON(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -1995,18 +1578,103 @@ function importRatesJSON(file) {
       if (!Array.isArray(models) || models.length === 0) throw new Error("Invalid config");
       const errors = validateRates(models);
       if (errors.length > 0) {
+        showRatesError(errors.join("\n"));
         alert("Imported settings have issues:\n" + errors.join("\n"));
         return;
       }
       saveRates(models);
-      renderRateList();
+      const ta = document.getElementById("ratesJson");
+      if (ta) ta.value = stringifyRates(models);
+      showRatesError("");
       renderDashboard();
       alert(`Imported ${models.length} rules`);
     } catch (e) {
-      alert("Import failed: not a valid JSON config");
+      const msg = e && e.message ? e.message : String(e);
+      showRatesError(msg);
+      alert("Import failed: " + msg);
     }
   };
   reader.readAsText(file);
+}
+
+// Structural validation: model required, at least one version, unique effective-from dates, complete price tables
+function validateRates(models) {
+  const errors = [];
+  const isValidPrice = (v) => typeof v === "number" && isFinite(v) && v >= 0;
+  const checkTable = (table, label) => {
+    if (!table || typeof table !== "object") { errors.push(`${label} is not an object`); return; }
+    if (table.tier) {
+      const t = table.tier;
+      if (typeof t.limit !== "number" || !isFinite(t.limit) || t.limit <= 0) errors.push(`${label}.tier.limit must be a positive number`);
+      for (const side of ["low", "high"]) {
+        const sub = t[side];
+        if (!sub || typeof sub !== "object") { errors.push(`${label}.tier.${side} is missing`); continue; }
+        for (const k of ["input", "output", "cacheRead", "cacheWrite"]) {
+          if (k in sub && !isValidPrice(sub[k])) errors.push(`${label}.tier.${side}.${k} must be a non-negative number`);
+        }
+      }
+    } else {
+      for (const k of ["input", "output", "cacheRead", "cacheWrite"]) {
+        if (k in table && !isValidPrice(table[k])) errors.push(`${label}.${k} must be a non-negative number`);
+      }
+    }
+  };
+  for (const rule of models) {
+    if (!rule.model) { errors.push("A rule is missing a model name"); continue; }
+    if (!rule.rates || rule.rates.length === 0) { errors.push(`${rule.model} needs at least one rate version`); continue; }
+    const seen = new Map();
+    for (let i = 0; i < rule.rates.length; i++) {
+      const raw = rule.rates[i].from;
+      const parsed = parseBound(raw);
+      if (typeof parsed === "number" && isNaN(parsed)) {
+        errors.push(`${rule.model} version ${i + 1} has invalid effective-from "${raw}"`);
+        continue;
+      }
+      const key = parsed === null ? "null" : String(parsed);
+      if (seen.has(key)) {
+        errors.push(`${rule.model} versions ${seen.get(key) + 1} and ${i + 1} have the same effective-from time`);
+      } else {
+        seen.set(key, i);
+      }
+    }
+    for (let vi = 0; vi < rule.rates.length; vi++) {
+      const entry = rule.rates[vi];
+      const pricing = entry.pricing || {};
+      const hasPeak = entry.windows && entry.windows.peak && entry.windows.peak.length > 0;
+      const mode = hasPeak ? "time" : "flat";
+      if (mode === "flat") {
+        if (!pricing.flat) errors.push(`${rule.model} version ${vi + 1} is missing the flat price table`);
+        else checkTable(pricing.flat, `${rule.model} version ${vi + 1} flat`);
+      } else {
+        if (!pricing.peak || !pricing.offpeak) errors.push(`${rule.model} version ${vi + 1} is missing the peak/offpeak price tables`);
+        else {
+          checkTable(pricing.peak, `${rule.model} version ${vi + 1} peak`);
+          checkTable(pricing.offpeak, `${rule.model} version ${vi + 1} offpeak`);
+        }
+      }
+      if (entry.windows && entry.windows.peak) {
+        if (!Array.isArray(entry.windows.peak)) {
+          errors.push(`${rule.model} version ${vi + 1} windows.peak must be an array`);
+        } else {
+          entry.windows.peak.forEach((w, wi) => {
+            const s = toMinutes(w.start);
+            const e = toMinutes(w.end);
+            if (s === null) errors.push(`${rule.model} version ${vi + 1} peak window ${wi + 1} start "${w.start}" is not HH:MM`);
+            if (e === null) errors.push(`${rule.model} version ${vi + 1} peak window ${wi + 1} end "${w.end}" is not HH:MM`);
+            if (s !== null && (s < 0 || s >= 24 * 60)) errors.push(`${rule.model} version ${vi + 1} peak window ${wi + 1} start out of range`);
+            if (e !== null && (e < 0 || e >= 24 * 60)) errors.push(`${rule.model} version ${vi + 1} peak window ${wi + 1} end out of range`);
+            if (w.days !== undefined) {
+              if (!Array.isArray(w.days)) errors.push(`${rule.model} version ${vi + 1} peak window ${wi + 1} days must be an array`);
+              else w.days.forEach((d) => {
+                if (typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6) errors.push(`${rule.model} version ${vi + 1} peak window ${wi + 1} has invalid day "${d}" (0-6)`);
+              });
+            }
+          });
+        }
+      }
+    }
+  }
+  return errors;
 }
 
 // ===== Event wiring (MV3 CSP forbids inline handlers) =====
@@ -2031,33 +1699,54 @@ document.getElementById("ratesClose").addEventListener("click", closeRatesModal)
 document.getElementById("ratesModal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closeRatesModal();
 });
-document.getElementById("ratesAdd").addEventListener("click", () => {
-  const list = document.getElementById("ratesList");
-  list.insertAdjacentHTML("beforeend", rateRowHTML({ model: "", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] }));
-  const row = list.lastElementChild;
-  wireDelete(row.querySelector(".rate-del"));
-  wireVersionAdd(row.querySelector(".rv-add-version"));
-  wireVersionControls(row.querySelector(".rate-version"));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("ratesModal").style.display !== "none") closeRatesModal();
 });
+const ratesJsonEl = document.getElementById("ratesJson");
+if (ratesJsonEl) ratesJsonEl.addEventListener("input", () => showRatesError(""));
 document.getElementById("ratesSave").addEventListener("click", () => {
-  const models = collectRates();
+  let models;
+  try { models = parseRatesJson(document.getElementById("ratesJson").value); }
+  catch (e) { showRatesError(e.message || String(e)); return; }
   const errors = validateRates(models);
-  if (errors.length > 0) {
-    alert("Cannot save:\n" + errors.join("\n"));
-    return;
-  }
+  if (errors.length > 0) { showRatesError(errors.join("\n")); return; }
   saveRates(models);
+  showRatesError("");
   closeRatesModal();
   renderDashboard();
 });
 document.getElementById("ratesReset").addEventListener("click", () => {
+  if (!confirm("Reset all rates to defaults? This cannot be undone.")) return;
   localStorage.removeItem(RATES_KEY);
-  try {
-    chrome.storage.local.set({ [TIME_RATES_KEY]: getRates() });
-  } catch (e) {}
-  renderRateList();
+  try { chrome.storage.local.set({ [TIME_RATES_KEY]: getRates() }); } catch (e) {}
+  const ta = document.getElementById("ratesJson");
+  if (ta) ta.value = stringifyRates(getRates());
+  showRatesError("");
 });
 document.getElementById("ratesExport").addEventListener("click", exportRatesJSON);
+document.getElementById("ratesCopy").addEventListener("click", async () => {
+  const ta = document.getElementById("ratesJson");
+  const text = ta ? ta.value : stringifyRates(getRates());
+  const btn = document.getElementById("ratesCopy");
+  const flash = (msg) => { if (!btn) return; const orig = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = orig; }, 1500); };
+  try {
+    await navigator.clipboard.writeText(text);
+    flash("Copied!");
+  } catch (e) {
+    showRatesError("Copy failed: " + (e && e.message ? e.message : String(e)));
+  }
+});
+document.getElementById("ratesFormat").addEventListener("click", () => {
+  const ta = document.getElementById("ratesJson");
+  if (!ta) return;
+  try {
+    const models = parseRatesJson(ta.value);
+    const errors = validateRates(models);
+    if (errors.length > 0) { showRatesError(errors.join("\n")); return; }
+    ta.value = stringifyRates(models);
+    showRatesError("");
+  } catch (e) { showRatesError(e.message || String(e)); }
+});
 document.getElementById("ratesImport").addEventListener("click", () => {
   document.getElementById("ratesImportFile").click();
 });
@@ -2094,10 +1783,6 @@ document.addEventListener("click", (e) => {
   if (document.getElementById("rangePopup").hidden) return;
   if (!e.target.closest(".date-range-group")) closeRangePicker();
 });
-document.addEventListener("click", (e) => {
-  if (openDtPicker && !e.target.closest(".dt-picker")) closeDtPickers();
-});
-
 loadFromExtension();
 
 // ===== Time reminder =====

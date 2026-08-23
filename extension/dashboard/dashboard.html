@@ -196,7 +196,7 @@
     tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
     tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
 
-    /* Rate settings modal */
+    /* Rate settings modal — JSON editor */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
       display: flex; align-items: center; justify-content: center; z-index: 100;
@@ -206,165 +206,27 @@
       border-radius: var(--radius-lg); padding: 20px; width: min(700px, 94vw);
       max-height: 85vh; display: flex; flex-direction: column;
     }
+    .modal--rates { width: min(820px, 96vw); }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .modal-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
     .modal-close { background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; }
     .modal-close:hover { color: var(--text); }
-    .modal-hint { color: var(--text-muted); font-size: 12px; margin: 0 0 12px 0; }
-    #ratesList { overflow-y: auto; flex: 1; padding-right: 4px; }
-    .rate-row { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 10px; }
-    .rate-row .rate-main { display: flex; gap: 8px; margin-bottom: 8px; }
-    .rate-main input {
-      flex: 1;
+    .modal-hint { color: var(--text-muted); font-size: 12px; margin: 0 0 12px 0; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; flex-wrap: wrap; }
+    .rates-json {
+      width: 100%; min-height: 420px; flex: 1;
       background: var(--bg-content); color: var(--text);
       border: 1px solid var(--border); border-radius: var(--radius-md);
-      padding: 7px 10px; font-size: 12.5px; font-family: var(--font-mono); outline: none;
+      padding: 12px; font-family: var(--font-mono); font-size: 12px;
+      line-height: 1.6; outline: none; resize: vertical; tab-size: 2;
     }
-    .rate-main input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15);
+    .rates-json:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106,143,192,0.15); }
+    .rates-json.invalid { border-color: #cc6f66; box-shadow: 0 0 0 3px rgba(204,111,102,0.2); }
+    .rates-error {
+      background: rgba(204,111,102,0.12); border: 1px solid rgba(204,111,102,0.35);
+      color: #e8a09a; border-radius: var(--radius-sm); padding: 8px 10px;
+      font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 10px; white-space: pre-wrap;
     }
-    .rate-group { display: flex; align-items: center; gap: 6px; }
-    .rate-group-title {
-      width: 44px;
-      flex-shrink: 0;
-      font-size: 11px;
-      color: var(--text-muted);
-      text-align: right;
-    }
-    .rate-group .rate-del { margin-left: auto; }
-
-    /* Plain number input: hide native spinner arrows, type value directly */
-    .price-table input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
-    .price-table input[type="number"]::-webkit-outer-spin-button,
-    .price-table input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .nf {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-    .nf input {
-      width: 84px;
-      background: var(--bg-content);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 5px 8px;
-      font-size: 12px;
-      font-family: var(--font-mono);
-      outline: none;
-    }
-    .nf input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
-    .rate-del {
-      background: rgba(204, 111, 102, 0.12); color: #d99c96;
-      border: 1px solid rgba(204, 111, 102, 0.35);
-      border-radius: var(--radius-sm); padding: 5px 10px;
-      font-family: var(--font-mono); font-size: 12px; cursor: pointer;
-    }
-    .rate-del:hover { background: rgba(204, 111, 102, 0.2); }
-    .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
-
-    /* v2 Rate Settings: rule + version + price table + windows */
-    .rate-row { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 12px; }
-    .rate-main { display: flex; gap: 8px; margin-bottom: 10px; }
-    .rate-main input {
-      flex: 1;
-      background: var(--bg-content); color: var(--text);
-      border: 1px solid var(--border); border-radius: var(--radius-md);
-      padding: 7px 10px; font-size: 12.5px; font-family: var(--font-mono); outline: none;
-    }
-    .rate-main input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
-    .rate-versions { display: flex; flex-direction: column; gap: 10px; }
-    .rate-version {
-      border: 1px dashed var(--border); border-radius: var(--radius-md);
-      padding: 10px 12px; background: rgba(255,255,255,0.02);
-    }
-    .rv-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .rv-title { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-    .rv-del {
-      background: rgba(204, 111, 102, 0.12); color: #d99c96;
-      border: 1px solid rgba(204, 111, 102, 0.35);
-      border-radius: var(--radius-sm); padding: 3px 8px;
-      font-family: var(--font-mono); font-size: 11px; cursor: pointer;
-    }
-    .rv-del:hover { background: rgba(204, 111, 102, 0.2); }
-    .rv-dates { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-    .rv-dates label { display: flex; flex-direction: column; font-size: 11px; color: var(--text-muted); gap: 3px; }
-    .rv-dates input {
-      background: var(--bg-content); color: var(--text);
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      padding: 5px 8px; font-size: 12px; font-family: var(--font-mono); outline: none;
-      width: 230px;
-    }
-    .rv-dates input:focus { border-color: var(--primary); }
-    .rv-mode { margin-bottom: 8px; }
-    .rv-mode label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-    .rv-mode select {
-      background: var(--bg-content); color: var(--text);
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; outline: none;
-    }
-    .rv-flat-section, .rv-time-section { margin-top: 8px; }
-    .rv-windows { margin-bottom: 10px; }
-    .rv-windows-title { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
-    .rv-window { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; align-items: center; }
-    .rv-window input {
-      background: var(--bg-content); color: var(--text);
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      padding: 4px 8px; font-size: 12px; font-family: var(--font-mono); outline: none;
-    }
-    .rv-window input:focus { border-color: var(--primary); }
-    .rv-window-days { display: inline-flex; gap: 2px; }
-    .rv-day {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      font-size: 10.5px;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 3px 6px;
-      border: 1px solid var(--border-muted);
-      border-radius: var(--radius-sm);
-      background: var(--bg-content);
-      user-select: none;
-      white-space: nowrap;
-    }
-    .rv-day:has(input:checked) {
-      background: rgba(106, 143, 192, 0.15);
-      border-color: rgba(106, 143, 192, 0.5);
-      color: var(--text);
-    }
-    .rv-day input { accent-color: var(--primary); margin: 0; }
-    .rv-window-start, .rv-window-end { width: 110px; }
-    .rv-window-del {
-      background: none; border: none; color: var(--text-disabled);
-      font-size: 14px; cursor: pointer; padding: 0 4px;
-    }
-    .rv-window-del:hover { color: #d99c96; }
-    .rv-window-add, .rv-add-version {
-      background: rgba(106, 143, 192, 0.1); color: var(--primary);
-      border: 1px dashed rgba(106, 143, 192, 0.4);
-      border-radius: var(--radius-sm); padding: 4px 10px;
-      font-family: var(--font-mono); font-size: 11px; cursor: pointer;
-    }
-    .rv-window-add:hover, .rv-add-version:hover { background: rgba(106, 143, 192, 0.2); }
-    .rv-add-version { margin-top: 8px; width: 100%; }
-    .rv-tables { display: flex; flex-wrap: wrap; gap: 12px; }
-    .rv-table-block { flex: 1 1 300px; min-width: 260px; }
-    .rv-table-title { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-    .price-table {
-      border: 1px solid var(--border-muted); border-radius: var(--radius-sm);
-      padding: 8px 10px; background: rgba(255,255,255,0.02);
-    }
-    .pt-tier-toggle {
-      display: inline-flex; align-items: center; gap: 5px;
-      font-size: 11px; color: var(--text-muted); cursor: pointer; margin-bottom: 6px;
-    }
-    .pt-tier-toggle input { accent-color: var(--primary); }
-    .pt-tier .rate-group { margin-bottom: 4px; }
-    .pt-flat { display: flex; flex-wrap: wrap; gap: 8px; }
 
     /* Custom date range picker */
     .date-range-group { position: relative; }
@@ -452,51 +314,6 @@
     }
     .range-actions { display: flex; margin-top: 12px; }
     .range-actions .btn { flex: 1; padding: 6px 10px; font-size: 12px; }
-
-    /* Single date+time picker (rate "effective from") — same look as the range picker */
-    .dt-picker { position: relative; }
-    .dt-trigger { width: 100%; }
-    .dt-popup { width: 300px; top: auto; left: auto; }
-    .dt-time {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border-muted);
-    }
-    .dt-time .dt-time-label { font-size: 11px; color: var(--text-muted); margin-right: auto; }
-    .dt-time .dt-colon { color: var(--text-disabled); font-family: var(--font-mono); font-size: 14px; }
-    .dt-stepper { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .dt-stepper button {
-      background: var(--bg-content);
-      color: var(--text-secondary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      width: 52px; height: 18px;
-      font-size: 9px;
-      line-height: 1;
-      cursor: pointer;
-      padding: 0;
-    }
-    .dt-stepper button:hover { color: var(--text); border-color: var(--text-disabled); }
-    .dt-stepper input {
-      width: 52px;
-      background: var(--bg-content);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 5px 6px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      text-align: center;
-      outline: none;
-    }
-    .dt-stepper input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106, 143, 192, 0.15); }
-    /* Hide native number spinners — the ▲▼ stepper buttons replace them */
-    .dt-stepper input::-webkit-outer-spin-button,
-    .dt-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .dt-stepper input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
     /* Custom dropdowns */
     .select-custom { position: relative; width: 100%; }
@@ -869,21 +686,23 @@
     </div>
   </div>
 
-  <!-- Rate settings modal -->
+  <!-- Rate settings modal — JSON only -->
   <div class="modal-overlay" id="ratesModal" style="display:none;">
-    <div class="modal">
+    <div class="modal modal--rates">
       <div class="modal-head">
-        <h3>Model Rate Settings</h3>
+        <h3>Model Rate Settings (JSON)</h3>
         <button class="modal-close" id="ratesClose">✕</button>
       </div>
-      <p class="modal-hint">Each rule matches by exact model name. Rates are USD per million tokens. Each version sets an "effective from" time (leave empty = effective from the earliest, stored in UTC, converted automatically on input); versions are ordered by effective time: each version applies until the next version's effective time, and the last version is permanent. Billing mode is Flat or Time-based; Time-based only requires filling in the Peak windows (select weekdays + start/end times), and off-peak is automatically the remaining time. Tiers split low/high by input+cacheRead total context. Settings are stored locally and are overwritten by new defaults on version upgrade.</p>
-      <div id="ratesList"></div>
+      <p class="modal-hint">Edit JSON to configure rates. Supports full config or just the <code>models</code> array.</p>
+      <div id="ratesError" class="rates-error" hidden></div>
+      <textarea id="ratesJson" class="rates-json" spellcheck="false" placeholder='{"version":5,"timezone":"UTC","models":[...]}'></textarea>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="ratesReset">Reset to Defaults</button>
+        <button class="btn btn-secondary" id="ratesCopy">Copy</button>
         <button class="btn btn-secondary" id="ratesExport">Export JSON</button>
-        <button class="btn btn-secondary" id="ratesImport">Import JSON</button>
+        <label class="btn btn-secondary" for="ratesImportFile" id="ratesImport" style="cursor:pointer;">Import JSON</label>
         <input type="file" id="ratesImportFile" accept=".json,application/json" hidden>
-        <button class="btn btn-secondary" id="ratesAdd">+ Add Rule</button>
+        <button class="btn btn-secondary" id="ratesFormat">Format</button>
         <button class="btn btn-primary" id="ratesSave">Save</button>
       </div>
     </div>
