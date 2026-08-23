@@ -462,22 +462,18 @@ function updateDropdowns() {
 //   Time-based: windows.peak (peak windows, off-peak is the complement) + pricing.peak + pricing.offpeak
 // Price tables may be tiered (low/high by input+cacheRead total context).
 // Rates are USD per million tokens.
-const RATES_VERSION = 6;
+const RATES_VERSION = 7;
 const RATES_KEY = "opencode_model_rates_v2";
 
 const DEFAULT_MODEL_RATES = [
-  // Free models - big-pickle stays free; hy3/mimo have paid + free variants;
-  // the rest are free-only (data uses the -free suffix)
   { id: "r1", model: "big-pickle", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
   { id: "r2", model: "hy3", rates: [{ from: null, pricing: { flat: { input: 0.13, output: 0.53, cacheRead: 0.043, cacheWrite: 0.13 } } }] },
-  // Hy3 Free - same model from a different source, rates duplicated
   { id: "r2b", model: "hy3-free", rates: [{ from: null, pricing: { flat: { input: 0.13, output: 0.53, cacheRead: 0.043, cacheWrite: 0.13 } } }] },
   { id: "r3", model: "laguna-s-2.1-free", rates: [{ from: null, pricing: { flat: { input: 0.09, output: 0.18, cacheRead: 0.045, cacheWrite: 0.09 } } }] },
   { id: "r4", model: "ling-3.0-flash-free", rates: [{ from: null, pricing: { flat: { input: 0.021, output: 0.063, cacheRead: 0.0042, cacheWrite: 0.021 } } }] },
   { id: "r5", model: "nemotron-3-ultra-free", rates: [{ from: null, pricing: { flat: { input: 0.5, output: 2.2, cacheRead: 0.1, cacheWrite: 0.5 } } }] },
   { id: "r6", model: "nemotron-3.5-lightning-free", rates: [{ from: null, pricing: { flat: { input: 0.1, output: 0.25, cacheRead: 0.05, cacheWrite: 0.1 } } }] },
 
-  // DeepSeek V4 Flash - switched to peak/off-peak billing from 2026-08-16T16:00:00Z
   {
     id: "r7",
     model: "deepseek-v4-flash",
@@ -498,7 +494,6 @@ const DEFAULT_MODEL_RATES = [
       },
     ],
   },
-  // DeepSeek V4 Flash Free - same model from a different source, rates duplicated
   {
     id: "r7b",
     model: "deepseek-v4-flash-free",
@@ -520,7 +515,6 @@ const DEFAULT_MODEL_RATES = [
     ],
   },
 
-  // DeepSeek V4 Flash Vision Exp - same rates as deepseek-v4-flash
   {
     id: "r7c",
     model: "deepseek-v4-flash-vision-exp",
@@ -542,7 +536,6 @@ const DEFAULT_MODEL_RATES = [
     ],
   },
 
-  // DeepSeek V4 Pro - switched to peak/off-peak billing from 2026-08-16T16:00:00Z
   {
     id: "r18",
     model: "deepseek-v4-pro",
@@ -563,29 +556,7 @@ const DEFAULT_MODEL_RATES = [
       },
     ],
   },
-  // DeepSeek V4 Pro Free - same model from a different source, rates duplicated
-  {
-    id: "r18b",
-    model: "deepseek-v4-pro-free",
-    rates: [
-      { from: null, pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } },
-      {
-        from: "2026-08-16T16:00:00Z",
-        windows: {
-          peak: [
-            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
-            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
-          ],
-        },
-        pricing: {
-          peak: { input: 1.32, output: 3.96, cacheRead: 0.044, cacheWrite: 0 },
-          offpeak: { input: 0.66, output: 1.98, cacheRead: 0.022, cacheWrite: 0 },
-        },
-      },
-    ],
-  },
 
-  // Other models - single flat version, no time windows
   { id: "r8", model: "glm-5.3", rates: [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
   { id: "r8b", model: "glm-5.2", rates: [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
   { id: "r12", model: "glm-5.1", rates: [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
@@ -595,7 +566,6 @@ const DEFAULT_MODEL_RATES = [
   { id: "r11", model: "grok-4.5", rates: [{ from: null, pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.3, cacheWrite: 0 } } }] },
   { id: "r14", model: "mimo-v2.5-pro", rates: [{ from: null, pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } }] },
   { id: "r15", model: "mimo-v2.5", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } }] },
-  // MiMo V2.5 Free - same model from a different source, rates duplicated
   { id: "r15b", model: "mimo-v2.5-free", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } }] },
   { id: "r16", model: "minimax-m3", rates: [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 } } }] },
   { id: "r17", model: "minimax-m2.7", rates: [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } }] },
@@ -616,7 +586,9 @@ const DEFAULT_MODEL_RATES = [
     rates: [{ from: null, pricing: { flat: { tier: { limit: 272000, low: { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25 }, high: { input: 0.4, output: 1.8, cacheRead: 0.04, cacheWrite: 0.5 } } } } }],
   },
   { id: "r24", model: "muse-spark-1.2-contributor", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
+  { id: "r24b", model: "muse-spark-1.2-contributor-free", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
   { id: "r25", model: "ox-alpha-free", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+  { id: "r26", model: "x-preview-f-free", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
 ];
 
 // Version upgrade = overwrite: stored version != current version → use new built-in defaults.
@@ -626,8 +598,14 @@ function getRates() {
     const raw = localStorage.getItem(RATES_KEY);
     if (raw) {
       const cfg = JSON.parse(raw);
-      if (cfg && cfg.version === RATES_VERSION && Array.isArray(cfg.models) && cfg.models.length > 0) {
-        return cfg.models;
+      if (cfg && Array.isArray(cfg.models) && cfg.models.length > 0) {
+        if (cfg.version === RATES_VERSION) return cfg.models;
+        if (cfg.version === 6) {
+          const cleaned = cfg.models.filter((r) => r && r.model !== "deepseek-v4-pro-free");
+          const next = cleaned.length > 0 ? cleaned : DEFAULT_MODEL_RATES;
+          try { saveRates(next); } catch (e2) {}
+          return next;
+        }
       }
     }
   } catch (e) {}
@@ -1843,23 +1821,37 @@ async function initTimeReminder() {
   timeToggleEl.addEventListener("change", () => saveTimeEnabled(timeToggleEl.checked));
 
   const models = populateTimeModels();
-  let selected = await loadTimeModel();
-  if (!models.includes(selected)) selected = models[0] || "";
+  const stored = await loadTimeModel();
+  // Allow explicit empty selection ("") — only fall back when stored is stale/invalid.
+  const storedValid = stored === "" || models.includes(stored);
+  let selected = storedValid ? (stored || "") : models[0] || "";
   timeModelEl.value = selected;
   timeSelectedModel = selected;
+  // Persist the resolved selection so the notification suffix always matches
+  // what the dropdown shows (stale/invalid stored values would otherwise linger).
+  if (stored !== selected) await saveTimeModel(selected);
   refreshTimePeakWindows();
 
-  timeModelEl.addEventListener("change", () => {
+  timeModelEl.addEventListener("change", async () => {
     timeSelectedModel = timeModelEl.value;
-    saveTimeModel(timeModelEl.value);
+    await saveTimeModel(timeModelEl.value).catch(() => {});
     refreshTimePeakWindows();
     renderTimeReminder();
   });
 
   // Rebuild the cached peak windows whenever the rate config is mirrored into
   // chrome.storage (i.e. after Rate Settings are saved/reset/imported).
-  chrome.storage.onChanged.addListener((changes, area) => {
+  chrome.storage.onChanged.addListener(async (changes, area) => {
     if (area === "local" && changes[TIME_RATES_KEY]) {
+      // Rebuild the dropdown and revalidate the saved model so the selection
+      // (and the notification suffix) never points at a removed model.
+      // Preserve explicit empty selection.
+      const names = populateTimeModels();
+      if (timeSelectedModel !== "" && !names.includes(timeSelectedModel)) {
+        timeSelectedModel = names[0] || "";
+        timeModelEl.value = timeSelectedModel;
+        await saveTimeModel(timeSelectedModel).catch(() => {});
+      }
       refreshTimePeakWindows();
       renderTimeReminder();
     }

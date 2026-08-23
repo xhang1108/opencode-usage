@@ -283,11 +283,17 @@ async function handleOpenDashboard() {
 const PEAK_ALARM = "peak-boundary";
 
 async function getTimeReminderContext() {
-  const [rates, model, enabled] = await Promise.all([
+  let [rates, model, enabled] = await Promise.all([
     loadTimeRates(),
     loadTimeModel(),
     loadTimeEnabled(),
   ]);
+  // Heal a stale stored model that no longer exists (e.g. removed from defaults).
+  if (model && Array.isArray(rates) && !listPeakModels(rates).includes(model) && !rates.some((r) => r && r.model === model)) {
+    const fallback = listPeakModels(rates)[0] || "";
+    try { await saveTimeModel(fallback); } catch (e) {}
+    model = fallback;
+  }
   return { rates, model, enabled, windows: collectPeakWindowsForModel(rates, model) };
 }
 
