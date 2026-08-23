@@ -38,6 +38,28 @@ function renderLastRecord(lr) {
   el.title = lr.model ? `${lr.model} · I${(lr.input || 0).toLocaleString()} O${(lr.output || 0).toLocaleString()}` : "";
 }
 
+function renderUsageLink(workspaceID) {
+  const link = $("#usage-link");
+  const empty = $("#usage-link-empty");
+  if (!link || !empty) return;
+  if (workspaceID && /^wrk_/.test(workspaceID)) {
+    const url = `https://opencode.ai/workspace/${workspaceID}/usage`;
+    link.href = url;
+    link.textContent = "Open Usage ↗";
+    link.title = url;
+    link.style.display = "";
+    empty.style.display = "none";
+    link.onclick = (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url });
+    };
+  } else {
+    link.style.display = "none";
+    link.removeAttribute("href");
+    empty.style.display = "";
+  }
+}
+
 // Show the update banner when the background found a newer GitHub release.
 async function renderUpdateBanner() {
   const { updateInfo } = await chrome.storage.local.get("updateInfo");
@@ -53,6 +75,7 @@ async function loadStatus() {
     "lastSyncAt",
     "lastSyncCount",
     "lastSyncWorkspace",
+    "lastVisitedWorkspace",
     "totalRecords",
     "cachedMeta",
     "crawlState",
@@ -78,6 +101,15 @@ async function loadStatus() {
   if (stored.lastSyncCount !== undefined) $("#last-sync-count").textContent = stored.lastSyncCount;
   if (stored.totalRecords !== undefined) $("#total-records").textContent = stored.totalRecords;
   renderLastRecord(stored.cachedMeta && stored.cachedMeta.lastRecord);
+  // Usage link: auto-build https://opencode.ai/workspace/<wrk_...>/usage
+  // Priority: last visited (user's most recent workspace) > last sync
+  const wsFromStored =
+    (stored.lastVisitedWorkspace && /^wrk_/.test(stored.lastVisitedWorkspace) && stored.lastVisitedWorkspace) ||
+    (stored.lastSyncWorkspace && /^wrk_/.test(stored.lastSyncWorkspace) && stored.lastSyncWorkspace) ||
+    (stored.cachedMeta && stored.cachedMeta.lastRecord && stored.cachedMeta.lastRecord.workspaceID) ||
+    (stored.crawlState && stored.crawlState.workspace) ||
+    "";
+  renderUsageLink(wsFromStored);
 
   // While a crawl is running the progress ticks already arrive via storage;
   // skip the live query because it re-parses the whole OPFS cache on every tick.
@@ -87,7 +119,10 @@ async function loadStatus() {
   const res = await chrome.runtime.sendMessage({ type: "get-status" });
   if (res && res.ok) {
     $("#total-records").textContent = res.totalRecords;
-    if (res.lastRecord) renderLastRecord(res.lastRecord);
+    if (res.lastRecord) {
+      renderLastRecord(res.lastRecord);
+      if (res.lastRecord.workspaceID) renderUsageLink(res.lastRecord.workspaceID);
+    }
   }
 
   renderUpdateBanner();
@@ -100,10 +135,14 @@ async function send(msg) {
     const res = await chrome.runtime.sendMessage(msg);
     if (res && res.ok) {
       if (msg.type === "start-crawl") {
-        const label = msg.rescan ? "Rescan" : "Sync";
-        if (res.started) setStatus(`${label} started - watch the icon badge`, true);
-        else if (res.reason === "busy") setStatus("Sync already in progress", true);
-        else setStatus("Sync requested (waiting for server ID)", true);
+        if (res.openedUsage) {
+          setStatus(res.started ? "Opened Usage page & sync started" : "Opened Usage page - syncing...", true);
+        } else {
+          const label = msg.rescan ? "Rescan" : "Sync";
+          if (res.started) setStatus(`${label} started - watch the icon badge`, true);
+          else if (res.reason === "busy") setStatus("Sync already in progress", true);
+          else setStatus("Sync requested (waiting for server ID)", true);
+        }
       } else if (msg.type === "open-dashboard") {
         setStatus(
           `Dashboard opened (${res.fromCache ? "cached" : "latest"} data, ${res.count} records)`,
@@ -135,7 +174,7 @@ loadStatus();
 let lastStatusReload = 0;
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (!(changes.crawlState || changes.lastSyncAt || changes.totalRecords || changes.cachedMeta)) return;
+  if (!(changes.crawlState || changes.lastSyncAt || changes.totalRecords || changes.cachedMeta || changes.lastSyncWorkspace || changes.lastVisitedWorkspace)) return;
   const cs = changes.crawlState;
   const wasRunning = !!(cs && cs.oldValue && cs.oldValue.running);
   const nowRunning = !!(cs && cs.newValue && cs.newValue.running);

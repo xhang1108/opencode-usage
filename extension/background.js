@@ -31,6 +31,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.storage.local.set({
         crawlState: { running: true, page: 0, workspace: msg.workspace || "", rescan: !!msg.rescan },
       });
+      notifyCrawl("Sync started", "Crawling your usage data — check the extension badge for progress.");
       sendResponse({ ok: true });
       break;
     }
@@ -52,9 +53,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const tabId = sender.tab && sender.tab.id;
       const count = msg.total || 0;
       // Clear the badge on completion; it only indicates active crawling.
+      try { chrome.action.setBadgeText({ text: "" }); } catch (e) {}
       if (tabId !== undefined && tabId !== null) {
         chrome.action.setBadgeText({ tabId, text: "" });
       }
+      notifyCrawl("Sync complete", `${count} records total — ${msg.newRecords || 0} new. Open the dashboard to view.`);
       chrome.storage.local.set({
         lastSyncAt: Date.now(),
         lastSyncCount: msg.newRecords || 0,
@@ -79,6 +82,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "error":
     case "info": {
       setBadge(sender, msg.type === "error" ? "ERR" : "", msg.type === "error" ? "#cc6f66" : "#a1a1a6");
+      if (msg.type === "error") try { chrome.action.setBadgeText({ text: "ERR" }); } catch (e) {}
+      if (msg.type === "error") notifyCrawl("Sync failed", msg.message || "Unknown error — reopen the popup for details.");
       chrome.storage.local.get("crawlState", ({ crawlState }) => {
         if (msg.type === "error") {
           chrome.storage.local.set({ crawlState: { running: false, error: msg.message || "" } });
@@ -138,10 +143,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 function setBadge(sender, text, color) {
+  // Global badge so it's visible even when the sync tab isn't active / popup just closed
+  try { chrome.action.setBadgeText({ text }); } catch (e) {}
+  try { chrome.action.setBadgeBackgroundColor({ color }); } catch (e) {}
   const tabId = sender && sender.tab && sender.tab.id;
   if (tabId === undefined || tabId === null) return;
   chrome.action.setBadgeText({ tabId, text });
   chrome.action.setBadgeBackgroundColor({ tabId, color });
+}
+
+function notifyCrawl(title, message) {
+  try {
+    chrome.notifications.create({
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("icons/icon128.png"),
+      title,
+      message,
+    });
+  } catch (e) {}
 }
 
 // Send a message to the tab's content script; if it isn't injected yet (the tab was
@@ -171,13 +190,60 @@ async function findAnyOpencodeTab() {
 }
 
 async function sendStartCrawl(rescan) {
-  const tab = await findUsageTab();
+  let tab = await findUsageTab();
   if (!tab) {
+    // No usage tab open — try to auto-open https://opencode.ai/workspace/<wrk_...>/usage from stored workspace
+    // Priority: last visited (most recent browsing) > last sync
+    const { lastVisitedWorkspace, lastSyncWorkspace, cachedMeta, crawlState } = await chrome.storage.local.get([
+      "lastVisitedWorkspace",
+      "lastSyncWorkspace",
+      "cachedMeta",
+      "crawlState",
+    ]);
+    let ws =
+      (lastVisitedWorkspace && /^wrk_/.test(lastVisitedWorkspace) && lastVisitedWorkspace) ||
+      (lastSyncWorkspace && /^wrk_/.test(lastSyncWorkspace) && lastSyncWorkspace) ||
+      (cachedMeta && cachedMeta.lastRecord && cachedMeta.lastRecord.workspaceID) ||
+      (crawlState && crawlState.workspace) ||
+      "";
+    // Also scan cachedData for any workspace as last resort
+    if (!ws) {
+      try {
+        const { cachedData } = await chrome.storage.local.get("cachedData");
+        if (cachedData) {
+          const parsed = JSON.parse(cachedData);
+          const first = Object.values(parsed)[0];
+          if (first && first.workspaceID && /^wrk_/.test(first.workspaceID)) ws = first.workspaceID;
+        }
+      } catch (e) {}
+    }
+    if (ws) {
+      const url = `https://opencode.ai/workspace/${ws}/usage`;
+      tab = await chrome.tabs.create({ url });
+      // Wait for content script to become ready, then auto-start crawl
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        try {
+          const ready = await chrome.tabs.sendMessage(tab.id, { type: "get-status" }).catch(() => null);
+          if (ready) break;
+        } catch (e) {}
+        try {
+          await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/content.js"] });
+        } catch (e) {}
+      }
+      try {
+        const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
+        if (res && res.ok) return { ...res, openedUsage: true };
+      } catch (e) {}
+      return { ok: true, openedUsage: true, started: false };
+    }
     const tabs = await chrome.tabs.query({ url: ["https://opencode.ai/*"] });
     const urls = tabs.map((t) => t.url || "(no url)").join(" | ") || "(no opencode.ai tabs)";
-    return { ok: false, error: `No usage tab found. Open tabs: ${urls}` };
+    return { ok: false, error: `No usage tab found. Open https://opencode.ai workspace usage page first. Open tabs: ${urls}` };
   }
 
+  // Focus existing usage tab and start crawl
+  try { await chrome.tabs.update(tab.id, { active: true }); } catch (e) {}
   const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
   if (!res) return { ok: false, error: `Content script did not respond (tab url: ${tab.url})` };
   if (!res.ok) {

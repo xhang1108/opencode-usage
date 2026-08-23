@@ -17,6 +17,25 @@
   let pendingCrawl = null; // Pending crawl awaiting a serverID { forceRescan }
   let exportCache = null;  // In-memory merged export cache (see readAllCache)
 
+  // Track last visited workspace so Crawl Now can jump to the most recent one
+  let lastSeenWorkspace = null;
+  function trackVisitedWorkspace() {
+    const ws = getWorkspaceID();
+    if (ws && ws !== lastSeenWorkspace) {
+      lastSeenWorkspace = ws;
+      storageSet({ lastVisitedWorkspace: ws, lastVisitedAt: Date.now() });
+    }
+  }
+  trackVisitedWorkspace();
+  setInterval(trackVisitedWorkspace, 1000);
+  try {
+    const _push = history.pushState;
+    history.pushState = function (...a) { const r = _push.apply(this, a); trackVisitedWorkspace(); return r; };
+    const _replace = history.replaceState;
+    history.replaceState = function (...a) { const r = _replace.apply(this, a); trackVisitedWorkspace(); return r; };
+  } catch (e) {}
+  window.addEventListener("popstate", trackVisitedWorkspace);
+
   const notify = (msg) => {
     try {
       const p = chrome.runtime.sendMessage({ ...msg, source: "content" });
