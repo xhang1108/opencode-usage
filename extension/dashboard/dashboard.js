@@ -1953,30 +1953,11 @@ function resizeNeural() {
 }
 
 let _neuralRecentPaths = [];
-function spawnHighlight(now) {
-  if (now < _neuralNextHL) return;
-  _neuralNextHL = now + 650 + Math.random() * 1100;
-  let aIdx, pathKey, tries = 0;
-  do {
-    aIdx = Math.floor(Math.random() * _neuralLayers[0].length);
-    let tmp = aIdx, key = String(aIdx);
-    for (let li = 0; li < _neuralLayers.length - 1; li++) {
-      const curY = _neuralLayers[li][tmp].baseY;
-      let pool = [];
-      for (let b = 0; b < _neuralLayers[li + 1].length; b++) pool.push(b);
-      pool.sort(() => Math.random() - 0.5);
-      let best = pool[0], bestScore = Infinity;
-      for (const b of pool.slice(0, 4)) {
-        const d = Math.abs(_neuralLayers[li + 1][b].baseY - curY) + Math.random() * 36;
-        if (d < bestScore) { bestScore = d; best = b; }
-      }
-      tmp = best; key += "-" + tmp;
-    }
-    pathKey = key;
-    tries++;
-  } while (_neuralRecentPaths.includes(pathKey) && tries < 8);
-  _neuralRecentPaths.push(pathKey);
-  if (_neuralRecentPaths.length > 6) _neuralRecentPaths.shift();
+// Build one random left-to-right path; returns its key and highlight segments.
+function buildHighlightPath() {
+  let aIdx = Math.floor(Math.random() * _neuralLayers[0].length);
+  let key = String(aIdx);
+  const segments = [];
   for (let li = 0; li < _neuralLayers.length - 1; li++) {
     const curY = _neuralLayers[li][aIdx].baseY;
     let pool = [];
@@ -1987,8 +1968,29 @@ function spawnHighlight(now) {
       const d = Math.abs(_neuralLayers[li + 1][b].baseY - curY) + Math.random() * 36;
       if (d < bestScore) { bestScore = d; best = b; }
     }
-    _neuralHighlights.push({ li, a: aIdx, b: best, life: 0, maxLife: 420 + Math.random() * 280 });
+    segments.push({ li, a: aIdx, b: best, life: 0, maxLife: 420 + Math.random() * 280 });
     aIdx = best;
+    key += "-" + aIdx;
+  }
+  return { key, segments };
+}
+
+function spawnHighlight(now) {
+  if (now < _neuralNextHL) return;
+  _neuralNextHL = now + 1100 + Math.random() * 1900;
+  // Fire 2–3 paths so a few lines are always visible together
+  const count = 2 + Math.floor(Math.random() * 2);
+  for (let k = 0; k < count; k++) {
+    let path, tries = 0;
+    do {
+      path = buildHighlightPath();
+      tries++;
+    } while (_neuralRecentPaths.includes(path.key) && tries < 8);
+    _neuralRecentPaths.push(path.key);
+    if (_neuralRecentPaths.length > 14) _neuralRecentPaths.shift();
+    // Stagger each path so they don't all light up at the same moment
+    const delay = Math.round(k * 380 + Math.random() * 320);
+    for (const seg of path.segments) _neuralHighlights.push({ ...seg, delay });
   }
 }
 
@@ -2039,6 +2041,7 @@ function tickNeural() {
   // thinking highlight: pulse a whole path, line glow only (no flying dot)
   for (let i = _neuralHighlights.length - 1; i >= 0; i--) {
     const h = _neuralHighlights[i];
+    if (h.delay > 0) { h.delay -= 16; continue; }
     h.life += 16;
     if (h.life > h.maxLife) { _neuralHighlights.splice(i, 1); continue; }
     const a = _neuralLayers[h.li][h.a];
@@ -2062,7 +2065,7 @@ function tickNeural() {
       const n = _neuralLayers[li][i];
       const pulse = 0.55 + 0.45 * Math.sin(tSec * 1.35 + n.phase * 1.7);
       const hl = _neuralHighlights.find((h) => (h.li === li && h.a === i) || (h.li === li - 1 && h.b === i));
-      const env = hl ? (() => { const p = hl.life / hl.maxLife; return p < 0.15 ? p / 0.15 : p > 0.75 ? (1 - p) / 0.25 : 1; })() : 0;
+      const env = hl && !(hl.delay > 0) ? (() => { const p = hl.life / hl.maxLife; return p < 0.15 ? p / 0.15 : p > 0.75 ? (1 - p) / 0.25 : 1; })() : 0;
       const isActive = env > 0.08;
       const baseA = isActive ? 0.32 + env * 0.18 : 0.18;
       ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
