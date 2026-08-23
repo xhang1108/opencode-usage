@@ -116,13 +116,17 @@ async function loadStatus() {
   if (cs && cs.running) return;
 
   // Live status from the content script; falls back to the cached overview.
-  const res = await chrome.runtime.sendMessage({ type: "get-status" });
-  if (res && res.ok) {
-    $("#total-records").textContent = res.totalRecords;
-    if (res.lastRecord) {
-      renderLastRecord(res.lastRecord);
-      if (res.lastRecord.workspaceID) renderUsageLink(res.lastRecord.workspaceID);
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "get-status" });
+    if (res && res.ok) {
+      $("#total-records").textContent = res.totalRecords;
+      if (res.lastRecord) {
+        renderLastRecord(res.lastRecord);
+        if (res.lastRecord.workspaceID) renderUsageLink(res.lastRecord.workspaceID);
+      }
     }
+  } catch (e) {
+    // "Receiving end does not exist" = background SW not yet ready — fallback to cached data already rendered
   }
 
   renderUpdateBanner();
