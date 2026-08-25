@@ -235,6 +235,17 @@ function fmtISO(dateStr) {
   return dateStr ? dateStr : "—";
 }
 
+// Inclusive count of calendar days between two YYYY-MM-DD dates (e.g. the same
+// day returns 1). Used for "average tokens/day", which is driven by the
+// user-selected date range.
+function inclusiveDayDiff(startISO, endISO) {
+  const s = new Date(startISO + "T00:00:00");
+  const e = new Date(endISO + "T00:00:00");
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
+  const diff = Math.round((e - s) / 86400000);
+  return Math.max(1, diff + 1);
+}
+
 function updateRangeTrigger() {
   const label = document.getElementById("rangeLabel");
   if (rangePicker.start && rangePicker.end) {
@@ -480,11 +491,11 @@ const DEFAULT_MODEL_RATES = [
     rates: [
       { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
       {
-        from: "2026-08-16T16:00:00Z",
+        from: "2026-08-22T16:00:00Z",
         windows: {
           peak: [
-            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
-            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
           ],
         },
         pricing: {
@@ -500,11 +511,11 @@ const DEFAULT_MODEL_RATES = [
     rates: [
       { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
       {
-        from: "2026-08-16T16:00:00Z",
+        from: "2026-08-22T16:00:00Z",
         windows: {
           peak: [
-            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
-            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
           ],
         },
         pricing: {
@@ -521,11 +532,11 @@ const DEFAULT_MODEL_RATES = [
     rates: [
       { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
       {
-        from: "2026-08-16T16:00:00Z",
+        from: "2026-08-22T16:00:00Z",
         windows: {
           peak: [
-            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
-            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
           ],
         },
         pricing: {
@@ -542,11 +553,11 @@ const DEFAULT_MODEL_RATES = [
     rates: [
       { from: null, pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } },
       {
-        from: "2026-08-16T16:00:00Z",
+        from: "2026-08-22T16:00:00Z",
         windows: {
           peak: [
-            { days: [0,1,2,3,4,5,6], start: "01:00", end: "04:00" },
-            { days: [0,1,2,3,4,5,6], start: "06:00", end: "10:00" },
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
           ],
         },
         pricing: {
@@ -1124,6 +1135,7 @@ function renderDashboard(skipCharts) {
   filteredRecordsCache = [];
   let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
   let totalPeakCost = 0, totalOffpeakCost = 0, totalFlatCost = 0;
+  let filteredMinDate = null, filteredMaxDate = null;
   const dailyMap = {}, dailyTokenMap = {}, modelMap = {}, wsMap = {}, singleModelDailyMap = {}, hourlyMap = {};
   const unpricedModels = new Set();
   const rates = getRates(); // Hoisted: one read instead of one per record.
@@ -1167,6 +1179,10 @@ function renderDashboard(skipCharts) {
     else if (window === "flat") totalFlatCost += cost;
 
     const date = localDateOf(rec);
+    if (date !== "Unknown") {
+      if (filteredMinDate === null || date < filteredMinDate) filteredMinDate = date;
+      if (filteredMaxDate === null || date > filteredMaxDate) filteredMaxDate = date;
+    }
     dailyMap[date] = (dailyMap[date] || 0) + cost;
     dailyTokenMap[date] = (dailyTokenMap[date] || 0) + tokens;
 
@@ -1223,6 +1239,19 @@ function renderDashboard(skipCharts) {
   document.getElementById("statHitRateMin").innerText = minHitRate !== null ? `Min: ${minHitRate.toFixed(2)}%` : "Min: -";
   document.getElementById("statAvgCostPerReq").innerText = `Avg per request: $${totalReq > 0 ? fmtMoney(totalCost / totalReq, 5) : "0.00000"}`;
   document.getElementById("statAvgTokens").innerText = `Avg tokens/request: ${totalReq > 0 ? Math.round(totalTokens / totalReq).toLocaleString() : 0}`;
+
+  // Average tokens/day: driven by the user-selected date range. When a range is
+  // active, the denominator is the inclusive span of that range; for "All Time"
+  // it falls back to the span of the filtered data (earliest → latest record).
+  let avgTokensPerDay = 0;
+  if (startDate && endDate) {
+    const days = inclusiveDayDiff(startDate, endDate);
+    avgTokensPerDay = days > 0 ? totalTokens / days : 0;
+  } else if (filteredMinDate && filteredMaxDate) {
+    const days = inclusiveDayDiff(filteredMinDate, filteredMaxDate);
+    avgTokensPerDay = days > 0 ? totalTokens / days : 0;
+  }
+  document.getElementById("statAvgTokensPerDay").innerText = `Avg tokens/day: ${Math.round(avgTokensPerDay).toLocaleString()}`;
   const statSplit = document.getElementById("statSplit");
   if (statSplit) {
     statSplit.innerHTML =
