@@ -591,6 +591,19 @@ const DEFAULT_MODEL_RATES = [
   { id: "r26", model: "x-preview-f-free", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
 ];
 
+// Merge any default models that are missing from a saved config, so models
+// added to the built-in defaults later (e.g. muse-spark-1.2-contributor-free)
+// still get priced for users whose saved config predates them. Existing rules
+// are never overwritten (matched by model name).
+function mergeMissingDefaultRates(savedModels) {
+  const existing = new Set(savedModels.map((r) => r && r.model));
+  const merged = savedModels.slice();
+  for (const def of DEFAULT_MODEL_RATES) {
+    if (!existing.has(def.model)) merged.push(def);
+  }
+  return merged;
+}
+
 // Version upgrade = overwrite: stored version != current version → use new built-in defaults.
 // User edits within the same version are preserved (saved back to the same key).
 function getRates() {
@@ -599,10 +612,16 @@ function getRates() {
     if (raw) {
       const cfg = JSON.parse(raw);
       if (cfg && Array.isArray(cfg.models) && cfg.models.length > 0) {
-        if (cfg.version === RATES_VERSION) return cfg.models;
+        if (cfg.version === RATES_VERSION) {
+          const merged = mergeMissingDefaultRates(cfg.models);
+          if (merged.length !== cfg.models.length) {
+            try { saveRates(merged); } catch (e2) {}
+          }
+          return merged;
+        }
         if (cfg.version === 6) {
           const cleaned = cfg.models.filter((r) => r && r.model !== "deepseek-v4-pro-free");
-          const next = cleaned.length > 0 ? cleaned : DEFAULT_MODEL_RATES;
+          const next = cleaned.length > 0 ? mergeMissingDefaultRates(cleaned) : DEFAULT_MODEL_RATES;
           try { saveRates(next); } catch (e2) {}
           return next;
         }
@@ -784,7 +803,7 @@ function renderHourlyHeatmap(hourlyMap, date) {
   const grid = document.createElement("div");
   grid.className = "heatmap";
   grid.style.cssText =
-    "display:grid; grid-template-columns: 30px repeat(60, 1fr); gap:1px; " +
+    "display:grid; grid-template-columns: 30px repeat(60, minmax(0, 1fr)); gap:1px; " +
     "font-family:var(--font-mono); font-size:9px; color:var(--text-muted); align-items:center;";
 
   const label = (text, align) => {
@@ -1016,7 +1035,7 @@ function renderYearlyHeatmap() {
   const grid = document.createElement("div");
   grid.style.cssText =
     "display:grid; width:100%; gap:" + GAP + "px; " +
-    `grid-template-columns: repeat(${weeks.length}, 1fr); ` +
+    `grid-template-columns: repeat(${weeks.length}, minmax(0, 1fr)); ` +
     "grid-template-rows: 18px repeat(7, auto); " +
     "font-family:var(--font-mono); font-size:9px; color:var(--text-muted);";
 
