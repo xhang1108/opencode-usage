@@ -473,13 +473,13 @@ function updateDropdowns() {
 //   Time-based: windows.peak (peak windows, off-peak is the complement) + pricing.peak + pricing.offpeak
 // Price tables may be tiered (low/high by input+cacheRead total context).
 // Rates are USD per million tokens.
-const RATES_VERSION = 7;
+const RATES_VERSION = 9;
 const RATES_KEY = "opencode_model_rates_v2";
 
 const DEFAULT_MODEL_RATES = [
   { id: "r1", model: "big-pickle", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
-  { id: "r2", model: "hy3", rates: [{ from: null, pricing: { flat: { input: 0.13, output: 0.53, cacheRead: 0.043, cacheWrite: 0.13 } } }] },
-  { id: "r2b", model: "hy3-free", rates: [{ from: null, pricing: { flat: { input: 0.13, output: 0.53, cacheRead: 0.043, cacheWrite: 0.13 } } }] },
+  { id: "r2", model: "hy3", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 } } }] },
+  { id: "r2b", model: "hy3-free", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 } } }] },
   { id: "r3", model: "laguna-s-2.1-free", rates: [{ from: null, pricing: { flat: { input: 0.09, output: 0.18, cacheRead: 0.045, cacheWrite: 0.09 } } }] },
   { id: "r4", model: "ling-3.0-flash-free", rates: [{ from: null, pricing: { flat: { input: 0.021, output: 0.063, cacheRead: 0.0042, cacheWrite: 0.021 } } }] },
   { id: "r5", model: "nemotron-3-ultra-free", rates: [{ from: null, pricing: { flat: { input: 0.5, output: 2.2, cacheRead: 0.1, cacheWrite: 0.5 } } }] },
@@ -491,7 +491,7 @@ const DEFAULT_MODEL_RATES = [
     rates: [
       { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
       {
-        from: "2026-08-22T16:00:00Z",
+        from: "2026-08-16T16:01:15Z",
         windows: {
           peak: [
             { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
@@ -511,7 +511,7 @@ const DEFAULT_MODEL_RATES = [
     rates: [
       { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
       {
-        from: "2026-08-22T16:00:00Z",
+        from: "2026-08-16T16:01:15Z",
         windows: {
           peak: [
             { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
@@ -530,9 +530,8 @@ const DEFAULT_MODEL_RATES = [
     id: "r7c",
     model: "deepseek-v4-flash-vision-exp",
     rates: [
-      { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
       {
-        from: "2026-08-22T16:00:00Z",
+        from: "2026-08-21T12:57:25Z",
         windows: {
           peak: [
             { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
@@ -551,9 +550,12 @@ const DEFAULT_MODEL_RATES = [
     id: "r18",
     model: "deepseek-v4-pro",
     rates: [
-      { from: null, pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } },
+      { from: null, pricing: { flat: { input: 1.74, output: 3.48, cacheRead: 0.0145, cacheWrite: 0 } } },
       {
-        from: "2026-08-22T16:00:00Z",
+        from: "2026-07-17T15:15:48Z",
+        pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } },
+      {
+        from: "2026-08-16T16:01:15Z",
         windows: {
           peak: [
             { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
@@ -569,37 +571,90 @@ const DEFAULT_MODEL_RATES = [
   },
 
   { id: "r8", model: "glm-5.3", rates: [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
-  { id: "r8b", model: "glm-5.2", rates: [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
+  { id: "r8c", model: "glm-5.3-flash", rates: [{ from: null, pricing: { flat: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 } } }] },
+  { id: "r8b", model: "glm-5.2", rates: [
+    { from: null, pricing: { flat: { input: 1.0, output: 3.2, cacheRead: 0.2, cacheWrite: 0 } } },
+    { from: "2026-06-17T11:04:33Z", pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } },
+  ] },
   { id: "r12", model: "glm-5.1", rates: [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }] },
-  { id: "r9", model: "kimi-k2.7-code", rates: [{ from: null, pricing: { flat: { input: 0.95, output: 4.0, cacheRead: 0.19, cacheWrite: 0 } } }] },
+  { id: "r9", model: "kimi-k2.7-code", rates: [
+    { from: null, pricing: { flat: { input: 0.6, output: 3.0, cacheRead: 0.1, cacheWrite: 0 } } },
+    { from: "2026-06-12T19:57:13Z", pricing: { flat: { input: 0.95, output: 4.0, cacheRead: 0.19, cacheWrite: 0 } } },
+  ] },
   { id: "r10", model: "kimi-k2.6", rates: [{ from: null, pricing: { flat: { input: 0.95, output: 4.0, cacheRead: 0.16, cacheWrite: 0 } } }] },
   { id: "r13", model: "kimi-k3", rates: [{ from: null, pricing: { flat: { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 0 } } }] },
-  { id: "r11", model: "grok-4.5", rates: [{ from: null, pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.3, cacheWrite: 0 } } }] },
-  { id: "r14", model: "mimo-v2.5-pro", rates: [{ from: null, pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } }] },
+  { id: "r11", model: "grok-4.5", rates: [
+    { from: null, pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.5, cacheWrite: 0 } } },
+    { from: "2026-07-19T06:08:05Z", pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.3, cacheWrite: 0 } } },
+  ] },
+  {
+    id: "r11b",
+    model: "grok-4.6",
+    rates: [{ from: null, pricing: { flat: { tier: { limit: 200000, low: { input: 2.0, output: 6.0, cacheRead: 0.5, cacheWrite: 0 }, high: { input: 4.0, output: 12.0, cacheRead: 1.0, cacheWrite: 0 } } } } }],
+  },
+  { id: "r14", model: "mimo-v2.5-pro", rates: [
+    { from: null, pricing: { flat: { input: 1.74, output: 3.48, cacheRead: 0.0145, cacheWrite: 0 } } },
+    { from: "2026-07-17T15:15:48Z", pricing: { flat: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 } } },
+  ] },
   { id: "r15", model: "mimo-v2.5", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } }] },
   { id: "r15b", model: "mimo-v2.5-free", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } }] },
-  { id: "r16", model: "minimax-m3", rates: [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 } } }] },
+  { id: "r16", model: "minimax-m3", rates: [
+    { from: null, pricing: { flat: { input: 0.6, output: 2.4, cacheRead: 0.12, cacheWrite: 0.75 } } },
+    { from: "2026-06-08T11:16:19Z", pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 } } },
+  ] },
   { id: "r17", model: "minimax-m2.7", rates: [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } }] },
-  { id: "r17b", model: "minimax-m2.5", rates: [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } }] },
+  { id: "r17b", model: "minimax-m2.5", rates: [
+    { from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.03, cacheWrite: 0 } } },
+    { from: "2026-05-31T17:59:44Z", pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } },
+  ] },
   { id: "r19", model: "qwen3.8-max", rates: [{ from: null, pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.25, cacheWrite: 2.5 } } }] },
   { id: "r20", model: "qwen-3.7-max", rates: [{ from: null, pricing: { flat: { input: 2.5, output: 7.5, cacheRead: 0.5, cacheWrite: 3.125 } } }] },
   {
     id: "r21",
     model: "qwen-3.7-plus",
-    rates: [{ from: null, pricing: { flat: { tier: { limit: 256000, low: { input: 0.4, output: 1.6, cacheRead: 0.04, cacheWrite: 0.5 }, high: { input: 1.2, output: 4.8, cacheRead: 0.12, cacheWrite: 1.5 } } } } }],
+    rates: [
+      { from: null, pricing: { flat: { input: 0.4, output: 1.6, cacheRead: 0.04, cacheWrite: 0.5 } } },
+      {
+        from: "2026-06-05T11:21:46Z",
+        pricing: {
+          flat: {
+            tier: {
+              limit: 256000,
+              low: { input: 0.4, output: 1.6, cacheRead: 0.04, cacheWrite: 0.5 },
+              high: { input: 1.2, output: 4.8, cacheRead: 0.12, cacheWrite: 1.5 },
+            },
+          },
+        },
+      },
+    ],
   },
   {
     id: "r22",
     model: "qwen-3.6-plus",
-    rates: [{ from: null, pricing: { flat: { tier: { limit: 256000, low: { input: 0.5, output: 3.0, cacheRead: 0.05, cacheWrite: 0.625 }, high: { input: 2.0, output: 6.0, cacheRead: 0.2, cacheWrite: 2.5 } } } } }],
+    rates: [
+      { from: null, pricing: { flat: { input: 0.5, output: 3.0, cacheRead: 0.05, cacheWrite: 0.625 } } },
+      {
+        from: "2026-06-05T11:21:46Z",
+        pricing: {
+          flat: {
+            tier: {
+              limit: 256000,
+              low: { input: 0.5, output: 3.0, cacheRead: 0.05, cacheWrite: 0.625 },
+              high: { input: 2.0, output: 6.0, cacheRead: 0.2, cacheWrite: 2.5 },
+            },
+          },
+        },
+      },
+    ],
   },
   { id: "r23", model: "gpt-5.6-luna",
     rates: [{ from: null, pricing: { flat: { tier: { limit: 272000, low: { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25 }, high: { input: 0.4, output: 1.8, cacheRead: 0.04, cacheWrite: 0.5 } } } } }],
   },
   { id: "r24", model: "muse-spark-1.2-contributor", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
   { id: "r24b", model: "muse-spark-1.2-contributor-free", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
-  { id: "r25", model: "ox-alpha-free", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
-  { id: "r26", model: "x-preview-f-free", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
+  { id: "r25", model: "ox-alpha-free", rates: [{ from: null, pricing: { flat: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 } } }] },
+  { id: "r26", model: "x-preview-f-free", rates: [{ from: null, pricing: { flat: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 } } }] },
+  { id: "r27", model: "longcat-2.0", rates: [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0 } } }] },
 ];
 
 // Merge any default models that are missing from a saved config, so models
