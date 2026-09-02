@@ -19,9 +19,12 @@
 +| GLM-5.3-Flash | $0.15 | $0.50 | $0.03 | - | $15 |
 +| GLM-5.3-Flash | $0.15 | $0.50 | $0.03 | - | $15 |
 
+
 === 1216c55  08/26/2026 11:20:31  chore: generate ===
 
+
 === ec25388  08/26/2026 11:19:12  docs: remove Ox Alpha Free (#45221) ===
+
 
 === ac1c048  08/25/2026 17:27:48  docs(go): add Grok 4.6 (#45042) ===
 -| Grok 4.5 | $2.00 | $6.00 | $0.30 | - | $15 |
@@ -79,6 +82,8 @@
 +| Grok 4.6 (> 200K tokens) | $4.00 | $12.00 | $1.00 | - | $15 |
 +| Grok 4.6 (≤ 200K tokens) | $2.00 | $6.00 | $0.50 | - | $15 |
 
+
+
 === 6bb7722  08/24/2026 10:02:51  docs(go): add LongCat-2.0 (#44636) ===
 +| LongCat-2.0 | $0.30 | $1.20 | $0.006 | - | $60 |
 +| LongCat-2.0 | $0.30 | $1.20 | $0.006 | - | $60 |
@@ -99,7 +104,11 @@
 +| LongCat-2.0 | $0.30 | $1.20 | $0.006 | - | $60 |
 +| LongCat-2.0 | $0.30 | $1.20 | $0.006 | - | $60 |
 
+
+
 === 0352100  08/24/2026 08:21:37  docs(go): clarify DeepSeek weekend pricing (#44637) ===
+
+
 
 === 4dbeedd  08/24/2026 07:01:02  discontinue first month discount ===
 -OpenCode Go هو اشتراك منخفض التكلفة — **$5 للشهر الأول**، ثم **$10/شهريًا** — يمنحك وصولًا موثوقًا إلى نماذج البرمجة المفتوحة الشائعة.
@@ -166,6 +175,8 @@
 -OpenCode Go 讓您可以存取這些模型，**首月只需 $5 美元**，之後**每月 $10 美元**。
 +OpenCode Go 是一項**每月 $10 美元的低成本訂閱服務**，讓您能穩定使用受歡迎的開源寫程式模型。
 +OpenCode Go 讓您可以用**每月 $10 美元**存取這些模型。
+
+
 
 === fa8f170  08/21/2026 12:58:43  chore: generate ===
 -| DeepSeek V4 Flash (Off-Peak) | $0.22 | $0.66 | $0.007 | - | $30 |
@@ -1141,6 +1152,8 @@
 +| Qwen3.7 Plus (≤ 256K tokens) | $0.40 | $1.60 | $0.04 | $0.50 | $60 |
 +| Qwen3.8 Max | $2.00 | $6.00 | $0.25 | $2.50 | $15 |
 
+
+
 === 813e6f3  08/21/2026 12:57:25  docs(go): add DeepSeek vision model (#43866) ===
 +| DeepSeek V4 Flash Vision Exp (Off-Peak) | $0.22 | $0.66 | $0.007 | - | $15 |
 +| DeepSeek V4 Flash Vision Exp (Peak) | $0.44 | $1.32 | $0.014 | - | $15 |
@@ -1179,11 +1192,19 @@
 +| DeepSeek V4 Flash Vision Exp (Off-Peak) | $0.22 | $0.66 | $0.007 | - | $15 |
 +| DeepSeek V4 Flash Vision Exp (Peak) | $0.44 | $1.32 | $0.014 | - | $15 |
 
+
+
 === ba72a6f  08/21/2026 09:03:23  fix(go): align Ox Alpha model ID (#43837) ===
+
+
 
 === 7b11ef5  08/21/2026 06:24:06  docs(go): add Ox Alpha Free (#43798) ===
 
+
+
 === f715478  08/20/2026 05:43:59  doc muse regions ===
+
+
 
 === e2505d4  08/19/2026 19:03:41  Revert "update go models"
 
@@ -1207,11 +1228,17 @@ This reverts commit 16af134053257edd15148dd2149f76e2b567b182. ===
 +| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
 +| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
 
+
+
 === a466a35  08/19/2026 19:03:39  Revert "chore: generate"
 
 This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 
+
+
 === 6386e67  08/19/2026 17:11:33  chore: generate ===
+
+
 
 === 16af134  08/19/2026 17:09:39  update go models ===
 -| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
@@ -1232,6 +1259,8 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 -| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
 -| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
 -| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
+
+
 
 === da4730e  08/19/2026 06:36:52  chore: generate ===
 -| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
@@ -1268,6 +1297,8 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 +| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
 -| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
 +| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
+
+
 
 === 18fc3ee  08/19/2026 06:30:23  update zen model name ===
 -| Muse Spark 1.2 | $0.10 | $0.20 | $0.002 | - | $60 |
@@ -1307,10 +1338,16 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 -| Muse Spark 1.2 | $0.10 | $0.20 | $0.002 | - | $60 |
 +| Muse Spark 1.2 Contributor | $0.10 | $0.20 | $0.002 | - | $60 |
 
+
+
 === da3ba63  08/19/2026 03:42:23  sync ===
+
+
 
 === 64b4f7d  08/19/2026 02:55:47  sync ===
 +| Muse Spark 1.2 | $0.10 | $0.20 | $0.002 | - | $60 |
+
+
 
 === e14acea  08/17/2026 18:54:03  update ds flash limit ===
 -| DeepSeek V4 Flash (Off-Peak) | $0.22 | $0.66 | $0.007 | - | $15 |
@@ -1385,6 +1422,8 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 -| DeepSeek V4 Flash (Peak) | $0.44 | $1.32 | $0.014 | - | $15 |
 +| DeepSeek V4 Flash (Off-Peak) | $0.22 | $0.66 | $0.007 | - | $30 |
 +| DeepSeek V4 Flash (Peak) | $0.44 | $1.32 | $0.014 | - | $30 |
+
+
 
 === a0f8dcc  08/16/2026 16:01:15  docs: update DeepSeek V4 pricing (#42881) ===
 -| DeepSeek V4 Flash | $0.14 | $0.28 | $0.0028 | - | $60 |
@@ -1496,6 +1535,8 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 +| DeepSeek V4 Pro (Off-Peak) | $0.66 | $1.98 | $0.022 | - | $15 |
 +| DeepSeek V4 Pro (Peak) | $1.32 | $3.96 | $0.044 | - | $15 |
 
+
+
 === e23586a  08/14/2026 05:48:32  feat(go): add GLM 5.3 (#42518) ===
 +| GLM-5.3 | $1.40 | $4.40 | $0.26 | - | $15 |
 +| GLM-5.3 | $1.40 | $4.40 | $0.26 | - | $15 |
@@ -1516,7 +1557,11 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 +| GLM-5.3 | $1.40 | $4.40 | $0.26 | - | $15 |
 +| GLM-5.3 | $1.40 | $4.40 | $0.26 | - | $15 |
 
+
+
 === 8a55ba7  08/13/2026 18:57:31  chore: generate ===
+
+
 
 === 2449581  08/13/2026 18:55:24  fix(go): remove Gemini 3.7 Flash (#42393) ===
 -| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
@@ -1537,6 +1582,8 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 -| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
 -| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
 -| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
+
+
 
 === 3e25e80  08/13/2026 18:44:28  chore: generate ===
 -| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
@@ -1576,6 +1623,8 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 -| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
 +| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
 
+
+
 === f06e949  08/13/2026 18:41:12  feat(go): add Gemini 3.7 Flash (#42390) ===
 +| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
 +| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
@@ -1596,13 +1645,21 @@ This reverts commit 6386e67949a512254d8587a13cbed906f829f857. ===
 +| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
 +| Gemini 3.7 Flash | $1.50 | $7.50 | $0.15 | - | $15 |
 
+
+
 === c7af47f  08/13/2026 17:27:41  update grok endpoint ===
 
+
+
 === 999be62  08/12/2026 16:56:04  chore: generate ===
+
+
 
 === 521906f  08/12/2026 16:53:58  docs(go): clarify DeepSeek ZDR coverage (#42085)
 
 Co-authored-by: Dax Raad <mail@thdxr.com> ===
+
+
 
 === e9e7472  08/03/2026 06:48:57  docs(go): add Qwen3.8 Max (#40228) ===
 +| Qwen3.8 Max | $2.00 | $6.00 | $0.25 | $2.50 | $15 |
@@ -1624,11 +1681,19 @@ Co-authored-by: Dax Raad <mail@thdxr.com> ===
 +| Qwen3.8 Max | $2.00 | $6.00 | $0.25 | $2.50 | $15 |
 +| Qwen3.8 Max | $2.00 | $6.00 | $0.25 | $2.50 | $15 |
 
+
+
 === 0891ecd  08/02/2026 03:35:35  docs(go): update DeepSeek privacy policy (#40120) ===
+
+
 
 === 19231fc  07/31/2026 17:18:52  chore: generate ===
 
+
+
 === d80e86b  07/31/2026 17:15:27  go: document data policy per model ===
+
+
 
 === 2df47ee  07/31/2026 08:28:39  deepseek v4 flash ===
 -| GLM-5.1 | $1.40 | $4.40 | $0.26 | - | $60 |
@@ -1704,6 +1769,8 @@ Co-authored-by: Dax Raad <mail@thdxr.com> ===
 +| GLM-5.1 | $1.40 | $4.40 | $0.26 | - | $60 |
 +| GLM-5.2 | $1.40 | $4.40 | $0.26 | - | $60 |
 
+
+
 === da59457  07/31/2026 05:23:25  feat(go): add GPT 5.6 Luna content (#39812) ===
 +| GPT 5.6 Luna (> 272K tokens) | $0.40 | $1.80 | $0.04 | $0.50 | $15 |
 +| GPT 5.6 Luna (≤ 272K tokens) | $0.20 | $1.20 | $0.02 | $0.25 | $15 |
@@ -1742,6 +1809,8 @@ Co-authored-by: Dax Raad <mail@thdxr.com> ===
 +| GPT 5.6 Luna (> 272K tokens) | $0.40 | $1.80 | $0.04 | $0.50 | $15 |
 +| GPT 5.6 Luna (≤ 272K tokens) | $0.20 | $1.20 | $0.02 | $0.25 | $15 |
 
+
+
 === 411eff7  07/22/2026 16:41:48  feat(go): add Hy3 to Go model lineup (#38349)
 
 Co-authored-by: opencode <noreply@opencode.ai> ===
@@ -1764,11 +1833,17 @@ Co-authored-by: opencode <noreply@opencode.ai> ===
 +| Hy3 | $0.14 | $0.58 | $0.035 | - | $60 |
 +| Hy3 | $0.14 | $0.58 | $0.035 | - | $60 |
 
+
+
 === 0a601cf  07/22/2026 04:42:44  fix(docs): correct Kimi K2.7 Code request limits (#38248) ===
+
+
 
 === 4817228  07/19/2026 07:45:27  docs(go): update Kimi K3 request estimates (#37725)
 
 Co-authored-by: Frank <frank@anoma.ly> ===
+
+
 
 === 6bea0f4  07/19/2026 06:08:05  zen: grok 4.5 adjusted price ===
 -| Grok 4.5 | $2.00 | $6.00 | $0.50 | - | $15 |
@@ -1807,6 +1882,8 @@ Co-authored-by: Frank <frank@anoma.ly> ===
 +| Grok 4.5 | $2.00 | $6.00 | $0.30 | - | $15 |
 -| Grok 4.5 | $2.00 | $6.00 | $0.50 | - | $15 |
 +| Grok 4.5 | $2.00 | $6.00 | $0.30 | - | $15 |
+
+
 
 === 518b0bf  07/17/2026 15:17:47  chore: generate ===
 -| DeepSeek V4 Pro | $0.435 | $0.87 | $0.003625 | - | $15 |
@@ -2330,6 +2407,8 @@ Co-authored-by: Frank <frank@anoma.ly> ===
 +| Qwen3.7 Plus (> 256K tokens) | $1.20 | $4.80 | $0.12 | $1.50 | $60 |
 +| Qwen3.7 Plus (≤ 256K tokens) | $0.40 | $1.60 | $0.04 | $0.50 | $60 |
 
+
+
 === be08207  07/17/2026 15:15:48  docs(go): update DeepSeek and MiMo pricing (#37509) ===
 -| DeepSeek V4 Pro | $1.74 | $3.48 | $0.0145 | - | $15 |
 -| MiMo V2.5 Pro | $1.74 | $3.48 | $0.0145 | - | $15 |
@@ -2405,6 +2484,8 @@ Co-authored-by: Frank <frank@anoma.ly> ===
 +| MiMo V2.5 Pro | $0.435 | $0.87 | $0.003625 | - | $15 |
 
 ERROR 3238daa : gh: No commit found for SHA: 3238daa (HTTP 422) {"message":"No commit found for SHA: 3238daa","documentation_url":"https://docs.github.com/rest/commits/commits#get-a-commit","status":"422"}
+
+
 === 90291fc  07/17/2026 07:28:40  chore: generate ===
 -| DeepSeek V4 Flash | $0.14 | $0.28 | $0.0028 | - | $60 |
 -| DeepSeek V4 Pro | $1.74 | $3.48 | $0.0145 | - | $15 |
@@ -3023,6 +3104,8 @@ ERROR 3238daa : gh: No commit found for SHA: 3238daa (HTTP 422) {"message":"No c
 +| Qwen3.7 Plus (> 256K tokens) | $1.20 | $4.80 | $0.12 | $1.50 | $60 |
 +| Qwen3.7 Plus (≤ 256K tokens) | $0.40 | $1.60 | $0.04 | $0.50 | $60 |
 
+
+
 === a414e06  07/17/2026 07:26:46  go: kimi k3 2x usage ===
 -| Kimi K3 | $3.00 | $15.00 | $0.30 | - | $15 |
 +| Kimi K3 (استخدام 2x حتى 24 يوليو) | $3.00 | $15.00 | $0.30 | - | ~~$15~~ **$30** |
@@ -3060,6 +3143,8 @@ ERROR 3238daa : gh: No commit found for SHA: 3238daa (HTTP 422) {"message":"No c
 +| Kimi K3（截至 7 月 24 日，使用额度 2x） | $3.00 | $15.00 | $0.30 | - | ~~$15~~ **$30** |
 -| Kimi K3 | $3.00 | $15.00 | $0.30 | - | $15 |
 +| Kimi K3 (2x 用量，至 7 月 24 日止) | $3.00 | $15.00 | $0.30 | - | ~~$15~~ **$30** |
+
+
 
 === 5121352  07/16/2026 23:20:17  go: grok 4.5 and kimi k3 ===
 -| DeepSeek V4 Flash | $0.14 | $0.28 | $0.0028 | - |
@@ -3693,7 +3778,11 @@ ERROR 3238daa : gh: No commit found for SHA: 3238daa (HTTP 422) {"message":"No c
 +| Qwen3.7 Plus (≤ 256K tokens) | $0.40 | $1.60 | $0.04 | $0.50 | $60 |
 +使用 Go 時，您每月支付 $10，而我們的目標是提供相當於 6 倍費用的使用量。
 
+
+
 === b5f92c9  06/29/2026 10:39:43  docs: fix Kimi K2.7 Go model ID (#34413) ===
+
+
 
 === 10b6672  06/17/2026 11:04:33  go: glm 5.2 ===
 -| GLM-5 | $1.00 | $3.20 | $0.20 | - |
@@ -3733,6 +3822,8 @@ ERROR 3238daa : gh: No commit found for SHA: 3238daa (HTTP 422) {"message":"No c
 -| GLM-5 | $1.00 | $3.20 | $0.20 | - |
 +| GLM-5.2 | $1.40 | $4.40 | $0.26 | - |
 
+
+
 === 443f103  06/12/2026 19:57:13  go: kimi 2.7 code ===
 -| Kimi K2.5 | $0.60 | $3.00 | $0.10 | - |
 +| Kimi K2.7 Code | $0.95 | $4.00 | $0.19 | - |
@@ -3770,6 +3861,8 @@ ERROR 3238daa : gh: No commit found for SHA: 3238daa (HTTP 422) {"message":"No c
 +| Kimi K2.7 Code | $0.95 | $4.00 | $0.19 | - |
 -| Kimi K2.5 | $0.60 | $3.00 | $0.10 | - |
 +| Kimi K2.7 Code | $0.95 | $4.00 | $0.19 | - |
+
+
 
 === 1772e8e  06/08/2026 11:16:19  docs(go): update MiniMax M3 pricing (#31350) ===
 -| MiniMax M3 | $0.60 | $2.40 | $0.12 | $0.75 |
@@ -3810,6 +3903,8 @@ ERROR 3238daa : gh: No commit found for SHA: 3238daa (HTTP 422) {"message":"No c
 +| MiniMax M3 | $0.30 | $1.20 | $0.06 | - |
 
 ERROR edbe228 : gh: No commit found for SHA: edbe228 (HTTP 422) {"message":"No commit found for SHA: edbe228","documentation_url":"https://docs.github.com/rest/commits/commits#get-a-commit","status":"422"}
+
+
 === d721fc0  06/05/2026 11:21:46  docs: update Go Qwen tiered pricing (#30936) ===
 -| Qwen3.6 Plus | $0.50 | $3.00 | $0.05 | $0.625 |
 -| Qwen3.7 Plus | $0.40 | $1.60 | $0.04 | $0.50 |
@@ -3920,6 +4015,8 @@ ERROR edbe228 : gh: No commit found for SHA: edbe228 (HTTP 422) {"message":"No c
 +| Qwen3.7 Plus (> 256K tokens) | $1.20 | $4.80 | $0.12 | $1.50 |
 +| Qwen3.7 Plus (≤ 256K tokens) | $0.40 | $1.60 | $0.04 | $0.50 |
 
+
+
 === 400f0fb  06/03/2026 16:40:19  docs(go): add Qwen3.7 Plus model (#30594) ===
 +| Qwen3.7 Plus | $0.40 | $1.60 | $0.04 | $0.50 |
 +| Qwen3.7 Plus | $0.40 | $1.60 | $0.04 | $0.50 |
@@ -3940,6 +4037,8 @@ ERROR edbe228 : gh: No commit found for SHA: edbe228 (HTTP 422) {"message":"No c
 +| Qwen3.7 Plus | $0.40 | $1.60 | $0.04 | $0.50 |
 +| Qwen3.7 Plus | $0.40 | $1.60 | $0.04 | $0.50 |
 
+
+
 === c573798  05/31/2026 19:11:15  go: minimax m3 ===
 +| MiniMax M3 | $0.60 | $2.40 | $0.12 | $0.75 |
 +| MiniMax M3 | $0.60 | $2.40 | $0.12 | $0.75 |
@@ -3959,6 +4058,8 @@ ERROR edbe228 : gh: No commit found for SHA: edbe228 (HTTP 422) {"message":"No c
 +| MiniMax M3 | $0.60 | $2.40 | $0.12 | $0.75 |
 +| MiniMax M3 | $0.60 | $2.40 | $0.12 | $0.75 |
 +| MiniMax M3 | $0.60 | $2.40 | $0.12 | $0.75 |
+
+
 
 === 8f2afba  05/31/2026 17:59:44  zen: deepseek flash ===
 +| DeepSeek V4 Flash | $0.14 | $0.28 | $0.0028 | - |
@@ -4178,57 +4279,105 @@ ERROR edbe228 : gh: No commit found for SHA: edbe228 (HTTP 422) {"message":"No c
 +| Qwen3.6 Plus | $0.50 | $3.00 | $0.05 | $0.625 |
 +| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 |
 
+
+
 === 6102fb2  05/29/2026 12:39:23  docs: update Go availability and Zen pricing (#29890) ===
+
+
 
 === 62a7781  05/27/2026 16:31:18  chore: generate ===
 
+
+
 === 2d03cf4  05/27/2026 16:29:31  docs(go): update MiMo (#29598) ===
+
+
 
 === 1554a5a  05/26/2026 17:26:57  docs(go): add Qwen3.7 Max (#29389) ===
 
+
+
 === 6b03be5  05/23/2026 07:57:22  sync ===
+
+
 
 === 9790a61  05/19/2026 10:08:40  chore(docs): remove beta zen go (#28317)
 
 Co-authored-by: starptech <starptech@starptechs-MBP.fritz.box> ===
 
+
+
 === c04fa9e  05/10/2026 06:55:32  sync: revert
 
 This reverts commit 3a7f617098e89076fd22ef2b6bfe777912ce43dd. ===
 
+
+
 === d915041  05/10/2026 06:24:35  chore: generate ===
+
+
 
 === bcbc1db  05/10/2026 06:23:34  Go add hy3 preview (#26533) ===
 
+
+
 === 38b0cdc  05/06/2026 17:10:46  go: deprecate old models ===
 
+
+
 === 61eabfc  04/27/2026 09:02:27  update Go DeepSeek flash limits for cache pricing drop (#24592) ===
+
+
 
 === 1e191ba  04/27/2026 05:06:51  update Go DeepSeek request estimates for cache pricing changes (#24575) ===
 
 ERROR 3beadee : Get "https://api.github.com/repos/anomalyco/opencode/commits/3beadee": dial tcp 20.205.243.168:443: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond.
+
+
 === 5186c69  04/26/2026 17:11:09  sync ===
+
+
 
 === 7feb6ab  04/26/2026 15:15:55  fix(docs): correct OpenCode Go DeepSeek endpoints (#24500) ===
 
+
+
 === 28f7d31  04/24/2026 15:45:56  zen: deepseek v4 pro ===
+
+
 
 === 5d133f2  04/22/2026 16:29:44  chore: generate ===
 
+
+
 === e9b1d3b  04/22/2026 16:28:20  docs: add MiMo V2.5 to Go pages (#23876) ===
+
+
 
 === d68ebee  04/20/2026 15:58:32  docs(go): add Kimi K2.6 to Go and Zen content (#23558) ===
 
+
+
 === 6a7ca45  04/15/2026 05:28:39  doc: qwen3.5 & 3.6 ===
+
+
 
 === 9385714  04/07/2026 21:21:23  zen: glm5.1 doc ===
 
 ERROR 93a1393 : Get "https://api.github.com/repos/anomalyco/opencode/commits/93a1393": dial tcp 20.205.243.168:443: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond.
+
+
 === 1037c72  03/29/2026 16:47:53  wip: zen ===
+
+
 
 === a94ac5a  03/29/2026 00:16:45  zen: ZDR policy ===
 
+
+
 === 3558deb  03/18/2026 18:14:58  zen: minimax m2.7 ===
+
+
 
 === aa81c1c  03/11/2026 22:09:39  docs: go pricing ===
 -OpenCode Go gives you access to these models for **$10/month**.
@@ -4236,16 +4385,22 @@ ERROR 93a1393 : Get "https://api.github.com/repos/anomalyco/opencode/commits/93a
 +OpenCode Go gives you access to these models for **$5 for your first month**, then **$10/month**.
 +OpenCode Go is a low cost subscription — **$5 for your first month**, then **$10/month** — that gives you reliable access to popular open coding models.
 
+
+
 === 1663c11  03/03/2026 18:30:32  wip: zen ===
 -| GLM-5 | $1.00 | $3.20 | $0.20 |
 -| Kimi K2.5 | $0.60 | $3.00 | $0.10 |
 -| MiniMax M2.5 | $0.30 | $1.20 | $0.03 |
 -OpenCode Go is a **$10/month** subscription plan. Below are the prices **per 1M tokens**.
 
+
+
 === c2091ac  03/03/2026 14:44:34  wip: zen ===
 -| 5 hour limit | $12 | 30,000 | 1,850 | 1,150 |
 -| Monthly limit | $60 | 150,000 | 9,250 | 5,750 |
 -| Weekly limit | $30 | 75,000 | 4,630 | 2,880 |
+
+
 
 === 6deb27e  03/03/2026 06:27:55  zen: docs ===
 -- **5 hour limit** — $4 of usage
@@ -4259,9 +4414,13 @@ ERROR 93a1393 : Get "https://api.github.com/repos/anomalyco/opencode/commits/93a
 +| Monthly limit | $60 | 150,000 | 9,250 | 5,750 |
 +| Weekly limit | $30 | 75,000 | 4,630 | 2,880 |
 
+
+
 === 0b8c1f1  02/28/2026 00:04:53  docs: Update OpenCode Go subscription and usage details (#15415) ===
 +OpenCode Go is a **$10/month** subscription plan. Below are the prices **per 1M tokens**.
 +OpenCode Go is a low cost **$10/month** subscription that gives you reliable access to popular open coding models.
+
+
 
 === 2eb1d4c  02/27/2026 23:03:39  doc: go ===
 -- **5 hour limit** — $4 worth of usage
@@ -4275,6 +4434,8 @@ ERROR 93a1393 : Get "https://api.github.com/repos/anomalyco/opencode/commits/93a
 +| GLM-5 | $1.00 | $3.20 | $0.20 |
 +In terms of tokens, $20 of usage is roughly equivalent to:
 
+
+
 === d2a8f44  02/27/2026 22:38:28  doc: opencode go ===
 +- **5 hour limit** — $4 worth of usage
 +- **Monthly limit** — $20 worth of usage
@@ -4285,5 +4446,104 @@ ERROR 93a1393 : Get "https://api.github.com/repos/anomalyco/opencode/commits/93a
 +export const email = `mailto:${config.email}`
 +OpenCode Go gives you access to these models for **$10/month**.
 +To give you an idea of the limit in terms of tokens, $20 roughly gets you:
+
+DONE
+
+
+=== ebece6efd7b11401cf1e7390b5a22991b6608cc4  09/01/2026 07:11:17  docs(web): update Qwen3.7 Max Go usage (#46555) ===
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+-| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $60 |
++| Qwen3.7 Max | $2.50 | $7.50 | $0.50 | $3.125 | $30 |
+
+
+
+=== 1ead9e3d7f02661176fd46d7bcac7f6b7be3b52d  09/01/2026 02:45:34  fix(web): number Go usage requirements ===
+
+
+
+=== 2386fcec753c49c55c8df026edde8e822c924925  09/01/2026 01:35:29  chore: generate ===
+
+
+
+=== ba790579eab13db3bd5404f9ca5a8d3f424478fa  09/01/2026 01:32:58  docs on proper usage of OpenCode Go ===
+
+
+
+=== 1be9fd55a9326d5e7b09786195e5669e311e61b4  08/28/2026 10:21:28  docs(go): add Hy4 preview (#45904) ===
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
++| Hy4 preview | $0.834 | $2.501 | $0.042 | - | $30 |
+
+
+
+=== 8a7cc0c0ffa3a1b70ca0211a425434771402d673  08/28/2026 05:17:02  docs(go): add Qwen3.8 Flash (#45836) ===
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
++| Qwen3.8 Flash | $0.15 | $0.47 | $0.016 | $0.20 | $30 |
+
+
 
 DONE

@@ -480,6 +480,7 @@ const DEFAULT_MODEL_RATES = [
   { id: "r1", model: "big-pickle", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
   { id: "r2", model: "hy3", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 } } }] },
   { id: "r2b", model: "hy3-free", rates: [{ from: null, pricing: { flat: { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 } } }] },
+  { id: "r2c", model: "hy4-preview", rates: [{ from: null, pricing: { flat: { input: 0.834, output: 2.501, cacheRead: 0.042, cacheWrite: 0 } } }] },
   { id: "r3", model: "laguna-s-2.1-free", rates: [{ from: null, pricing: { flat: { input: 0.09, output: 0.18, cacheRead: 0.045, cacheWrite: 0.09 } } }] },
   { id: "r4", model: "ling-3.0-flash-free", rates: [{ from: null, pricing: { flat: { input: 0.021, output: 0.063, cacheRead: 0.0042, cacheWrite: 0.021 } } }] },
   { id: "r5", model: "nemotron-3-ultra-free", rates: [{ from: null, pricing: { flat: { input: 0.5, output: 2.2, cacheRead: 0.1, cacheWrite: 0.5 } } }] },
@@ -608,6 +609,7 @@ const DEFAULT_MODEL_RATES = [
     { from: "2026-05-31T17:59:44Z", pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } },
   ] },
   { id: "r19", model: "qwen3.8-max", rates: [{ from: null, pricing: { flat: { input: 2.0, output: 6.0, cacheRead: 0.25, cacheWrite: 2.5 } } }] },
+  { id: "r19b", model: "qwen3.8-flash", rates: [{ from: null, pricing: { flat: { input: 0.15, output: 0.47, cacheRead: 0.016, cacheWrite: 0.20 } } }] },
   { id: "r20", model: "qwen-3.7-max", rates: [{ from: null, pricing: { flat: { input: 2.5, output: 7.5, cacheRead: 0.5, cacheWrite: 3.125 } } }] },
   {
     id: "r21",
