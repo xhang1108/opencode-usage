@@ -473,7 +473,7 @@ function updateDropdowns() {
 //   Time-based: windows.peak (peak windows, off-peak is the complement) + pricing.peak + pricing.offpeak
 // Price tables may be tiered (low/high by input+cacheRead total context).
 // Rates are USD per million tokens.
-const RATES_VERSION = 9;
+const RATES_VERSION = 11;
 const RATES_KEY = "opencode_model_rates_v2";
 
 const DEFAULT_MODEL_RATES = [
@@ -483,6 +483,7 @@ const DEFAULT_MODEL_RATES = [
   { id: "r2c", model: "hy4-preview", rates: [{ from: null, pricing: { flat: { input: 0.834, output: 2.501, cacheRead: 0.042, cacheWrite: 0 } } }] },
   { id: "r3", model: "laguna-s-2.1-free", rates: [{ from: null, pricing: { flat: { input: 0.09, output: 0.18, cacheRead: 0.045, cacheWrite: 0.09 } } }] },
   { id: "r4", model: "ling-3.0-flash-free", rates: [{ from: null, pricing: { flat: { input: 0.021, output: 0.063, cacheRead: 0.0042, cacheWrite: 0.021 } } }] },
+  { id: "r4b", model: "ling-3.0-flash-fin-free", rates: [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }] },
   { id: "r5", model: "nemotron-3-ultra-free", rates: [{ from: null, pricing: { flat: { input: 0.5, output: 2.2, cacheRead: 0.1, cacheWrite: 0.5 } } }] },
   { id: "r6", model: "nemotron-3.5-lightning-free", rates: [{ from: null, pricing: { flat: { input: 0.1, output: 0.25, cacheRead: 0.05, cacheWrite: 0.1 } } }] },
 
@@ -654,6 +655,10 @@ const DEFAULT_MODEL_RATES = [
   },
   { id: "r24", model: "muse-spark-1.2-contributor", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
   { id: "r24b", model: "muse-spark-1.2-contributor-free", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
+  { id: "r28", model: "muse-spark-1.3-contributor", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
+  { id: "r28b", model: "muse-spark-1.3-contributor-free", rates: [{ from: null, pricing: { flat: { input: 0.10, output: 0.20, cacheRead: 0.002, cacheWrite: 0 } } }] },
+  { id: "r29", model: "omen-alpha", rates: [{ from: null, pricing: { flat: { input: 0.20, output: 0.66, cacheRead: 0.04, cacheWrite: 0 } } }] },
+  { id: "r30", model: "gemini-3.8-flash", rates: [{ from: null, pricing: { flat: { input: 1.50, output: 7.50, cacheRead: 0.15, cacheWrite: 0 } } }] },
   { id: "r25", model: "ox-alpha-free", rates: [{ from: null, pricing: { flat: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 } } }] },
   { id: "r26", model: "x-preview-f-free", rates: [{ from: null, pricing: { flat: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 } } }] },
   { id: "r27", model: "longcat-2.0", rates: [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0 } } }] },
@@ -1521,13 +1526,14 @@ function exportFilteredCSV() {
     alert("No filtered data to export.");
     return;
   }
-  const headers = ["ID", "WorkspaceID", "Date", "Model", "Window", "Input", "Output", "Reasoning", "CacheRead", "CacheWrite5m", "CacheWrite1h", "SavingsUSD", "CostUSD"];
+  const headers = ["ID", "WorkspaceID", "Project", "Date", "Model", "Window", "Input", "Output", "Reasoning", "CacheRead", "CacheWrite5m", "CacheWrite1h", "SavingsUSD", "CostUSD"];
   const rows = [headers.join(",")];
 
   for (const rec of filteredRecordsCache) {
     const row = [
       rec.id,
       rec.workspaceID || "",
+      rec.project || "",
       localDateOf(rec),
       rec.model || "",
       rec.window || "",
@@ -1562,7 +1568,8 @@ function showEmptyStateIfNeeded() {
   notice.className = "notice empty-state";
   notice.innerHTML =
     `No usage data yet. Open the <strong>opencode.ai</strong> usage page and click ` +
-    `<strong>Crawl Now</strong> in the extension popup to sync records.`;
+    `<strong>Crawl Now</strong> in the extension popup to sync records, or run ` +
+    `<strong>tools/import-local.mjs</strong> and import the JSON via <strong>Import Local JSON</strong>.`;
   container.prepend(notice);
 }
 
@@ -1602,8 +1609,10 @@ async function loadFromExtension() {
       notice.className = "notice";
       notice.innerHTML =
         `Loaded <strong style="color:var(--success)">` +
-        `${Object.keys(data).length.toLocaleString()} records</strong> from OPFS` +
-        (res.fromCache ? ` <span style="opacity:.75">(cached snapshot)</span>.` : ".");
+        `${Object.keys(data).length.toLocaleString()} records</strong> (OPFS + local import)` +
+        (res.fromCache ? ` <span style="opacity:.75">(cached snapshot)</span>` : "") +
+        (res.deduped > 0 ? ` <span style="opacity:.75">(${res.deduped} overlapping crawler ${res.deduped === 1 ? "record" : "records"} hidden)</span>` : "") +
+        ".";
       container.prepend(notice);
     }
   } catch (e) {
@@ -1762,6 +1771,95 @@ function validateRates(models) {
 
 // ===== Event wiring (MV3 CSP forbids inline handlers) =====
 document.getElementById("btnExportCSV").addEventListener("click", exportFilteredCSV);
+document.getElementById("btnImportLocal").addEventListener("click", () => {
+  document.getElementById("localImportModal").style.display = "flex";
+  refreshLocalImportStatus();
+});
+async function refreshLocalImportStatus() {
+  const el = document.getElementById("localImportStatus");
+  if (!el) return;
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "get-local-status" });
+    if (res && res.ok && res.totalLocal > 0) {
+      const when = res.updatedAt ? new Date(res.updatedAt).toLocaleString() : "unknown time";
+      el.innerHTML = `Local records: <strong>${res.totalLocal.toLocaleString()}</strong> (imported ${when}). Re-import the latest export to update.`;
+    } else {
+      el.textContent = "No local records imported yet.";
+    }
+  } catch (e) {
+    el.textContent = "No local records imported yet.";
+  }
+}
+document.getElementById("localImportClose").addEventListener("click", closeLocalImportModal);
+document.getElementById("localImportCancel").addEventListener("click", closeLocalImportModal);
+document.getElementById("localImportModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeLocalImportModal();
+});
+function closeLocalImportModal() {
+  document.getElementById("localImportModal").style.display = "none";
+}
+document.getElementById("localImportCopy").addEventListener("click", async () => {
+  const cmd = document.getElementById("localImportCmd").textContent;
+  const btn = document.getElementById("localImportCopy");
+  const flash = (msg) => { if (!btn) return; const orig = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = orig; }, 1500); };
+  try {
+    await navigator.clipboard.writeText(cmd);
+    flash("Copied!");
+  } catch (e) {
+    // Clipboard API unavailable (permissions) - fall back to manual selection.
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById("localImportCmd"));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      flash("Select+Copy");
+    } catch (e2) {
+      flash("Copy failed");
+    }
+  }
+});
+document.getElementById("localImportPick").addEventListener("click", () => {
+  document.getElementById("localImportFile").click();
+});
+document.getElementById("localImportClear").addEventListener("click", async () => {
+  if (!confirm("Remove all locally imported records? Crawled data is kept.")) return;
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "clear-local-data" });
+    if (res && res.ok) {
+      alert(`Cleared ${res.cleared} local records (${res.total} records remain).`);
+      closeLocalImportModal();
+      for (const k of Object.keys(globalCache)) delete globalCache[k];
+      selectedHourlyDate = null;
+      await loadFromExtension();
+    } else {
+      alert("Clear failed: " + ((res && res.error) || "unknown error"));
+    }
+  } catch (err) {
+    alert("Clear failed: " + (err && err.message ? err.message : String(err)));
+  }
+});
+document.getElementById("localImportFile").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: text });
+    if (res && res.ok) {
+      const overlapNote = res.overlap > 0 ? ` ${res.overlap} overlapping crawler ${res.overlap === 1 ? "record is" : "records are"} hidden.` : "";
+      alert(`Imported ${res.imported} records from file (${res.newRecords} new, ${res.totalLocal} local total, ${res.total} overall).${overlapNote}`);
+      closeLocalImportModal();
+      for (const k of Object.keys(globalCache)) delete globalCache[k];
+      selectedHourlyDate = null;
+      await loadFromExtension();
+    } else {
+      alert("Import failed: " + ((res && res.error) || "unknown error"));
+    }
+  } catch (err) {
+    alert("Import failed: " + (err && err.message ? err.message : String(err)));
+  }
+});
 
 // Sortable table headers: click toggles ascending/descending on the column.
 document.addEventListener("click", (e) => {
@@ -1784,6 +1882,7 @@ document.getElementById("ratesModal").addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && document.getElementById("ratesModal").style.display !== "none") closeRatesModal();
+  if (e.key === "Escape" && document.getElementById("localImportModal").style.display !== "none") closeLocalImportModal();
 });
 const ratesJsonEl = document.getElementById("ratesJson");
 if (ratesJsonEl) ratesJsonEl.addEventListener("input", () => showRatesError(""));

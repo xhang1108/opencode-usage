@@ -139,6 +139,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
+
+    case "import-local-data":
+      // Records exported by tools/import-local.mjs from the local opencode.db.
+      handleLocalImport(msg)
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+      return true;
+
+    case "clear-local-data":
+      // Drop the local import and rebuild the snapshot from crawler data only.
+      handleClearLocal()
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+      return true;
+
+    case "get-local-status":
+      sendLocalStatus()
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+      return true;
   }
 });
 
@@ -253,11 +273,29 @@ async function sendStartCrawl(rescan) {
 }
 
 async function sendGetStatus() {
+  const localMap = await getLocalImportMap();
+  const localIds = Object.keys(localMap);
   const tab = await findUsageTab();
   if (tab) {
     try {
-      const res = await sendMessageToTab(tab.id, { type: "get-status" });
-      if (res && res.ok) return res;
+      if (localIds.length > 0) {
+        // Local records present: need the full export to hide crawler
+        // duplicates shadowed by the local import.
+        const res = await sendMessageToTab(tab.id, { type: "export-json" });
+        if (res && res.ok) {
+          const { map: deduped } = await hideCrawlerDuplicates(JSON.parse(res.data || "{}"), localMap);
+          const { merged } = mergeRecords(deduped, localMap);
+          return {
+            ok: true,
+            totalRecords: Object.keys(merged).length,
+            files: res.files || [],
+            lastRecord: computeLastRecord(merged),
+          };
+        }
+      } else {
+        const res = await sendMessageToTab(tab.id, { type: "get-status" });
+        if (res && res.ok) return res;
+      }
     } catch (e) {
       // Injection still failed (e.g. restricted page) - fall back to cache
     }
@@ -273,6 +311,15 @@ async function sendGetStatus() {
       lastRecord: cachedMeta.lastRecord || null,
     };
   }
+  if (localIds.length > 0) {
+    return {
+      ok: true,
+      fromCache: true,
+      totalRecords: localIds.length,
+      files: [],
+      lastRecord: computeLastRecord(localMap),
+    };
+  }
   return { ok: false, error: "No cached data - open the opencode.ai usage page and sync first" };
 }
 
@@ -280,13 +327,16 @@ async function stashMergedData(tabId) {
   try {
     const res = await sendMessageToTab(tabId, { type: "export-json" });
     if (!res || !res.ok) return;
+    const localMap = await getLocalImportMap();
+    const { map: deduped } = await hideCrawlerDuplicates(JSON.parse(res.data || "{}"), localMap);
+    const { merged } = mergeRecords(deduped, localMap);
     await chrome.storage.local.set({
-      cachedData: res.data,
+      cachedData: JSON.stringify(merged),
       cachedMeta: {
-        count: res.count,
+        count: Object.keys(merged).length,
         fileCount: res.fileCount,
         files: res.files || [],
-        lastRecord: res.lastRecord || null,
+        lastRecord: computeLastRecord(merged),
         updatedAt: Date.now(),
       },
     });
@@ -295,10 +345,181 @@ async function stashMergedData(tabId) {
   }
 }
 
-// Merged OPFS snapshot for the dashboard. Tries a live export from any open
-// opencode.ai tab (which reads OPFS directly); falls back to the last cached
-// snapshot so the dashboard survives refreshes even with no tab open.
-async function sendDashboardData() {
+// ===== Local SQLite import (tools/import-local.mjs) =====
+// Local records live in chrome.storage.local under "localImportData" (a JSON
+// string of { id: record }), separate from the crawler's OPFS snapshot, and
+// are merged into every dashboard/status response. Merging is idempotent
+// (keyed by record id), so re-importing the same file never duplicates.
+async function getLocalImportMap() {
+  try {
+    const { localImportData } = await chrome.storage.local.get("localImportData");
+    if (!localImportData) return {};
+    const parsed = JSON.parse(localImportData);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+  } catch (e) {}
+  return {};
+}
+
+function mergeRecords(base, extra) {
+  const merged = { ...(base || {}) };
+  let added = 0;
+  for (const [id, rec] of Object.entries(extra || {})) {
+    if (!rec || typeof rec !== "object" || !rec.model) continue;
+    if (!merged[id]) added++;
+    merged[id] = normalizeLocalRecord(rec);
+  }
+  // Previously imported local records used per-project workspace names
+  // ("local:<project>"); remap them to the single "Local" workspace too.
+  for (const [id, rec] of Object.entries(merged)) {
+    if (rec && typeof rec === "object" && typeof rec.workspaceID === "string" && rec.workspaceID.startsWith("local:")) {
+      merged[id] = normalizeLocalRecord(rec);
+    }
+  }
+  return { merged, added };
+}
+
+// Local records share one workspace ("Local"); the per-project label lives
+// in `project` (backfilled from legacy "local:<project>" workspace names).
+function normalizeLocalRecord(rec) {
+  if (!rec || typeof rec !== "object") return rec;
+  if (typeof rec.workspaceID === "string" && rec.workspaceID.startsWith("local:")) {
+    if (!rec.project) rec.project = rec.workspaceID;
+    rec.workspaceID = "Local";
+  }
+  return rec;
+}
+
+// ===== Cross-source dedupe (crawler OPFS vs local SQLite import) =====
+// The two sources share no common id, so the same usage is recognized by
+// fingerprint: same model, same token counts, timestamps within a small
+// window (server vs client clock skew). On a match the LOCAL record wins
+// (it carries project provenance); the crawler copy is hidden from totals.
+// Only crawler-looking records are ever hidden; anything local-looking or
+// without a parseable timestamp is always kept (conservative: hide only on
+// positive match).
+const DEDUP_BUCKET_MS = 2 * 60 * 1000;
+
+function fingerprintOf(rec) {
+  if (!rec || typeof rec !== "object") return null;
+  const t = new Date(rec.time).getTime();
+  if (isNaN(t)) return null;
+  const cacheWrite = (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
+  return [
+    rec.model || "",
+    rec.input || 0,
+    rec.output || 0,
+    rec.reasoning || 0,
+    rec.cacheRead || 0,
+    cacheWrite,
+  ].join("|");
+}
+
+function isLocalLooking(id, rec) {
+  return (
+    id.startsWith("msg_") ||
+    rec.workspaceID === "Local" ||
+    (typeof rec.workspaceID === "string" && rec.workspaceID.startsWith("local:"))
+  );
+}
+
+function hideCrawlerDuplicates(crawlerMap, localMap) {
+  return getLocalBuckets(localMap).then((buckets) => hideWithBuckets(crawlerMap, buckets));
+}
+
+// Fingerprint-set cache (optimization A): rebuilding the bucket set is the
+// expensive half of dedupe. The cache key is the localImportMeta version
+// stamp (count + updatedAt). localImportData has exactly two writers —
+// handleLocalImport (sets meta atomically) and handleClearLocal (removes
+// meta) — so a matching stamp guarantees identical content; any skew falls
+// back to recompute. SW eviction simply clears the cache (recompute once).
+let fpCache = { key: null, buckets: null };
+
+async function getLocalBuckets(localMap) {
+  const recs = Object.values(localMap || {});
+  if (recs.length === 0) return { buckets: new Set(), cached: false };
+  let key = null;
+  try {
+    const { localImportMeta } = await chrome.storage.local.get("localImportMeta");
+    if (
+      localImportMeta &&
+      localImportMeta.count === recs.length &&
+      typeof localImportMeta.updatedAt === "number"
+    ) {
+      key = `${localImportMeta.count}:${localImportMeta.updatedAt}`;
+    }
+  } catch (e) {}
+  if (key && fpCache.key === key && fpCache.buckets) {
+    return { buckets: fpCache.buckets, cached: true };
+  }
+  const buckets = buildLocalBuckets(recs);
+  if (key) fpCache = { key, buckets };
+  return { buckets, cached: false };
+}
+
+function buildLocalBuckets(localRecs) {
+  const buckets = new Set();
+  for (const rec of localRecs) {
+    const fp = fingerprintOf(rec);
+    if (!fp) continue;
+    const b = Math.floor(new Date(rec.time).getTime() / DEDUP_BUCKET_MS);
+    buckets.add(`${fp}@${b - 1}`);
+    buckets.add(`${fp}@${b}`);
+    buckets.add(`${fp}@${b + 1}`);
+  }
+  return buckets;
+}
+
+function hideWithBuckets(crawlerMap, { buckets, cached }) {
+  const out = { ...(crawlerMap || {}) };
+  if (buckets.size === 0 || Object.keys(out).length === 0) return { map: out, dropped: 0, cached };
+  let dropped = 0;
+  for (const id of Object.keys(out)) {
+    const rec = out[id];
+    if (!rec || typeof rec !== "object" || isLocalLooking(id, rec)) continue;
+    const fp = fingerprintOf(rec);
+    if (!fp) continue;
+    const b = Math.floor(new Date(rec.time).getTime() / DEDUP_BUCKET_MS);
+    if (buckets.has(`${fp}@${b}`)) {
+      delete out[id];
+      dropped++;
+    }
+  }
+  return { map: out, dropped, cached };
+}
+
+function pickLastRecord(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  const ka = a.time || a.date || "";
+  const kb = b.time || b.date || "";
+  return kb > ka ? b : a;
+}
+
+function computeLastRecord(globalCache) {
+  let lastRecord = null;
+  for (const rec of Object.values(globalCache || {})) {
+    lastRecord = pickLastRecord(lastRecord, rec);
+  }
+  return lastRecord;
+}
+
+// Accept the importer's bare { id: record } map, or a wrapped payload.
+function normalizeImportPayload(data) {
+  let parsed = typeof data === "string" ? JSON.parse(data) : data;
+  if (parsed && typeof parsed.data === "string") parsed = JSON.parse(parsed.data);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("JSON must be an object of { id: record }");
+  }
+  return parsed;
+}
+
+async function handleClearLocal() {
+  const localMap = await getLocalImportMap();
+  const localIds = new Set(Object.keys(localMap));
+  await chrome.storage.local.remove(["localImportData", "localImportMeta"]);
+  fpCache = { key: null, buckets: null }; // drop cached fingerprints with the data
+  // Rebuild the snapshot without local records: prefer a fresh OPFS export
+  // (pure crawler data); otherwise strip the known local ids from the cache.
   const tab = await findAnyOpencodeTab();
   if (tab) {
     try {
@@ -314,7 +535,120 @@ async function sendDashboardData() {
             updatedAt: Date.now(),
           },
         });
-        return { ok: true, data: res.data, count: res.count, fileCount: res.fileCount, fromCache: false };
+        return { ok: true, cleared: localIds.size, total: res.count };
+      }
+    } catch (e) {
+      // Fall through to cache stripping
+    }
+  }
+  let base = {};
+  try {
+    const { cachedData } = await chrome.storage.local.get("cachedData");
+    if (cachedData) base = JSON.parse(cachedData) || {};
+  } catch (e) {}
+  for (const id of localIds) delete base[id];
+  await chrome.storage.local.set({
+    cachedData: JSON.stringify(base),
+    cachedMeta: {
+      count: Object.keys(base).length,
+      lastRecord: computeLastRecord(base),
+      updatedAt: Date.now(),
+    },
+  });
+  return { ok: true, cleared: localIds.size, total: Object.keys(base).length };
+}
+
+async function handleLocalImport(msg) {
+  let incoming;
+  try {
+    incoming = normalizeImportPayload(msg && msg.data);
+  } catch (e) {
+    return { ok: false, error: `Invalid JSON: ${e.message}` };
+  }
+  const existing = await getLocalImportMap();
+  const validIncoming = Object.values(incoming).filter((rec) => rec && typeof rec === "object" && rec.model);
+  if (validIncoming.length === 0) return { ok: false, error: "No valid records found in file" };
+  const { merged: nextLocal, added } = mergeRecords(existing, incoming);
+  const totalLocal = Object.keys(nextLocal).length;
+  try {
+    await chrome.storage.local.set({ localImportData: JSON.stringify(nextLocal) });
+  } catch (e) {
+    return { ok: false, error: `Storage quota exceeded - cannot keep ${totalLocal} local records (${e.message || e})` };
+  }
+  // Refresh the merged snapshot so popup/dashboard pick it up immediately.
+  let base = {};
+  try {
+    const { cachedData } = await chrome.storage.local.get("cachedData");
+    if (cachedData) base = JSON.parse(cachedData) || {};
+  } catch (e) {}
+  const { merged } = mergeRecords(base, nextLocal);
+  // Store the deduped snapshot so cachedMeta counts match the dashboard.
+  const crawlerPart = {};
+  const localPart = {};
+  for (const [id, rec] of Object.entries(merged)) {
+    ((rec && typeof rec === "object" && isLocalLooking(id, rec)) ? localPart : crawlerPart)[id] = rec;
+  }
+  const { map: dedupedSnap } = await hideCrawlerDuplicates(crawlerPart, { ...localPart, ...nextLocal });
+  const snapshot = { ...dedupedSnap, ...localPart, ...nextLocal };
+  const now = Date.now();
+  await chrome.storage.local.set({
+    cachedData: JSON.stringify(snapshot),
+    cachedMeta: {
+      count: Object.keys(snapshot).length,
+      lastRecord: computeLastRecord(snapshot),
+      updatedAt: now,
+    },
+    localImportMeta: { count: totalLocal, updatedAt: now },
+  });
+  // Feedback: how many crawler records does this import shadow?
+  let overlap = 0;
+  try {
+    const crawlerPart = {};
+    for (const [id, rec] of Object.entries(base)) {
+      if (!isLocalLooking(id, rec)) crawlerPart[id] = rec;
+    }
+    overlap = (await hideCrawlerDuplicates(crawlerPart, incoming)).dropped;
+  } catch (e) {}
+  return { ok: true, imported: Object.keys(incoming).length, newRecords: added, totalLocal, total: Object.keys(snapshot).length, overlap };
+}
+
+async function sendLocalStatus() {
+  try {
+    const { localImportMeta } = await chrome.storage.local.get("localImportMeta");
+    if (localImportMeta && typeof localImportMeta.count === "number") {
+      return { ok: true, totalLocal: localImportMeta.count, updatedAt: localImportMeta.updatedAt || null };
+    }
+  } catch (e) {}
+  const totalLocal = Object.keys(await getLocalImportMap()).length;
+  return { ok: true, totalLocal, updatedAt: null };
+}
+
+// Merged OPFS snapshot for the dashboard. Tries a live export from any open
+// opencode.ai tab (which reads OPFS directly); falls back to the last cached
+// snapshot so the dashboard survives refreshes even with no tab open.
+async function sendDashboardData() {
+  const localMap = await getLocalImportMap();
+  const tab = await findAnyOpencodeTab();
+  if (tab) {
+    try {
+      const res = await sendMessageToTab(tab.id, { type: "export-json" });
+      if (res && res.ok) {
+        const base = JSON.parse(res.data || "{}");
+        const { map: deduped, dropped } = await hideCrawlerDuplicates(base, localMap);
+        const { merged } = mergeRecords(deduped, localMap);
+        const mergedStr = JSON.stringify(merged);
+        const lastRecord = computeLastRecord(merged);
+        await chrome.storage.local.set({
+          cachedData: mergedStr,
+          cachedMeta: {
+            count: Object.keys(merged).length,
+            fileCount: res.fileCount,
+            files: res.files || [],
+            lastRecord,
+            updatedAt: Date.now(),
+          },
+        });
+        return { ok: true, data: mergedStr, count: Object.keys(merged).length, fileCount: res.fileCount, fromCache: false, deduped: dropped };
       }
     } catch (e) {
       // Content script unavailable - fall back to cache
@@ -322,11 +656,33 @@ async function sendDashboardData() {
   }
   const { cachedData, cachedMeta } = await chrome.storage.local.get(["cachedData", "cachedMeta"]);
   if (cachedData) {
+    // Split the snapshot so pre-dedupe caches also heal: crawler-looking
+    // records are re-checked against the local import on every load.
+    const parsed = JSON.parse(cachedData);
+    const crawlerPart = {};
+    const localPart = {};
+    for (const [id, rec] of Object.entries(parsed || {})) {
+      ((rec && typeof rec === "object" && isLocalLooking(id, rec)) ? localPart : crawlerPart)[id] = rec;
+    }
+    const { map: deduped, dropped } = await hideCrawlerDuplicates(crawlerPart, localMap);
+    const { merged } = mergeRecords(deduped, { ...localPart, ...localMap });
+    const mergedStr = JSON.stringify(merged);
     return {
       ok: true,
-      data: cachedData,
-      count: (cachedMeta && cachedMeta.count) || 0,
+      data: mergedStr,
+      count: Object.keys(merged).length,
       fileCount: (cachedMeta && cachedMeta.fileCount) || 0,
+      fromCache: true,
+      deduped: dropped,
+    };
+  }
+  const localIds = Object.keys(localMap);
+  if (localIds.length > 0) {
+    return {
+      ok: true,
+      data: JSON.stringify(localMap),
+      count: localIds.length,
+      fileCount: 0,
       fromCache: true,
     };
   }

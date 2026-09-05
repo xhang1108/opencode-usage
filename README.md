@@ -38,6 +38,22 @@ A Chrome extension that syncs your [opencode.ai](https://opencode.ai) usage toke
 3. Click **Open Dashboard** to view charts, tables, and cost estimates.
 4. Use **Export Filtered Data (CSV)** on the dashboard to download records.
 
+## Local SQLite import (free models)
+
+opencode.ai no longer shows free-model usage, so crawling misses it. The local
+database still has per-message tokens for every model:
+
+```bash
+# Requires Node >= 22.5. Reads the DB read-only (safe while opencode runs).
+node tools/import-local.mjs --out opencode_local_records.json
+# Options: --db <path> (default ~/.local/share/opencode/opencode.db)
+#          --workspace <name> (default "Local", single workspace for all local records)
+```
+
+Then open the dashboard → **Import Local JSON** and select the file. Local
+records merge with crawled data under the **Local** workspace (the per-project
+label is kept in each record's `project` field). Re-importing is safe.
+
 ![Dashboard](screenshots/dashboard.avif)
 
 ## Notes
