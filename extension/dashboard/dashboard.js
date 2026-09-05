@@ -1526,7 +1526,10 @@ function exportFilteredCSV() {
     alert("No filtered data to export.");
     return;
   }
-  const headers = ["ID", "WorkspaceID", "Project", "Date", "Model", "Window", "Input", "Output", "Reasoning", "CacheRead", "CacheWrite5m", "CacheWrite1h", "SavingsUSD", "CostUSD"];
+  // New server-side fields (sessionID, provider, keyID, plan, costMultiplier,
+  // time, timeUpdated) are appended after the legacy columns so existing CSV
+  // consumers keep working; old records without them export as empty strings.
+  const headers = ["ID", "WorkspaceID", "Project", "Date", "Model", "Window", "Input", "Output", "Reasoning", "CacheRead", "CacheWrite5m", "CacheWrite1h", "SavingsUSD", "CostUSD", "Time", "TimeUpdated", "SessionID", "Provider", "KeyID", "Plan", "CostMultiplier"];
   const rows = [headers.join(",")];
 
   for (const rec of filteredRecordsCache) {
@@ -1544,7 +1547,14 @@ function exportFilteredCSV() {
       rec.cacheWrite5m || 0,
       rec.cacheWrite1h || 0,
       rec.savings ? rec.savings.toFixed(6) : "0",
-      rec.cost ? rec.cost.toFixed(6) : "0"
+      rec.cost ? rec.cost.toFixed(6) : "0",
+      rec.time || "",
+      rec.timeUpdated || "",
+      rec.sessionID || "",
+      rec.provider || "",
+      rec.keyID || "",
+      rec.plan || "",
+      rec.costMultiplier ?? ""
     ];
     rows.push(row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
   }

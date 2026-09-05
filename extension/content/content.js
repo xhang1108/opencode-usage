@@ -25,6 +25,9 @@
       // Ignore when the background isn't ready or the extension was reloaded
     }
   };
+  // Mirror of notify for the page console (DevTools): popup/badge text is
+  // truncated and invisible when closed, so lifecycle events also go here.
+  const clog = (...args) => { try { console.log("[opencode-usage]", ...args); } catch (e) {} };
 
   // Safe chrome.storage wrappers: return fallback values if the context was invalidated.
   const storageGet = async (keys, fallback = {}) => {
@@ -286,6 +289,43 @@
     });
   }
 
+  // Passive serverID wait: listens for a naturally-captured ID (page load,
+  // background webRequest relay) WITHOUT clicking anything on the page.
+  // Returns null on timeout so the caller can fall back to refreshServerID.
+  function passiveServerID(timeoutMs) {
+    if (lastServerID) return Promise.resolve(lastServerID);
+    return new Promise((resolve) => {
+      const onMessage = (event) => {
+        const d = event.data;
+        if (d && d.source === "opencode-master" && d.type === "server-id" && d.serverID) {
+          cleanup();
+          resolve(d.serverID);
+        }
+      };
+      const onExtMsg = (msg) => {
+        if (msg && msg.type === "server-id" && msg.serverID) {
+          cleanup();
+          resolve(msg.serverID);
+        }
+      };
+      const timeout = setTimeout(() => {
+        cleanup();
+        resolve(null);
+      }, timeoutMs);
+      const cleanup = () => {
+        clearTimeout(timeout);
+        window.removeEventListener("message", onMessage);
+        try {
+          chrome.runtime.onMessage.removeListener(onExtMsg);
+        } catch (e) {
+          // Ignore if the extension context was invalidated
+        }
+      };
+      window.addEventListener("message", onMessage);
+      chrome.runtime.onMessage.addListener(onExtMsg);
+    });
+  }
+
   // ---------- ServerID capture (MAIN world, injected by background to bypass page CSP) ----------
   const injectInterceptor = () => {
     try {
@@ -364,6 +404,12 @@
   async function triggerCrawl(forceRescan) {
     if (!isUsagePage()) return { ok: false, error: "Not a usage page" };
     if (crawling) return { ok: true, started: false, reason: "busy" };
+    // Claim the lock BEFORE the 6s serverID wait below: a second click during
+    // the wait would otherwise start a concurrent crawl (double request rate
+    // toward the server, interleaved OPFS writes, scrambled progress).
+    crawling = true;
+    notify({ type: "crawl-start", workspace: getWorkspaceID(), rescan: !!forceRescan });
+    try { // Released in the outer finally on every exit path (body not reindented)
 
     // The stored serverID goes stale (opencode rotates its server). Always try
     // to capture a FRESH one by kicking the page; fall back to the stored value
@@ -375,59 +421,128 @@
     const oldSID = lastServerID ? lastServerID.slice(0, 12) : "(none)";
     let sidNote = `${oldSID} (stored)`;
     pendingCrawl = { forceRescan: !!forceRescan };
-    const freshSID = await refreshServerID(6000);
+    // Passive first: force-kicking pagination makes the page itself fire
+    // _server traffic on top of the crawl burst; the session then gets
+    // throttled (fast first pages, one slow page, then a stall - no 429).
+    // Prefer the stored serverID without touching the page; staleness
+    // surfaces as 401/403 and is handled by the retry path below.
+    // Kick-clicking is the last resort when we have no ID at all.
+    let freshSID = null;
+    if (!lastServerID) {
+      freshSID = await passiveServerID(3000);
+      if (!freshSID) freshSID = await refreshServerID(6000);
+    }
     pendingCrawl = null;
     if (freshSID) {
       lastServerID = freshSID;
       await storageSet({ lastServerID: freshSID });
       sidNote = `${oldSID} -> ${freshSID.slice(0, 12)} (fresh)`;
     } else {
-      sidNote = `${oldSID} (no fresh capture, using stored)`;
+      sidNote = `${oldSID} (stored, page untouched)`;
     }
     if (!lastServerID) {
       const errMsg = "Could not obtain a server ID automatically - click a pagination control once on the page";
       notify({ type: "error", message: errMsg });
+      clog("crawl aborted:", errMsg);
       return { ok: false, error: errMsg };
     }
 
-    crawling = true;
-    notify({ type: "crawl-start", workspace: getWorkspaceID(), rescan: !!forceRescan });
     try {
-      const result = await startCrawling(getWorkspaceID(), lastServerID, forceRescan);
+      const result = await runCrawl(getWorkspaceID(), lastServerID, forceRescan);
       const final = { ...result, sidNote };
       notify({ type: "crawl-done", ...final });
+      clog(`crawl-done: total=${final.total} new=${final.newRecords} lastPage=${final.lastPage} stop=${final.stopReason || "(end)"} ${sidNote}`);
       return { ok: true, started: true, ...final };
     } catch (e) {
-      const message = String(e.message || e);
-      // Stale serverID (not logged in / server changed): clear it, trigger a fresh
-      // capture, and retry once.
-      if (/401|403/.test(message)) {
+      const raw = String(e.message || e);
+      // Stale serverID (rotated server / not logged in): clear it, trigger a
+      // fresh capture (kicking the page is justified here - we KNOW the ID is
+      // bad), and retry once.
+      const message = raw.replace(/^StaleServerID:\s*/, "Server session changed - ");
+      if (/401|403|StaleServerID/.test(raw)) {
         lastServerID = null;
         await storageRemove("lastServerID");
         pendingCrawl = { forceRescan: !!forceRescan };
+        clog("serverID stale, re-capturing (page will be clicked) and retrying crawl once…");
         const sid = await refreshServerID(8000);
         pendingCrawl = null;
         if (sid) {
           try {
-            const result = await startCrawling(getWorkspaceID(), sid, forceRescan);
+            const result = await runCrawl(getWorkspaceID(), sid, forceRescan);
             notify({ type: "crawl-done", ...result, sidNote });
+            clog(`crawl-done(retry): total=${result.total} new=${result.newRecords} lastPage=${result.lastPage}`);
             return { ok: true, started: true, ...result, sidNote };
           } catch (e2) {
             notify({ type: "error", message: String(e2.message || e2) });
+            clog("crawl failed(retry):", String(e2.message || e2));
             return { ok: false, error: String(e2.message || e2) };
           }
         }
       }
       notify({ type: "error", message });
+      clog("crawl failed:", message);
       return { ok: false, error: message };
     } finally {
       crawling = false;
+    }
+    } finally {
+      crawling = false; // Release the early claim on every exit path
+    }
+  }
+
+  // ---------- Worker-based crawl (primary path) ----------
+  // content.js shares the page's main thread, so a wedged usage tab freezes
+  // the crawl mid-fetch with no error and no retry. The fetch/parse loop
+  // therefore runs in a dedicated Blob worker (page origin: same-origin
+  // fetch with cookies + the same OPFS bucket). The worker owns OPFS writes
+  // and posts progress; this side only relays to background/popup. If the
+  // worker can't start (e.g. page CSP blocks blob workers), fall back to
+  // the inline startCrawling below (same logic, main thread).
+  async function runCrawlWorker(workspaceID, serverID, forceRescan) {
+    const src = await (await fetch(chrome.runtime.getURL("content/crawl-worker.js"))).text();
+    const blobUrl = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+    const worker = new Worker(blobUrl);
+    try {
+      return await new Promise((resolve, reject) => {
+        worker.onmessage = (ev) => {
+          const m = (ev && ev.data) || {};
+          if (m.type === "notify" && m.msg) notify(m.msg);
+          else if (m.type === "log" && m.text !== undefined) clog(String(m.text));
+          else if (m.type === "done") resolve({ ok: true, result: m.result });
+          else if (m.type === "error") resolve({ ok: false, error: String(m.message || "worker error") });
+        };
+        worker.onerror = (ev) => reject(new Error(`worker failed: ${(ev && ev.message) || "failed to start"}`));
+        worker.postMessage({ workspaceID, serverID, forceRescan, filename: `opencode_token_cache_${workspaceID}.json` });
+      });
+    } finally {
+      try { worker.terminate(); } catch (e) {}
+      try { URL.revokeObjectURL(blobUrl); } catch (e) {}
+    }
+  }
+
+  // Primary runner: worker first, inline loop as fallback. A worker that
+  // STARTED but failed is thrown (same handling as inline failures, stale /
+  // 401 recapture included); only worker STARTUP failure falls back, so a
+  // broken run is never silently executed twice.
+  async function runCrawl(workspaceID, serverID, forceRescan) {
+    let started = false;
+    try {
+      const w = await runCrawlWorker(workspaceID, serverID, forceRescan);
+      started = true;
+      if (w.ok) return w.result;
+      throw new Error(w.error);
+    } catch (e) {
+      if (started) throw e;
+      clog(`worker unavailable (${e.message}), running crawl on main thread…`);
+      return await startCrawling(workspaceID, serverID, forceRescan);
     }
   }
 
   // ---------- Core crawl (ported from the original console script) ----------
   // forceRescan=true: full rescan that overwrites every record (including backfilling
   // `time`) without deleting any existing data.
+  // NOTE: this inline loop is now the FALLBACK path (see runCrawl above);
+  // the primary path is content/crawl-worker.js. Keep the two in sync.
   async function startCrawling(workspaceID, serverID, forceRescan) {
     const FILENAME = `opencode_token_cache_${workspaceID}.json`;
     let page = 0;
@@ -436,10 +551,9 @@
     let newRecordCountTotal = 0;
     let fileHandle;
     let stopReason = "";
-    // Persist incrementally every N pages so a mid-crawl interruption (closed
-    // tab, network failure) doesn't lose the whole session's progress.
-    const WRITE_EVERY_PAGES = 20;
-    let lastProgressAt = 0;
+    // Persist incrementally every few pages so a mid-crawl stall/interruption
+    // (closed tab, throttled session) keeps everything fetched so far.
+    const WRITE_EVERY_PAGES = 5;
     let crawlError = null;
 
     try {
@@ -451,6 +565,10 @@
     } catch (e) {
       throw new Error(`OPFS init failed: ${e.message}`);
     }
+
+    // Incremental mode: stop at the first fully-synced page (reached the
+    // sync point). Old records without the new schema fields are left as-is;
+    // only new/changed records are written. No backfill sweep.
 
     const parseSafe = (val) => (val && val !== "null") ? parseInt(val, 10) : 0;
 
@@ -465,11 +583,27 @@
         const bodyPayload =
           `{"t":{"t":9,"i":0,"l":2,"a":[{"t":1,"s":"${workspaceID}"},{"t":0,"s":${page}}],"o":0},"f":31,"m":[]}`;
         let response = null;
+        let pageText = "";
         let retries = 0;
+        const pageStartAt = Date.now();
+        // Fetch-start marker: if the crawl stalls, the last message tells
+        // whether it died fetching (no "done") or processing the page.
+        // Same line is also mirrored to the page console (DevTools) because
+        // popup/badge text is truncated and only visible while open.
+        const pageLog = (...args) => { try { console.log("[opencode-usage]", ...args); } catch (e) {} };
+        notify({ type: "progress", page, workspace: getWorkspaceID(), message: `Page ${page} fetching…` });
+        pageLog(`page ${page} fetching…`);
 
+        // 60s per-request timeout: fetch resolves on HEADERS, but a stalled
+        // body in response.text() hangs just the same (this looked like
+        // "stuck on page N" with no error and no finish). The abort window
+        // therefore covers fetch + body read together; abort feeds into the
+        // normal retry path below.
         while (retries <= 3) {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 60000);
           try {
-            response = await fetch("https://opencode.ai/_server", {
+            const resp = await fetch("https://opencode.ai/_server", {
               headers: {
                 accept: "*/*",
                 "content-type": "application/json",
@@ -479,22 +613,36 @@
               body: bodyPayload,
               method: "POST",
               credentials: "include",
+              signal: ctrl.signal,
             });
 
-            if (response.status === 429) {
-              notify({ type: "progress", message: `HTTP 429 rate limited, waiting 8s (${retries + 1}/3)` });
-              await new Promise((r) => setTimeout(r, 8000));
+            if (resp.status === 429) {
+              clearTimeout(timer);
+              notify({ type: "progress", message: `HTTP 429 rate limited, waiting 15s (${retries + 1}/3)` });
+              pageLog(`page ${page}: 429 rate limited, waiting 15s (${retries + 1}/3)`);
+              await new Promise((r) => setTimeout(r, 15000));
               retries++;
               continue;
             }
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            response = resp;
+            pageText = await resp.text();
+            clearTimeout(timer);
             break;
           } catch (e) {
+            clearTimeout(timer);
             retries++;
-            if (retries <= 3) await new Promise((r) => setTimeout(r, 8000));
+            const reason = e && e.name === "AbortError" ? "timed out after 60s" : String(e.message || e);
+            if (retries <= 3) {
+              // Retries were previously silent (only 429s were reported), so a
+              // slow server looked like a frozen crawl. Report them.
+              notify({ type: "progress", page, workspace: getWorkspaceID(), message: `Page ${page} retry ${retries}/3 (${reason})` });
+              pageLog(`page ${page} retry ${retries}/3 (${reason})`);
+              await new Promise((r) => setTimeout(r, 8000));
+            }
             else {
               hasMoreData = false;
-              throw new Error(`Request failed: ${e.message}`);
+              throw new Error(`Request failed: ${reason}`);
             }
           }
         }
@@ -505,68 +653,154 @@
           break;
         }
 
-        const text = await response.text();
+        const text = pageText;
         if (!text.includes("inputTokens:")) {
+          // A stale x-server-id doesn't always come back as 401/403: the
+          // server can answer 200 with a Flight error payload (e.g.
+          // RangeError: Invalid time value). Treat that as staleness (the
+          // caller re-captures + retries once, like 401/403) instead of
+          // mistaking it for end-of-history.
+          if (/\b(RangeError|TypeError|ReferenceError|SyntaxError)\b|Invalid time value/.test(text)) {
+            clog(`page ${page}: server answered with an error payload - treating as stale serverID, will re-capture and retry once`);
+            throw new Error(`StaleServerID: page ${page} answered with a server error, not usage data`);
+          }
           // No data rows in the response. Show a hint so we can tell a stale server
           // ID / session expiry from a genuinely empty page.
           const snippet = text.slice(0, 160).replace(/\s+/g, " ");
           stopReason = `page ${page} response has no records. Server said: ${snippet}`;
           notify({ type: "info", message: `Crawl stopped: ${stopReason}` });
+          clog(`crawl stopped: ${stopReason}`);
           break; // Last page reached / no usable data
         }
 
+        // Record shape (server is authoritative; `cost` is intentionally NOT stored):
+        // id, workspaceID, timeCreated, timeUpdated, timeDeleted, model,
+        // provider, input/output/reasoning/cacheRead/cacheWrite5m/cacheWrite1h,
+        // keyID, sessionID, enrichment{plan,costMultiplier} (may be null).
+        // $R[n]= prefixes are React Flight reference assignments - tolerated.
         const regex =
+          /id:\s*"([^"]+)",[\s\S]*?workspaceID:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?timeUpdated:[\s\S]*?(?:new Date\("([^"]+)"\)|null),[\s\S]*?timeDeleted:\s*(?:new Date\("([^"]+)"\)|null),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?provider:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null),[\s\S]*?keyID:\s*"([^"]+)",[\s\S]*?sessionID:\s*"([^"]+)",[\s\S]*?enrichment:(?:null|[\s\S]*?\{plan:"([^"]+)",costMultiplier:([\d.]+)\})/g;
+
+        // Legacy fallback (pre-sessionID server shape): keeps the crawler working
+        // if the server ever omits the new fields. New fields backfill as null.
+        const legacyRegex =
           /id:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null)/g;
 
         let match;
         let newRecordCount = 0; // Genuinely new (not previously cached)
-        let pageWriteCount = 0; // Records written on this page (new + time backfill)
+        let pageWriteCount = 0; // Records written on this page (new + deletes)
+        let pageDeleteCount = 0;
+        let parseYield = 0;
 
+        let matchedNewShape = false;
         while ((match = regex.exec(text)) !== null) {
+          matchedNewShape = true;
           const id = match[1];
 
-          const existed = !!(localCache[id] && localCache[id].date && localCache[id].workspaceID);
-          if (!forceRescan && existed && localCache[id].time) {
-            continue; // Fully synced already (has time); always overwrite during rescan
+          // Soft-deleted on the server: drop from cache instead of storing.
+          if (match[5]) {
+            if (localCache[id]) {
+              delete localCache[id];
+              pageWriteCount++;
+            }
+            pageDeleteCount++;
+            continue;
           }
 
-          const dateIso = match[2];
+          const prev = localCache[id];
+          const existed = !!(prev && prev.date && prev.workspaceID);
+          if (!forceRescan && existed && prev.time) {
+            continue; // Fully synced already; always overwrite during rescan
+          }
+
+          const dateIso = match[3];
           const dateObj = new Date(dateIso);
           const dateStr = !isNaN(dateObj.getTime())
             ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
             : "Unknown";
 
           const record = {
-            workspaceID: workspaceID,
+            workspaceID: match[2] || workspaceID,
             time: dateIso,
+            timeUpdated: match[4] || null,
             date: dateStr,
-            model: match[3],
-            input: parseSafe(match[4]),
-            output: parseSafe(match[5]),
-            reasoning: parseSafe(match[6]),
-            cacheRead: parseSafe(match[7]),
-            cacheWrite5m: parseSafe(match[8]),
-            cacheWrite1h: parseSafe(match[9]),
+            model: match[6],
+            provider: match[7] || null,
+            input: parseSafe(match[8]),
+            output: parseSafe(match[9]),
+            reasoning: parseSafe(match[10]),
+            cacheRead: parseSafe(match[11]),
+            cacheWrite5m: parseSafe(match[12]),
+            cacheWrite1h: parseSafe(match[13]),
+            keyID: match[14] || null,
+            sessionID: match[15] || null,
+            plan: match[16] || null,
+            costMultiplier: match[17] !== undefined ? parseFloat(match[17]) : null,
           };
 
           localCache[id] = record;
           pageWriteCount++;
-          if (!existed) newRecordCount++; // Existing records only get `time` backfilled, not counted as new
+          if (!existed) newRecordCount++; // Genuinely new
+          // Content scripts share the page's main thread: yield every 200
+          // records so a huge page can't freeze the usage tab while parsing.
+          if (++parseYield % 200 === 0) await new Promise((r) => setTimeout(r, 0));
+        }
+
+        if (!matchedNewShape) {
+          legacyRegex.lastIndex = 0;
+          while ((match = legacyRegex.exec(text)) !== null) {
+            const id = match[1];
+
+            const prev = localCache[id];
+            const existed = !!(prev && prev.date && prev.workspaceID);
+            if (!forceRescan && existed && prev.time) {
+              continue; // Fully synced already (has time); always overwrite during rescan
+            }
+
+            const dateIso = match[2];
+            const dateObj = new Date(dateIso);
+            const dateStr = !isNaN(dateObj.getTime())
+              ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
+              : "Unknown";
+
+            const record = {
+              workspaceID: workspaceID,
+              time: dateIso,
+              timeUpdated: null,
+              date: dateStr,
+              model: match[3],
+              provider: null,
+              input: parseSafe(match[4]),
+              output: parseSafe(match[5]),
+              reasoning: parseSafe(match[6]),
+              cacheRead: parseSafe(match[7]),
+              cacheWrite5m: parseSafe(match[8]),
+              cacheWrite1h: parseSafe(match[9]),
+              keyID: null,
+              sessionID: null,
+              plan: null,
+              costMultiplier: null,
+            };
+
+            localCache[id] = record;
+            pageWriteCount++;
+            if (!existed) newRecordCount++; // Genuinely new
+            if (++parseYield % 200 === 0) await new Promise((r) => setTimeout(r, 0));
+          }
         }
 
         newRecordCountTotal += newRecordCount;
-        // Throttled progress: at most one notification per second so long crawls
-        // don't spam storage writes / badge updates on every page.
-        const now = Date.now();
-        if (page === 0 || now - lastProgressAt >= 1000) {
-          lastProgressAt = now;
-          notify({
-            type: "progress",
-            page,
-            workspace: getWorkspaceID(),
-            message: `Page ${page} done: wrote ${pageWriteCount} (new ${newRecordCount}, total new ${newRecordCountTotal})`,
-          });
-        }
+        // Report every page (no throttle) so long crawls don't look stuck.
+        const pageMs = Date.now() - pageStartAt;
+        const pageSecs = (pageMs / 1000).toFixed(1);
+        const pageKb = (text.length / 1024).toFixed(0);
+        pageLog(`page ${page} done: wrote ${pageWriteCount} (new ${newRecordCount}, del ${pageDeleteCount}, total new ${newRecordCountTotal}) (${pageSecs}s,${pageKb}KB)`);
+        notify({
+          type: "progress",
+          page,
+          workspace: getWorkspaceID(),
+          message: `Page ${page} done: wrote ${pageWriteCount} (new ${newRecordCount}, del ${pageDeleteCount}, total new ${newRecordCountTotal}) (${pageSecs}s,${pageKb}KB)`,
+        });
 
         if (!forceRescan && pageWriteCount === 0) {
           stopReason = `page ${page} fully synced (all records already have timestamps)`;
@@ -585,7 +819,18 @@
           } catch (e) {}
         }
 
-        await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 100) + 100));
+        // Original pacing: small random delay between pages.
+        const paceMs = Math.floor(Math.random() * 100) + 100;
+        // Background-tab canary: Chrome throttles hidden-tab timers (up to
+        // 1/min), which freezes the crawl with no error and no retry. A big
+        // overrun here means the usage tab is hidden - say so instead of
+        // looking dead.
+        const paceStart = Date.now();
+        await new Promise((r) => setTimeout(r, paceMs));
+        const paceDrift = Date.now() - paceStart - paceMs;
+        if (paceDrift > 10000) {
+          notify({ type: "progress", page, workspace: getWorkspaceID(), message: `Page ${page} stalled ${(paceDrift / 1000).toFixed(0)}s: timers throttled - keep the usage tab visible` });
+        }
         page++;
       }
     } catch (e) {

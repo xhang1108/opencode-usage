@@ -27,15 +27,20 @@
       options &&
       options.headers
     ) {
-      const serverID = findHeader(options.headers, "x-server-id");
-      if (serverID) {
-        try {
-          window.postMessage(
-            { source: "opencode-master", type: "server-id", serverID },
-            "*"
-          );
-        } catch (e) {
-          // Page closed or DOM unavailable
+      // Adopt IDs only from the usage-table server function (server-fn:1):
+      // other instances' IDs fail those calls with a Flight error payload.
+      const instance = findHeader(options.headers, "x-server-instance");
+      if (!instance || instance === "server-fn:1") {
+        const serverID = findHeader(options.headers, "x-server-id");
+        if (serverID) {
+          try {
+            window.postMessage(
+              { source: "opencode-master", type: "server-id", serverID },
+              "*"
+            );
+          } catch (e) {
+            // Page closed or DOM unavailable
+          }
         }
       }
     }

@@ -89,7 +89,7 @@ async function loadStatus() {
   if (cs && cs.running) {
     progressRow.style.display = "flex";
     const msg = cs.message ? cs.message : "Syncing...";
-    progressEl.textContent = msg.length > 40 ? msg.slice(0, 40) + "…" : msg;
+    progressEl.textContent = msg.length > 90 ? msg.slice(0, 90) + "…" : msg;
   } else if (cs && cs.error) {
     progressRow.style.display = "flex";
     progressEl.textContent = `Error: ${cs.error}`;

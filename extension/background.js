@@ -9,8 +9,15 @@ let lastCapturedServerID = null;
 chrome.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
     const headers = details.requestHeaders || [];
-    const serverID = headers.find((h) => h.name.toLowerCase() === "x-server-id")?.value;
+    const lowerName = (h) => h.name.toLowerCase();
+    const serverID = headers.find((h) => lowerName(h) === "x-server-id")?.value;
     if (!serverID || details.tabId === -1) return;
+    // Adopt IDs only from the usage-table server function: other routes use
+    // different instances whose IDs fail server-fn:1 calls with a Flight
+    // error payload (this masqueraded as "stale server" and caused silent
+    // re-capture loops mid-crawl).
+    const instance = headers.find((h) => lowerName(h) === "x-server-instance")?.value;
+    if (instance && instance !== "server-fn:1") return;
     if (serverID === lastCapturedServerID) return; // Dedupe so our own crawl requests don't loop
     lastCapturedServerID = serverID;
     chrome.storage.local.set({ lastServerID: serverID });
