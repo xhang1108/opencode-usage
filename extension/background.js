@@ -20,7 +20,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
     if (instance && instance !== "server-fn:1") return;
     if (serverID === lastCapturedServerID) return; // Dedupe so our own crawl requests don't loop
     lastCapturedServerID = serverID;
-    chrome.storage.local.set({ lastServerID: serverID });
+    chrome.storage.local.set({ lastServerID: serverID, lastServerIDAt: Date.now() });
     chrome.tabs
       .sendMessage(details.tabId, { type: "server-id", serverID })
       .catch(() => {}); // Ignore if the content script isn't ready; later requests re-trigger

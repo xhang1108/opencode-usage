@@ -200,6 +200,7 @@ onmessage = async (e) => {
       let pageDeleteCount = 0;
 
       let matchedNewShape = false;
+      let matchedLegacy = false;
       while ((match = regex.exec(text)) !== null) {
         matchedNewShape = true;
         const id = match[1];
@@ -251,6 +252,7 @@ onmessage = async (e) => {
       if (!matchedNewShape) {
         legacyRegex.lastIndex = 0;
         while ((match = legacyRegex.exec(text)) !== null) {
+          matchedLegacy = true;
           const id = match[1];
 
           const prev = localCache[id];
@@ -299,6 +301,13 @@ onmessage = async (e) => {
         workspace: workspaceID,
         message: `Page ${page} done: wrote ${pageWriteCount} (new ${newRecordCount}, del ${pageDeleteCount}, total new ${newRecordCountTotal}) (${pageSecs}s,${pageKb}KB)`,
       });
+
+      if (!matchedNewShape && !matchedLegacy) {
+        stopReason = `page ${page} schema changed (inputTokens present but 0 parsed) - needs regex update`;
+        note({ type: "info", message: `Crawl stopped: ${stopReason}` });
+        log(`crawl stopped: ${stopReason}`);
+        break;
+      }
 
       if (!forceRescan && pageWriteCount === 0) {
         stopReason = `page ${page} fully synced (all records already have timestamps)`;

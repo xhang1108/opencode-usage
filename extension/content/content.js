@@ -336,11 +336,15 @@
     }
   };
 
+  // Stored SID goes stale on redeploy; also expire by age so a days-old
+  // ID is never trusted blindly (forces a fresh capture instead).
+  const SID_TTL_MS = 24 * 3600 * 1000;
+
   // Record a captured serverID for manual crawls.
   async function recordServerID(serverID) {
     if (serverID === lastServerID) return;
     lastServerID = serverID;
-    await storageSet({ lastServerID: serverID });
+    await storageSet({ lastServerID: serverID, lastServerIDAt: Date.now() });
   }
 
   window.addEventListener("message", (event) => {
@@ -415,8 +419,16 @@
     // to capture a FRESH one by kicking the page; fall back to the stored value
     // only if a fresh capture times out.
     if (!lastServerID) {
-      const { lastServerID: sid } = await storageGet("lastServerID");
-      if (sid) lastServerID = sid;
+      const { lastServerID: sid, lastServerIDAt: sidAt } = await storageGet(["lastServerID", "lastServerIDAt"]);
+      if (sid) {
+        if (sidAt && Date.now() - sidAt > SID_TTL_MS) {
+          clog(`stored serverID expired (age ${((Date.now() - sidAt) / 3600000).toFixed(1)}h), discarding`);
+          await storageRemove("lastServerID");
+          await storageRemove("lastServerIDAt");
+        } else {
+          lastServerID = sid;
+        }
+      }
     }
     const oldSID = lastServerID ? lastServerID.slice(0, 12) : "(none)";
     let sidNote = `${oldSID} (stored)`;
@@ -435,7 +447,7 @@
     pendingCrawl = null;
     if (freshSID) {
       lastServerID = freshSID;
-      await storageSet({ lastServerID: freshSID });
+      await storageSet({ lastServerID: freshSID, lastServerIDAt: Date.now() });
       sidNote = `${oldSID} -> ${freshSID.slice(0, 12)} (fresh)`;
     } else {
       sidNote = `${oldSID} (stored, page untouched)`;
@@ -462,6 +474,7 @@
       if (/401|403|StaleServerID/.test(raw)) {
         lastServerID = null;
         await storageRemove("lastServerID");
+        await storageRemove("lastServerIDAt");
         pendingCrawl = { forceRescan: !!forceRescan };
         clog("serverID stale, re-capturing (page will be clicked) and retrying crawl once…");
         const sid = await refreshServerID(8000);
@@ -701,6 +714,7 @@
         let parseYield = 0;
 
         let matchedNewShape = false;
+        let matchedLegacy = false;
         while ((match = regex.exec(text)) !== null) {
           matchedNewShape = true;
           const id = match[1];
@@ -757,6 +771,7 @@
         if (!matchedNewShape) {
           legacyRegex.lastIndex = 0;
           while ((match = legacyRegex.exec(text)) !== null) {
+            matchedLegacy = true;
             const id = match[1];
 
             const prev = localCache[id];
@@ -809,6 +824,13 @@
           workspace: getWorkspaceID(),
           message: `Page ${page} done: wrote ${pageWriteCount} (new ${newRecordCount}, del ${pageDeleteCount}, total new ${newRecordCountTotal}) (${pageSecs}s,${pageKb}KB)`,
         });
+
+        if (!matchedNewShape && !matchedLegacy) {
+          stopReason = `page ${page} schema changed (inputTokens present but 0 parsed) - needs regex update`;
+          notify({ type: "info", message: `Crawl stopped: ${stopReason}` });
+          clog(`crawl stopped: ${stopReason}`);
+          break;
+        }
 
         if (!forceRescan && pageWriteCount === 0) {
           stopReason = `page ${page} fully synced (all records already have timestamps)`;
