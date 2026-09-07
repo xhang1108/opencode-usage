@@ -664,6 +664,14 @@
             clog(`page ${page}: server answered with an error payload - treating as stale serverID, will re-capture and retry once`);
             throw new Error(`StaleServerID: page ${page} answered with a server error, not usage data`);
           }
+          // Stored SID stale doesn't always 401/403: the server can answer 200
+          // with a DIFFERENT function payload (e.g. referral) when the SID
+          // belongs to an older deploy. Page 0 must be usage data; a referral
+          // payload here means stale SID (re-capture + retry once).
+          if (page === 0 && /referralCode|hasReferral|rewardAmount/.test(text)) {
+            clog(`page 0: server answered with referral payload - treating as stale serverID, will re-capture and retry once`);
+            throw new Error(`StaleServerID: page 0 answered with referral payload, not usage data`);
+          }
           // No data rows in the response. Show a hint so we can tell a stale server
           // ID / session expiry from a genuinely empty page.
           const snippet = text.slice(0, 160).replace(/\s+/g, " ");
