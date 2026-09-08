@@ -1,33 +1,5 @@
 // background.js - Manages the icon badge and popup message routing (export / manual sync / status).
-// Captures x-server-id from opencode.ai/_server requests at the browser level.
-// (webRequest events wake the SW, so there is no cold-start race; even the first
-// request of a page load is intercepted.)
 importScripts("time-reminder.js");
-
-let lastCapturedServerID = null;
-
-chrome.webRequest.onBeforeSendHeaders.addListener(
-  (details) => {
-    const headers = details.requestHeaders || [];
-    const lowerName = (h) => h.name.toLowerCase();
-    const serverID = headers.find((h) => lowerName(h) === "x-server-id")?.value;
-    if (!serverID || details.tabId === -1) return;
-    // Adopt IDs only from the usage-table server function: other routes use
-    // different instances whose IDs fail server-fn:1 calls with a Flight
-    // error payload (this masqueraded as "stale server" and caused silent
-    // re-capture loops mid-crawl).
-    const instance = headers.find((h) => lowerName(h) === "x-server-instance")?.value;
-    if (instance && instance !== "server-fn:1") return;
-    if (serverID === lastCapturedServerID) return; // Dedupe so our own crawl requests don't loop
-    lastCapturedServerID = serverID;
-    chrome.storage.local.set({ lastServerID: serverID, lastServerIDAt: Date.now() });
-    chrome.tabs
-      .sendMessage(details.tabId, { type: "server-id", serverID })
-      .catch(() => {}); // Ignore if the content script isn't ready; later requests re-trigger
-  },
-  { urls: ["https://opencode.ai/_server*"] },
-  ["requestHeaders"]
-);
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -259,7 +231,7 @@ async function sendStartCrawl(rescan) {
         } catch (e) {}
       }
       try {
-        const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
+const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
         if (res && res.ok) return { ...res, openedUsage: true };
       } catch (e) {}
       return { ok: true, openedUsage: true, started: false };

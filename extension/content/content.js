@@ -289,8 +289,8 @@
     });
   }
 
-  // Passive serverID wait: listens for a naturally-captured ID (page load,
-  // background webRequest relay) WITHOUT clicking anything on the page.
+  // Passive serverID wait: listens for a naturally-captured ID (usage-page
+  // traffic picked up by interceptor.js) WITHOUT clicking anything on the page.
   // Returns null on timeout so the caller can fall back to refreshServerID.
   function passiveServerID(timeoutMs) {
     if (lastServerID) return Promise.resolve(lastServerID);
@@ -416,7 +416,7 @@
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!msg || !msg.type) return;
 
-    // ServerID captured by background webRequest (for manual crawls).
+    // ServerID captured by the page interceptor (kept for manual crawls).
     if (msg.type === "server-id" && msg.serverID) {
       recordServerID(msg.serverID);
       return;
@@ -678,6 +678,9 @@
                 accept: "*/*",
                 "content-type": "application/json",
                 "x-server-id": serverID,
+                // Echo-only label: the server reflects it back verbatim as the
+                // Flight row key and dispatches on the body's `f`, so this
+                // never needs to match what the page currently sends.
                 "x-server-instance": "server-fn:1",
               },
               body: bodyPayload,
@@ -743,12 +746,12 @@
             throw new Error(`StaleServerID: page 0 answered with referral payload, not usage data`);
           }
           // Stale f index or stale SID after a redeploy: the server answers
-          // 200 with an empty `["server-fn:1"]=[]` Flight payload (no usage
-          // rows). Page 0 can never legitimately be empty for an account
-          // that already has cached records, so treat it as staleness
-          // (re-capture + retry once with a fresh template) instead of
-          // mistaking it for end-of-history.
-          if (page === 0 && /\["server-fn:1"\]\s*=\s*\[\]/.test(text)) {
+          // 200 with an empty `["server-fn:N"]=[]` Flight payload (no usage
+          // rows). Page 0 can only be stale when we ALREADY have cached
+          // records for this workspace - an account with no history yet
+          // legitimately returns an empty page 0 (end-of-history, not stale).
+          const cachedCount = Object.keys(localCache).length;
+          if (page === 0 && cachedCount > 0 && /\["server-fn:\d+"\]\s*=\s*\[\]/.test(text)) {
             clog(`page 0: server answered with empty server-fn payload (f=${built.f}${built.observed ? ",observed" : ",default"}) - treating as stale, will re-capture and retry once`);
             throw new Error(`StaleServerID: page 0 answered with empty server-fn payload (f=${built.f}), not usage data`);
           }

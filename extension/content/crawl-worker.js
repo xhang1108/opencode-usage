@@ -85,29 +85,22 @@ onmessage = async (e) => {
     await writable.close();
   };
 
+  const LEASE_TTL = 45000;           // A lease this old is dead: safe to take over
+  const LEASE_HEARTBEAT_MS = 15000;  // Keep the lease fresh while alive (not just per page)
+  let beatTimer = null;
+
   try {
     if (!workspaceID || !serverID || !filename) throw new Error("worker missing workspaceID/serverID/filename");
     // Desync concurrent starts (double clicks / multiple tabs) a little.
     await sleep(Math.floor(Math.random() * 2000));
     const root = await navigator.storage.getDirectory();
     // Single-crawl lease (OPFS file: shared across tabs, reloads and workers,
-    // no chrome APIs needed). A second concurrent crawl exits immediately
-    // instead of doubling server load and fighting over the cache file.
-    // Stale leases (>120s, dead worker) are taken over.
+    // no chrome APIs needed). A second concurrent crawl would double server
+    // load and fight over the cache file. Liveness = heartbeat: a live crawl
+    // refreshes `at` every LEASE_HEARTBEAT_MS, so a lease that hasn't beaten
+    // for LEASE_TTL is dead and can be taken over.
     leaseOwner = `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
     leaseHandle = await root.getFileHandle("opencode_crawl_lease.json", { create: true });
-    try {
-      const leaseText = await (await leaseHandle.getFile()).text();
-      if (leaseText) {
-        const lease = JSON.parse(leaseText);
-        if (lease && lease.owner && lease.owner !== leaseOwner && Date.now() - (lease.at || 0) < 120000) {
-          throw new Error(`another crawl is already running (owner ${String(lease.owner).slice(-6)}, beat ${new Date(lease.at).toLocaleTimeString()}) - wait for it or close other usage tabs`);
-        }
-      }
-    } catch (e) {
-      if (/another crawl/.test(String((e && e.message) || e))) throw e;
-      // Corrupt/empty lease file: overwrite below.
-    }
     beatLease = async () => {
       try {
         const w = await leaseHandle.createWritable();
@@ -115,6 +108,30 @@ onmessage = async (e) => {
         await w.close();
       } catch (_) {}
     };
+    // Conflicting lease: don't fail instantly. Poll until it goes stale (dead
+    // worker => auto-resume here, user does nothing) or a hard cap passes
+    // (a live crawler keeps beating => surface it with a force option).
+    const leaseWaitDeadline = Date.now() + 90000;
+    let blockedLease = null;
+    while (Date.now() < leaseWaitDeadline) {
+      let lease = null;
+      try {
+        const lt = await (await leaseHandle.getFile()).text();
+        lease = lt ? JSON.parse(lt) : null;
+      } catch (_) {}
+      if (!lease || !lease.owner || lease.owner === leaseOwner || Date.now() - (lease.at || 0) >= LEASE_TTL) break;
+      if (!blockedLease) {
+        blockedLease = lease;
+        note({ type: "progress", page: 0, workspace: workspaceID, message: `Another crawl is active - auto-resuming when it clears (up to ~${Math.ceil(LEASE_TTL / 1000)}s)` });
+        log(`another crawl running (owner ${String(lease.owner).slice(-6)}); waiting for its lease to expire…`);
+      }
+      await sleep(1000);
+    }
+    if (Date.now() >= leaseWaitDeadline) {
+      const l = blockedLease || {};
+      throw new Error(`another crawl is still running (owner ${String(l.owner || "?").slice(-6)}, beat ${l.at ? new Date(l.at).toLocaleTimeString() : "?"}) - it is actively heartbeating; wait for it to finish or close other usage tabs`);
+    }
+    beatTimer = setInterval(beatLease, LEASE_HEARTBEAT_MS);
     await beatLease();
     log(`crawl worker started (owner ${leaseOwner.slice(-6)})`);
     fileHandle = await root.getFileHandle(filename, { create: true });
@@ -147,6 +164,9 @@ onmessage = async (e) => {
               accept: "*/*",
               "content-type": "application/json",
               "x-server-id": serverID,
+              // Echo-only label (the server reflects it back as the Flight row
+              // key and dispatches on the body's `f`); no need to match the
+              // instance the page currently uses.
               "x-server-instance": "server-fn:1",
             },
             body: bodyPayload,
@@ -209,8 +229,10 @@ onmessage = async (e) => {
           throw new Error(`StaleServerID: page 0 answered with referral payload, not usage data`);
         }
         // Stale f index or stale SID after a redeploy: empty
-        // `["server-fn:1"]=[]` on page 0 is never legit end-of-history.
-        if (page === 0 && /\["server-fn:1"\]\s*=\s*\[\]/.test(text)) {
+        // `["server-fn:N"]=[]` on page 0 is only stale when we already have
+        // cached records; an account with no history legitimately returns
+        // an empty page 0 (end-of-history, not stale).
+        if (page === 0 && Object.keys(localCache).length > 0 && /\["server-fn:\d+"\]\s*=\s*\[\]/.test(text)) {
           log(`page 0: server answered with empty server-fn payload (f=${built.f}${built.observed ? ",observed" : ",default"}) - treating as stale serverID`);
           throw new Error(`StaleServerID: page 0 answered with empty server-fn payload (f=${built.f}), not usage data`);
         }
@@ -390,6 +412,7 @@ onmessage = async (e) => {
     }
     // Release our lease so the next run isn't blocked (only if it's still
     // ours; a dead worker's lease expires by TTL instead).
+    if (beatTimer) clearInterval(beatTimer);
     try {
       if (leaseHandle && leaseOwner) {
         const lt = await (await leaseHandle.getFile()).text();
