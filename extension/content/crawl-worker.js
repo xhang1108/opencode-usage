@@ -21,7 +21,7 @@
 "use strict";
 
 onmessage = async (e) => {
-  const { workspaceID, serverID, forceRescan, filename } = (e && e.data) || {};
+  const { workspaceID, serverID, forceRescan, filename, payloadTemplate } = (e && e.data) || {};
   const log = (text) => {
     try { postMessage({ type: "log", text: String(text) }); } catch (_) {}
   };
@@ -30,6 +30,39 @@ onmessage = async (e) => {
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const parseSafe = (val) => (val && val !== "null") ? parseInt(val, 10) : 0;
+
+  // Same template logic as content.js buildBodyPayload (duplicated: workers
+  // can't import it). Reuses the observed f + t shape when available.
+  const buildBodyPayload = (template, wsID, pg) => {
+    if (template && typeof template.body === "string" && typeof template.f === "number") {
+      try {
+        const parsed = JSON.parse(template.body);
+        let patched = false;
+        const visit = (node) => {
+          if (!node || typeof node !== "object") return;
+          if (Array.isArray(node)) {
+            for (const v of node) visit(v);
+            return;
+          }
+          if (node.t === 1 && typeof node.s === "string" && /^wrk_/.test(node.s)) {
+            node.s = wsID;
+            patched = true;
+          } else if (node.t === 0 && typeof node.s === "number") {
+            node.s = pg;
+            patched = true;
+          }
+          for (const v of Object.values(node)) visit(v);
+        };
+        visit(parsed);
+        if (patched) return { body: JSON.stringify(parsed), f: parsed.f ?? template.f, observed: true };
+      } catch (_) {}
+    }
+    return {
+      body: `{"t":{"t":9,"i":0,"l":2,"a":[{"t":1,"s":"${wsID}"},{"t":0,"s":${pg}}],"o":0},"f":31,"m":[]}`,
+      f: 31,
+      observed: false,
+    };
+  };
 
   let page = 0;
   let hasMoreData = true;
@@ -94,8 +127,8 @@ onmessage = async (e) => {
     // only new/changed records are written. No backfill sweep.
 
     while (hasMoreData) {
-      const bodyPayload =
-        `{"t":{"t":9,"i":0,"l":2,"a":[{"t":1,"s":"${workspaceID}"},{"t":0,"s":${page}}],"o":0},"f":31,"m":[]}`;
+      const built = buildBodyPayload(payloadTemplate, workspaceID, page);
+      const bodyPayload = built.body;
       let response = null;
       let pageText = "";
       let retries = 0;
@@ -174,6 +207,12 @@ onmessage = async (e) => {
         if (page === 0 && /referralCode|hasReferral|rewardAmount/.test(text)) {
           log(`page 0: server answered with referral payload - treating as stale serverID`);
           throw new Error(`StaleServerID: page 0 answered with referral payload, not usage data`);
+        }
+        // Stale f index or stale SID after a redeploy: empty
+        // `["server-fn:1"]=[]` on page 0 is never legit end-of-history.
+        if (page === 0 && /\["server-fn:1"\]\s*=\s*\[\]/.test(text)) {
+          log(`page 0: server answered with empty server-fn payload (f=${built.f}${built.observed ? ",observed" : ",default"}) - treating as stale serverID`);
+          throw new Error(`StaleServerID: page 0 answered with empty server-fn payload (f=${built.f}), not usage data`);
         }
         const snippet = text.slice(0, 160).replace(/\s+/g, " ");
         stopReason = `page ${page} response has no records. Server said: ${snippet}`;

@@ -347,16 +347,63 @@
     await storageSet({ lastServerID: serverID, lastServerIDAt: Date.now() });
   }
 
+  // Observed request template (captured from the page's own /_server traffic
+  // by interceptor.js): { f, body, at }. The hardcoded f:31 goes stale on
+  // redeploy, so the crawl reuses the observed f + t shape when available.
+  let lastPayloadTemplate = null;
+  async function recordServerPayload(data) {
+    if (!data || typeof data.f !== "number" || typeof data.body !== "string") return;
+    if (!data.body.includes("wrk_")) return;
+    lastPayloadTemplate = { f: data.f, body: data.body, at: data.at || Date.now() };
+    await storageSet({ lastServerPayload: lastPayloadTemplate });
+    if (data.serverID) recordServerID(data.serverID);
+  }
+
+  // Build the POST body for a crawl page: clone the observed template and
+  // substitute workspace + page; fall back to the legacy f:31 shape.
+  // Returns { body, f, observed:boolean }.
+  function buildBodyPayload(template, workspaceID, page) {
+    if (template && typeof template.body === "string" && typeof template.f === "number") {
+      try {
+        const parsed = JSON.parse(template.body);
+        let patched = false;
+        const visit = (node) => {
+          if (!node || typeof node !== "object") return;
+          if (Array.isArray(node)) {
+            for (const v of node) visit(v);
+            return;
+          }
+          // Usage query args: {t:1,s:"wrk_..."} = workspace, {t:0,s:N} = page.
+          if (node.t === 1 && typeof node.s === "string" && /^wrk_/.test(node.s)) {
+            node.s = workspaceID;
+            patched = true;
+          } else if (node.t === 0 && typeof node.s === "number") {
+            node.s = page;
+            patched = true;
+          }
+          for (const v of Object.values(node)) visit(v);
+        };
+        visit(parsed);
+        if (patched) return { body: JSON.stringify(parsed), f: parsed.f ?? template.f, observed: true };
+      } catch (e) {
+        // Corrupt template: fall through to the legacy shape
+      }
+    }
+    return {
+      body: `{"t":{"t":9,"i":0,"l":2,"a":[{"t":1,"s":"${workspaceID}"},{"t":0,"s":${page}}],"o":0},"f":31,"m":[]}`,
+      f: 31,
+      observed: false,
+    };
+  }
+
   window.addEventListener("message", (event) => {
     if (event.source !== window) return;
     const data = event.data;
-    if (
-      data &&
-      data.source === "opencode-master" &&
-      data.type === "server-id" &&
-      data.serverID
-    ) {
+    if (!data || data.source !== "opencode-master") return;
+    if (data.type === "server-id" && data.serverID) {
       recordServerID(data.serverID);
+    } else if (data.type === "server-payload") {
+      recordServerPayload(data);
     }
   });
 
@@ -432,6 +479,15 @@
     }
     const oldSID = lastServerID ? lastServerID.slice(0, 12) : "(none)";
     let sidNote = `${oldSID} (stored)`;
+    // Load the observed request template (captured from real page traffic).
+    // A stored template is reused as-is; a fresh capture during the waits
+    // below overwrites it via recordServerPayload.
+    if (!lastPayloadTemplate) {
+      try {
+        const { lastServerPayload } = await storageGet(["lastServerPayload"]);
+        if (lastServerPayload && typeof lastServerPayload.f === "number") lastPayloadTemplate = lastServerPayload;
+      } catch (e) {}
+    }
     pendingCrawl = { forceRescan: !!forceRescan };
     // Passive first: force-kicking pagination makes the page itself fire
     // _server traffic on top of the crawl burst; the session then gets
@@ -460,8 +516,9 @@
     }
 
     try {
-      const result = await runCrawl(getWorkspaceID(), lastServerID, forceRescan);
-      const final = { ...result, sidNote };
+      const payloadInfo = lastPayloadTemplate ? `f:${lastPayloadTemplate.f}(observed)` : "f:31(default)";
+      const result = await runCrawl(getWorkspaceID(), lastServerID, forceRescan, lastPayloadTemplate);
+      const final = { ...result, sidNote: `${sidNote} ${payloadInfo}` };
       notify({ type: "crawl-done", ...final });
       clog(`crawl-done: total=${final.total} new=${final.newRecords} lastPage=${final.lastPage} stop=${final.stopReason || "(end)"} ${sidNote}`);
       return { ok: true, started: true, ...final };
@@ -481,7 +538,7 @@
         pendingCrawl = null;
         if (sid) {
           try {
-            const result = await runCrawl(getWorkspaceID(), sid, forceRescan);
+            const result = await runCrawl(getWorkspaceID(), sid, forceRescan, lastPayloadTemplate);
             notify({ type: "crawl-done", ...result, sidNote });
             clog(`crawl-done(retry): total=${result.total} new=${result.newRecords} lastPage=${result.lastPage}`);
             return { ok: true, started: true, ...result, sidNote };
@@ -511,7 +568,7 @@
   // and posts progress; this side only relays to background/popup. If the
   // worker can't start (e.g. page CSP blocks blob workers), fall back to
   // the inline startCrawling below (same logic, main thread).
-  async function runCrawlWorker(workspaceID, serverID, forceRescan) {
+  async function runCrawlWorker(workspaceID, serverID, forceRescan, payloadTemplate) {
     const src = await (await fetch(chrome.runtime.getURL("content/crawl-worker.js"))).text();
     const blobUrl = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
     const worker = new Worker(blobUrl);
@@ -525,7 +582,7 @@
           else if (m.type === "error") resolve({ ok: false, error: String(m.message || "worker error") });
         };
         worker.onerror = (ev) => reject(new Error(`worker failed: ${(ev && ev.message) || "failed to start"}`));
-        worker.postMessage({ workspaceID, serverID, forceRescan, filename: `opencode_token_cache_${workspaceID}.json` });
+        worker.postMessage({ workspaceID, serverID, forceRescan, payloadTemplate: payloadTemplate || null, filename: `opencode_token_cache_${workspaceID}.json` });
       });
     } finally {
       try { worker.terminate(); } catch (e) {}
@@ -537,17 +594,17 @@
   // STARTED but failed is thrown (same handling as inline failures, stale /
   // 401 recapture included); only worker STARTUP failure falls back, so a
   // broken run is never silently executed twice.
-  async function runCrawl(workspaceID, serverID, forceRescan) {
+  async function runCrawl(workspaceID, serverID, forceRescan, payloadTemplate) {
     let started = false;
     try {
-      const w = await runCrawlWorker(workspaceID, serverID, forceRescan);
+      const w = await runCrawlWorker(workspaceID, serverID, forceRescan, payloadTemplate);
       started = true;
       if (w.ok) return w.result;
       throw new Error(w.error);
     } catch (e) {
       if (started) throw e;
       clog(`worker unavailable (${e.message}), running crawl on main thread…`);
-      return await startCrawling(workspaceID, serverID, forceRescan);
+      return await startCrawling(workspaceID, serverID, forceRescan, payloadTemplate);
     }
   }
 
@@ -556,7 +613,7 @@
   // `time`) without deleting any existing data.
   // NOTE: this inline loop is now the FALLBACK path (see runCrawl above);
   // the primary path is content/crawl-worker.js. Keep the two in sync.
-  async function startCrawling(workspaceID, serverID, forceRescan) {
+  async function startCrawling(workspaceID, serverID, forceRescan, payloadTemplate) {
     const FILENAME = `opencode_token_cache_${workspaceID}.json`;
     let page = 0;
     let hasMoreData = true;
@@ -593,8 +650,8 @@
 
     try {
       while (hasMoreData) {
-        const bodyPayload =
-          `{"t":{"t":9,"i":0,"l":2,"a":[{"t":1,"s":"${workspaceID}"},{"t":0,"s":${page}}],"o":0},"f":31,"m":[]}`;
+        const built = buildBodyPayload(payloadTemplate, workspaceID, page);
+        const bodyPayload = built.body;
         let response = null;
         let pageText = "";
         let retries = 0;
@@ -684,6 +741,16 @@
           if (page === 0 && /referralCode|hasReferral|rewardAmount/.test(text)) {
             clog(`page 0: server answered with referral payload - treating as stale serverID, will re-capture and retry once`);
             throw new Error(`StaleServerID: page 0 answered with referral payload, not usage data`);
+          }
+          // Stale f index or stale SID after a redeploy: the server answers
+          // 200 with an empty `["server-fn:1"]=[]` Flight payload (no usage
+          // rows). Page 0 can never legitimately be empty for an account
+          // that already has cached records, so treat it as staleness
+          // (re-capture + retry once with a fresh template) instead of
+          // mistaking it for end-of-history.
+          if (page === 0 && /\["server-fn:1"\]\s*=\s*\[\]/.test(text)) {
+            clog(`page 0: server answered with empty server-fn payload (f=${built.f}${built.observed ? ",observed" : ",default"}) - treating as stale, will re-capture and retry once`);
+            throw new Error(`StaleServerID: page 0 answered with empty server-fn payload (f=${built.f}), not usage data`);
           }
           // No data rows in the response. Show a hint so we can tell a stale server
           // ID / session expiry from a genuinely empty page.

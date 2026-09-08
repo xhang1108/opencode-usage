@@ -42,6 +42,33 @@
             // Page closed or DOM unavailable
           }
         }
+        // Capture the real request body as a crawl template: the hardcoded
+        // `f:31` goes stale on redeploy (server answers page 0 with an empty
+        // `["server-fn:1"]=[]` payload). The crawler reuses the observed `f`
+        // + `t` shape and only substitutes workspace/page per request.
+        try {
+          const rawBody = typeof options.body === "string" ? options.body : "";
+          if (rawBody && rawBody.length < 20000 && rawBody.includes('"f"') && rawBody.includes("wrk_")) {
+            let parsed = null;
+            try { parsed = JSON.parse(rawBody); } catch (e) { parsed = null; }
+            if (parsed && typeof parsed.f === "number") {
+              window.postMessage(
+                {
+                  source: "opencode-master",
+                  type: "server-payload",
+                  serverID: serverID || null,
+                  instance: instance || "server-fn:1",
+                  f: parsed.f,
+                  body: rawBody,
+                  at: Date.now(),
+                },
+                "*"
+              );
+            }
+          }
+        } catch (e) {
+          // Template capture is best-effort; serverID above still counts
+        }
       }
     }
     return originalFetch.apply(this, args);
