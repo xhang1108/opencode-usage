@@ -543,9 +543,10 @@
             clog(`crawl-done(retry): total=${result.total} new=${result.newRecords} lastPage=${result.lastPage}`);
             return { ok: true, started: true, ...result, sidNote };
           } catch (e2) {
-            notify({ type: "error", message: String(e2.message || e2) });
+            const e2msg = String(e2.message || e2).replace(/^StaleServerID:\s*/, "Server session changed - ");
+            notify({ type: "error", message: e2msg });
             clog("crawl failed(retry):", String(e2.message || e2));
-            return { ok: false, error: String(e2.message || e2) };
+            return { ok: false, error: e2msg };
           }
         }
       }
@@ -576,6 +577,9 @@
       return await new Promise((resolve, reject) => {
         worker.onmessage = (ev) => {
           const m = (ev && ev.data) || {};
+          // Worker only sends progress/info/log notes now; terminal states
+          // (done/error) arrive via postMessage and are notified once by the
+          // caller below, so relaying here can never double-notify.
           if (m.type === "notify" && m.msg) notify(m.msg);
           else if (m.type === "log" && m.text !== undefined) clog(String(m.text));
           else if (m.type === "done") resolve({ ok: true, result: m.result });
@@ -619,6 +623,7 @@
     let hasMoreData = true;
     let localCache = {};
     let newRecordCountTotal = 0;
+    let newTokensTotal = 0; // Sum of all token fields of genuinely new records
     let fileHandle;
     let stopReason = "";
     // Persist incrementally every few pages so a mid-crawl stall/interruption
@@ -832,7 +837,10 @@
 
           localCache[id] = record;
           pageWriteCount++;
-          if (!existed) newRecordCount++; // Genuinely new
+          if (!existed) {
+            newRecordCount++; // Genuinely new
+            newTokensTotal += record.input + record.output + record.reasoning + record.cacheRead + record.cacheWrite5m + record.cacheWrite1h;
+          }
           // Content scripts share the page's main thread: yield every 200
           // records so a huge page can't freeze the usage tab while parsing.
           if (++parseYield % 200 === 0) await new Promise((r) => setTimeout(r, 0));
@@ -877,7 +885,10 @@
 
             localCache[id] = record;
             pageWriteCount++;
-            if (!existed) newRecordCount++; // Genuinely new
+            if (!existed) {
+              newRecordCount++; // Genuinely new
+              newTokensTotal += record.input + record.output + record.reasoning + record.cacheRead + record.cacheWrite5m + record.cacheWrite1h;
+            }
             if (++parseYield % 200 === 0) await new Promise((r) => setTimeout(r, 0));
           }
         }
@@ -954,6 +965,7 @@
       workspaceID,
       total: Object.keys(localCache).length,
       newRecords: newRecordCountTotal,
+      newTokens: newTokensTotal,
       lastPage: page,
       stopReason,
     };

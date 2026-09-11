@@ -13,7 +13,7 @@
 //   main -> worker: { workspaceID, serverID, forceRescan, filename }
 //   worker -> main: { type: "notify", msg }   (relayed to background/popup)
 //                   { type: "log", text }     (relayed to page console)
-//                   { type: "done", result }  { workspaceID, total, newRecords, lastPage, stopReason }
+//                   { type: "done", result }  { workspaceID, total, newRecords, newTokens, lastPage, stopReason }
 //                   { type: "error", message }
 //
 // Logic is a port of startCrawling() in content.js (same record shape, same
@@ -68,6 +68,7 @@ onmessage = async (e) => {
   let hasMoreData = true;
   let localCache = {};
   let newRecordCountTotal = 0;
+  let newTokensTotal = 0; // Sum of all token fields of genuinely new records
   let fileHandle = null;
   let leaseHandle = null;
   let leaseOwner = "";
@@ -307,7 +308,10 @@ onmessage = async (e) => {
           costMultiplier: match[17] !== undefined ? parseFloat(match[17]) : null,
         };
         pageWriteCount++;
-        if (!existed) newRecordCount++; // Genuinely new
+        if (!existed) {
+          newRecordCount++; // Genuinely new
+          newTokensTotal += parseSafe(match[8]) + parseSafe(match[9]) + parseSafe(match[10]) + parseSafe(match[11]) + parseSafe(match[12]) + parseSafe(match[13]);
+        }
       }
 
       if (!matchedNewShape) {
@@ -347,7 +351,10 @@ onmessage = async (e) => {
             costMultiplier: null,
           };
           pageWriteCount++;
-          if (!existed) newRecordCount++; // Genuinely new
+          if (!existed) {
+            newRecordCount++; // Genuinely new
+            newTokensTotal += parseSafe(match[4]) + parseSafe(match[5]) + parseSafe(match[6]) + parseSafe(match[7]) + parseSafe(match[8]) + parseSafe(match[9]);
+          }
         }
       }
 
@@ -428,7 +435,6 @@ onmessage = async (e) => {
 
   if (crawlError) {
     const message = String((crawlError && crawlError.message) || crawlError);
-    note({ type: "error", message });
     postMessage({ type: "error", message });
     // Direct console line (not relayed): if the page main thread is wedged,
     // relayed logs never arrive, but this one is emitted by the worker itself.
@@ -440,10 +446,13 @@ onmessage = async (e) => {
     workspaceID,
     total: Object.keys(localCache).length,
     newRecords: newRecordCountTotal,
+    newTokens: newTokensTotal,
     lastPage: page,
     stopReason,
   };
-  note({ type: "crawl-done", ...result });
+  // Terminal state goes through postMessage only; the main thread sends the
+  // single crawl-done notification (this also covers the inline fallback,
+  // which has no worker notes).
   postMessage({ type: "done", result });
   try { console.log(`[opencode-usage:w] crawl-done: total=${result.total} new=${result.newRecords} lastPage=${result.lastPage} stop=${result.stopReason || "(end)"}`); } catch (_) {}
 };

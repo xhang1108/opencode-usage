@@ -473,7 +473,7 @@ function updateDropdowns() {
 //   Time-based: windows.peak (peak windows, off-peak is the complement) + pricing.peak + pricing.offpeak
 // Price tables may be tiered (low/high by input+cacheRead total context).
 // Rates are USD per million tokens.
-const RATES_VERSION = 11;
+const RATES_VERSION = 12;
 const RATES_KEY = "opencode_model_rates_v2";
 
 const DEFAULT_MODEL_RATES = [
@@ -505,6 +505,19 @@ const DEFAULT_MODEL_RATES = [
           offpeak: { input: 0.22, output: 0.66, cacheRead: 0.007, cacheWrite: 0 },
         },
       },
+      {
+        from: "2026-09-10T03:05:41Z",
+        windows: {
+          peak: [
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.30, output: 1.20, cacheRead: 0.006, cacheWrite: 0 },
+          offpeak: { input: 0.15, output: 0.60, cacheRead: 0.003, cacheWrite: 0 },
+        },
+      },
     ],
   },
   {
@@ -525,6 +538,19 @@ const DEFAULT_MODEL_RATES = [
           offpeak: { input: 0.22, output: 0.66, cacheRead: 0.007, cacheWrite: 0 },
         },
       },
+      {
+        from: "2026-09-10T03:05:41Z",
+        windows: {
+          peak: [
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.30, output: 1.20, cacheRead: 0.006, cacheWrite: 0 },
+          offpeak: { input: 0.15, output: 0.60, cacheRead: 0.003, cacheWrite: 0 },
+        },
+      },
     ],
   },
 
@@ -543,6 +569,57 @@ const DEFAULT_MODEL_RATES = [
         pricing: {
           peak: { input: 0.44, output: 1.32, cacheRead: 0.014, cacheWrite: 0 },
           offpeak: { input: 0.22, output: 0.66, cacheRead: 0.007, cacheWrite: 0 },
+        },
+      },
+      {
+        from: "2026-09-10T03:05:41Z",
+        windows: {
+          peak: [
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.30, output: 1.20, cacheRead: 0.006, cacheWrite: 0 },
+          offpeak: { input: 0.15, output: 0.60, cacheRead: 0.003, cacheWrite: 0 },
+        },
+      },
+    ],
+  },
+  {
+    id: "r7d",
+    model: "deepseek-v4.1-flash",
+    rates: [
+      {
+        from: "2026-09-10T03:05:41Z",
+        windows: {
+          peak: [
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.30, output: 1.20, cacheRead: 0.006, cacheWrite: 0 },
+          offpeak: { input: 0.15, output: 0.60, cacheRead: 0.003, cacheWrite: 0 },
+        },
+      },
+    ],
+  },
+  {
+    id: "r7e",
+    model: "deepseek-v4.1-flash-free",
+    rates: [
+      {
+        from: "2026-09-10T03:05:41Z",
+        windows: {
+          peak: [
+            { days: [1,2,3,4,5], start: "01:00", end: "04:00" },
+            { days: [1,2,3,4,5], start: "06:00", end: "10:00" },
+          ],
+        },
+        pricing: {
+          peak: { input: 0.30, output: 1.20, cacheRead: 0.006, cacheWrite: 0 },
+          offpeak: { input: 0.15, output: 0.60, cacheRead: 0.003, cacheWrite: 0 },
         },
       },
     ],

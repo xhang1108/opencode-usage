@@ -10,7 +10,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.storage.local.set({
         crawlState: { running: true, page: 0, workspace: msg.workspace || "", rescan: !!msg.rescan },
       });
-      notifyCrawl("Sync started", "Crawling your usage data — check the extension badge for progress.");
       sendResponse({ ok: true });
       break;
     }
@@ -36,10 +35,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (tabId !== undefined && tabId !== null) {
         chrome.action.setBadgeText({ tabId, text: "" });
       }
-      notifyCrawl("Sync complete", `${count} records total — ${msg.newRecords || 0} new. Open the dashboard to view.`);
+      const newCount = msg.newRecords || 0;
+      const newTokens = msg.newTokens || 0;
+      notifyCrawl("Sync complete", `${count} records total — ${newCount} new (${newTokens.toLocaleString()} tokens).`);
       chrome.storage.local.set({
         lastSyncAt: Date.now(),
-        lastSyncCount: msg.newRecords || 0,
+        lastSyncCount: newCount,
+        lastSyncTokens: newTokens,
         lastSyncWorkspace: msg.workspaceID || "",
         totalRecords: count,
         crawlState: {
