@@ -801,3 +801,62 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 scheduleUpdateCheck().catch(() => {});
+
+// ===== Multi-vendor registry + settings seed (M1) =====
+// The vendor registry is a static JSON shipped with the extension; cache it in
+// chrome.storage.local so the dashboard/popup can read it without fetching.
+// vendorSettings decides which vendors are enabled; new vendors default to off
+// (D9). New installs seed the registry defaults; existing users keep their
+// state and only get a one-time "new vendors available" notice.
+const VENDOR_REGISTRY_URL = "shared/vendors.json";
+
+async function loadVendorRegistry() {
+  try {
+    const res = await fetch(chrome.runtime.getURL(VENDOR_REGISTRY_URL));
+    if (!res.ok) return null;
+    const registry = await res.json();
+    await chrome.storage.local.set({ vendorRegistry: registry });
+    return registry;
+  } catch (e) {
+    return null;
+  }
+}
+
+function defaultVendorSettings(registry) {
+  const settings = {};
+  for (const vendor of (registry && registry.vendors) || []) {
+    if (vendor && vendor.source) settings[vendor.source] = vendor.defaultEnabled === true;
+  }
+  return settings;
+}
+
+async function seedVendorSettings(reason) {
+  const { vendorSettings } = await chrome.storage.local.get("vendorSettings");
+  if (vendorSettings && typeof vendorSettings === "object" && !Array.isArray(vendorSettings)) {
+    return vendorSettings;
+  }
+  const registry = (await loadVendorRegistry()) || { vendors: [] };
+  const seeded = defaultVendorSettings(registry);
+  // Safety net: never leave a user with every vendor off.
+  if (!Object.values(seeded).some(Boolean)) seeded.opencode = true;
+  await chrome.storage.local.set({
+    vendorSettings: seeded,
+    vendorSettingsSeededAt: Date.now(),
+    // Existing users get a one-time notice that new vendors are available (D9).
+    multiVendorNoticePending: reason === "update",
+  });
+  return seeded;
+}
+
+chrome.runtime.onInstalled.addListener((details) => {
+  loadVendorRegistry().catch(() => {});
+  seedVendorSettings((details && details.reason) || "install").catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  loadVendorRegistry().catch(() => {});
+});
+
+// Re-cache the registry on service-worker start (survives eviction).
+loadVendorRegistry().catch(() => {});
+
