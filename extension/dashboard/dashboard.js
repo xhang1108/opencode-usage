@@ -3,6 +3,8 @@
 // so all events are wired here.
 
 import { toISODate, todayISO, inclusiveDayDiff } from "./core/time.js";
+import { aggregate } from "./core/aggregate.js";
+import { matchRule, parseBound, getRateEntry, toMinutes, getWindow, resolveTable, computeCost } from "../shared/pricing.js";
 
 const globalCache = {};
 let filteredRecordsCache = [];
@@ -774,102 +776,8 @@ function saveRates(models) {
 }
 
 // ===== Model matching & calculation logic =====
-// Exact match: rule.model === record.model, no keywords, no collisions.
-function matchRule(modelName, rules) {
-  for (const rule of rules) {
-    if (rule.model === modelName) return rule;
-  }
-  return null;
-}
-
-// Parse effective-from bounds to timestamps; null/empty string → null (earliest), invalid → NaN.
-function parseBound(bound) {
-  if (bound == null || bound === "") return null;
-  const t = new Date(bound).getTime();
-  return isNaN(t) ? NaN : t;
-}
-
-// Pick the rate version by record time: versions are sorted by "effective from",
-// and the last version whose from <= record time wins. Latest version when time can't be parsed.
-function getRateEntry(rule, recordTime) {
-  const ts = new Date(recordTime).getTime();
-  const validTs = isNaN(ts) ? null : ts;
-  const versions = (rule.rates || []).slice().sort((a, b) => {
-    const aFrom = parseBound(a.from);
-    const bFrom = parseBound(b.from);
-    const aNaN = typeof aFrom === "number" && isNaN(aFrom);
-    const bNaN = typeof bFrom === "number" && isNaN(bFrom);
-    if (aNaN && bNaN) return 0;
-    if (aNaN) return 1;
-    if (bNaN) return -1;
-    if (aFrom === null && bFrom === null) return 0;
-    if (aFrom === null) return -1; // null = earliest
-    if (bFrom === null) return 1;
-    return aFrom - bFrom;
-  });
-  if (versions.length === 0) return null;
-  // No parseable time → use the earliest/base version (flat) instead of the
-  // latest, so records without a timestamp are never charged peak rates.
-  if (validTs === null) return versions[0];
-  let selected = versions[0];
-  for (const v of versions) {
-    const fromTs = parseBound(v.from);
-    if (fromTs !== null && validTs < fromTs) break;
-    selected = v;
-  }
-  return selected;
-}
-
-function toMinutes(hhmm) {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || "").trim());
-  if (!m) return null;
-  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-}
-
-// Determine window: no windows → flat; inside any peak window → peak; otherwise offpeak (complement).
-function getWindow(record, entry) {
-  const peakWindows = entry.windows && entry.windows.peak;
-  if (!peakWindows || peakWindows.length === 0) return "flat";
-  const t = new Date(record.time);
-  if (isNaN(t.getTime())) return "flat";
-  const weekday = t.getUTCDay(); // Always UTC
-  const minutes = t.getUTCHours() * 60 + t.getUTCMinutes();
-  for (const w of peakWindows) {
-    const days = w.days || [];
-    if (days.length > 0 && !days.includes(weekday)) continue;
-    const start = toMinutes(w.start);
-    const end = toMinutes(w.end);
-    if (start == null || end == null) continue;
-    if (start <= end) {
-      if (minutes >= start && minutes < end) return "peak";
-    } else {
-      // Crosses midnight: after start or before end
-      if (minutes >= start || minutes < end) return "peak";
-    }
-  }
-  return "offpeak";
-}
-
-// Resolve price table by window; fall back to the other window's table when missing (conservative); tier by input+cacheRead total context.
-function resolveTable(entry, window, inputTokens, cacheReadTokens) {
-  const pricing = entry.pricing || {};
-  let table = pricing[window];
-  // Fall back to the other window only for peak/offpeak. A "flat" window with
-  // no flat table means the config is incomplete - never fall back to peak.
-  if (!table && window !== "flat") table = window === "peak" ? pricing.offpeak : pricing.peak;
-  if (!table) return null;
-  if (table.tier) {
-    const context = (inputTokens || 0) + (cacheReadTokens || 0);
-    const tierTable = context <= table.tier.limit ? table.tier.low : table.tier.high;
-    if (tierTable) return tierTable;
-    // Incomplete tier → fall back to table-level rates
-    if (table.input !== undefined || table.output !== undefined) return table;
-    return null;
-  }
-  return table;
-}
-
-// Compute cost and savings for a single record. Returns window for split display; unpriced marks unpriced records.
+// Rule matching, version chain, peak/offpeak windows and tiers live in
+// shared/pricing.js (P9). This wrapper keeps the dashboard's call signature.
 function getRecordCostAndSavings(record, rates = getRates()) {
   const rule = matchRule(record.model || "", rates);
   if (!rule) return { cost: 0, savings: 0, window: null, unpriced: true };
@@ -878,13 +786,7 @@ function getRecordCostAndSavings(record, rates = getRates()) {
   const window = getWindow(record, entry);
   const table = resolveTable(entry, window, record.input, record.cacheRead);
   if (!table) return { cost: 0, savings: 0, window, unpriced: true };
-  const inputRate = table.input || 0;
-  const outputRate = table.output || 0;
-  const cacheReadRate = table.cacheRead || 0;
-  const cacheWriteRate = table.cacheWrite || 0;
-  const cacheWriteTokens = (record.cacheWrite5m || 0) + (record.cacheWrite1h || 0);
-  const cost = ((record.input || 0) * inputRate + (record.cacheRead || 0) * cacheReadRate + cacheWriteTokens * cacheWriteRate + (record.output || 0) * outputRate) / 1000000;
-  const savings = (record.cacheRead || 0) * (inputRate - cacheReadRate) / 1000000;
+  const { cost, savings } = computeCost(record, table);
   return { cost, savings, window, unpriced: false };
 }
 
@@ -1254,103 +1156,30 @@ function renderDashboard(skipCharts) {
   let endDate = document.getElementById("endDate").value;
   if (startDate && !endDate) endDate = startDate; // Single-day selection counts as exactly that day.
 
-  filteredRecordsCache = [];
-  let totalReq = 0, totalCost = 0, totalSavings = 0, totalTokens = 0, totalPrompt = 0, totalCacheRead = 0;
-  let totalPeakCost = 0, totalOffpeakCost = 0, totalFlatCost = 0;
-  let filteredMinDate = null, filteredMaxDate = null;
-  const dailyMap = {}, dailyTokenMap = {}, modelMap = {}, wsMap = {}, singleModelDailyMap = {}, hourlyMap = {};
-  const unpricedModels = new Set();
   const rates = getRates(); // Hoisted: one read instead of one per record.
-
-  for (const [id, rec] of Object.entries(globalCache)) {
-    const wsID = rec.workspaceID || "wrk_unknown";
-    const modelName = rec.model || "Unknown";
-    const recDate = localDateOf(rec);
-
-    if (startDate && recDate && recDate < startDate) continue;
-    if (endDate && recDate && recDate > endDate) continue;
-
-    if (!wsMap[wsID]) {
-      wsMap[wsID] = { req: 0, tokens: 0, prompt: 0, cacheRead: 0, cost: 0 };
-    }
-    const { cost, savings, window, unpriced } = getRecordCostAndSavings(rec, rates);
-    if (unpriced) unpricedModels.add(modelName);
-    const cacheWriteTotal = (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
-    const tokens = (rec.input || 0) + (rec.output || 0) + (rec.reasoning || 0) + (rec.cacheRead || 0) + cacheWriteTotal;
-    const promptTokens = (rec.input || 0) + (rec.cacheRead || 0);
-
-    wsMap[wsID].req++;
-    wsMap[wsID].tokens += tokens;
-    wsMap[wsID].prompt += promptTokens;
-    wsMap[wsID].cacheRead += (rec.cacheRead || 0);
-    wsMap[wsID].cost += cost;
-
-    if (selectedWS !== "ALL" && wsID !== selectedWS) continue;
-    if (selectedModel !== "ALL" && modelName !== selectedModel) continue;
-
-    filteredRecordsCache.push({ id, ...rec, cost, savings, tokens, window, unpriced });
-
-    totalReq++;
-    totalCost += cost;
-    totalSavings += savings;
-    totalTokens += tokens;
-    totalPrompt += promptTokens;
-    totalCacheRead += (rec.cacheRead || 0);
-    if (window === "peak") totalPeakCost += cost;
-    else if (window === "offpeak") totalOffpeakCost += cost;
-    else if (window === "flat") totalFlatCost += cost;
-
-    const date = localDateOf(rec);
-    if (date !== "Unknown") {
-      if (filteredMinDate === null || date < filteredMinDate) filteredMinDate = date;
-      if (filteredMaxDate === null || date > filteredMaxDate) filteredMaxDate = date;
-    }
-    dailyMap[date] = (dailyMap[date] || 0) + cost;
-    dailyTokenMap[date] = (dailyTokenMap[date] || 0) + tokens;
-
-    // Minute-level buckets in local time, matching how `date` is derived (local date).
-    if (rec.time && date !== "Unknown") {
-      const t = new Date(rec.time);
-      if (!isNaN(t.getTime())) {
-        const min = t.getHours() * 60 + t.getMinutes();
-        if (!hourlyMap[date]) hourlyMap[date] = {};
-        const h = hourlyMap[date][min] || (hourlyMap[date][min] = { cost: 0, tokens: 0 });
-        h.cost += cost;
-        h.tokens += tokens;
-      }
-    }
-
-    if (!singleModelDailyMap[date]) {
-      singleModelDailyMap[date] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0 };
-    }
-    singleModelDailyMap[date].req++;
-    singleModelDailyMap[date].input += (rec.input || 0);
-    singleModelDailyMap[date].output += (rec.output || 0);
-    singleModelDailyMap[date].cacheRead += (rec.cacheRead || 0);
-    singleModelDailyMap[date].cost += cost;
-
-    if (!modelMap[modelName]) {
-      modelMap[modelName] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0, peakCost: 0, offpeakCost: 0, flatCost: 0 };
-    }
-    modelMap[modelName].req++;
-    modelMap[modelName].input += (rec.input || 0);
-    modelMap[modelName].output += (rec.output || 0);
-    modelMap[modelName].cacheRead += (rec.cacheRead || 0);
-    modelMap[modelName].cost += cost;
-    if (window === "peak") modelMap[modelName].peakCost += cost;
-    else if (window === "offpeak") modelMap[modelName].offpeakCost += cost;
-    else if (window === "flat") modelMap[modelName].flatCost += cost;
-  }
-
-  // Per-model average cache hit rate; exclude models with 0% (no cache reads).
-  const modelHitRates = Object.values(modelMap)
-    .map((m) => {
-      const prompt = m.input + m.cacheRead;
-      return prompt > 0 ? (m.cacheRead / prompt) * 100 : 0;
-    })
-    .filter((rate) => rate > 0);
-  const maxHitRate = modelHitRates.length ? Math.max(...modelHitRates) : null;
-  const minHitRate = modelHitRates.length ? Math.min(...modelHitRates) : null;
+  const agg = aggregate(Object.values(globalCache), {
+    price: (rec) => getRecordCostAndSavings(rec, rates),
+    startDate,
+    endDate,
+    selectedWS,
+    selectedModel,
+  });
+  filteredRecordsCache = agg.filtered;
+  const { dailyMap, dailyTokenMap, hourlyMap, modelMap, wsMap, singleModelDailyMap } = agg;
+  const unpricedModels = new Set(agg.unpricedModels);
+  const totalReq = agg.totals.req;
+  const totalCost = agg.totals.cost;
+  const totalSavings = agg.totals.savings;
+  const totalTokens = agg.totals.tokens;
+  const totalPrompt = agg.totals.prompt;
+  const totalCacheRead = agg.totals.cacheRead;
+  const totalPeakCost = agg.totals.peakCost;
+  const totalOffpeakCost = agg.totals.offpeakCost;
+  const totalFlatCost = agg.totals.flatCost;
+  const filteredMinDate = agg.minDate;
+  const filteredMaxDate = agg.maxDate;
+  const maxHitRate = agg.maxHitRate;
+  const minHitRate = agg.minHitRate;
 
   document.getElementById("statRequests").innerText = totalReq.toLocaleString();
   document.getElementById("statCost").innerText = `$${fmtMoney(totalCost)}`;
