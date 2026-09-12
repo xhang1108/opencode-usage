@@ -1,0 +1,15 @@
+{
+  "source": "opencode",
+  "label": "opencode",
+  "mode": "crawl",
+  "origins": ["https://opencode.ai/*"],
+  "crawl": {
+    "contentScript": "content/content.js",
+    "worker": "content/crawl-worker.js"
+  },
+  "import": ["json"],
+  "storage": {
+    "opfs": "opencode_token_cache_<workspace>.json",
+    "lease": true
+  }
+}

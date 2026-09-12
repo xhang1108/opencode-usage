@@ -1,0 +1,9 @@
+{
+  "name": "opencode-usage",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "manifest": "node tools/build-manifest.mjs"
+  }
+}

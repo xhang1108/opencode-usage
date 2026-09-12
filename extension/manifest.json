@@ -3,15 +3,28 @@
   "name": "Opencode Token Usage",
   "version": "0.8.5",
   "description": "Syncs opencode.ai usage token data into local storage and visualizes it in an integrated dashboard.",
-  "permissions": ["storage", "scripting", "unlimitedStorage", "notifications", "alarms"],
-  "host_permissions": ["https://opencode.ai/*", "https://api.github.com/*"],
+  "permissions": [
+    "storage",
+    "scripting",
+    "unlimitedStorage",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://opencode.ai/*",
+    "https://api.github.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "web_accessible_resources": [
     {
-      "resources": ["content/crawl-worker.js"],
-      "matches": ["https://opencode.ai/*"]
+      "resources": [
+        "content/crawl-worker.js"
+      ],
+      "matches": [
+        "https://opencode.ai/*"
+      ]
     }
   ],
   "action": {
@@ -30,9 +43,16 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://opencode.ai/*"],
-      "js": ["content/content.js"],
+      "matches": [
+        "https://opencode.ai/*"
+      ],
+      "js": [
+        "content/content.js"
+      ],
       "run_at": "document_start"
     }
+  ],
+  "optional_host_permissions": [
+    "https://api.commandcode.ai/*"
   ]
 }

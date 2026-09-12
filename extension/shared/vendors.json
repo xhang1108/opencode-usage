@@ -1,0 +1,50 @@
+{
+  "registryVersion": 1,
+  "vendors": [
+    {
+      "source": "opencode",
+      "label": "opencode",
+      "mode": "crawl",
+      "defaultEnabled": true,
+      "crawl": true,
+      "import": ["json"],
+      "origins": ["https://opencode.ai/*"]
+    },
+    {
+      "source": "openrouter",
+      "label": "OpenRouter",
+      "mode": "import",
+      "defaultEnabled": false,
+      "crawl": false,
+      "import": ["json"],
+      "origins": []
+    },
+    {
+      "source": "deepseek-official",
+      "label": "DeepSeek",
+      "mode": "import",
+      "defaultEnabled": false,
+      "crawl": false,
+      "import": ["zip"],
+      "origins": []
+    },
+    {
+      "source": "commandcode",
+      "label": "CommandCode",
+      "mode": "crawl",
+      "defaultEnabled": false,
+      "crawl": true,
+      "import": [],
+      "origins": ["https://api.commandcode.ai/*"]
+    },
+    {
+      "source": "mimo",
+      "label": "MiMo",
+      "mode": "import",
+      "defaultEnabled": false,
+      "crawl": false,
+      "import": ["xlsx"],
+      "origins": []
+    }
+  ]
+}
