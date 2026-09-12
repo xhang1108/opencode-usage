@@ -1,0 +1,6 @@
+# Browser panel screenshots
+.openchamber/
+
+# OS / editor
+.DS_Store
+Thumbs.db
