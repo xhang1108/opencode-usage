@@ -3,6 +3,7 @@
 > 入口：`ROADMAP.md`。架構：`architecture.md`。驗證：`verification.md`。
 > 雙軌：crawl/API 路 + 手動檔案 import 路（crawl 抄 opencode 同一招：同源 + cookie + 獨立 OPFS）；import 冪等（同 key 覆蓋）；天粒度重掃最後一天。
 > 例外：OpenRouter 依 B8（key 永不進 extension）只有 JSON import 一路，無 crawl 路；CommandCode 無 Export 檔、只有 crawl 一路。兩者都不適用 B5 的雙軌翻倍風險。
+> D18：adapter 把廠商回傳的**每個欄位**照存進 record 的 `raw`（含用不到的價格/成本/狀態），core 永不讀取或顯示；只剔除憑證。
 
 ## 保留窗口（提醒用戶手動按）
 

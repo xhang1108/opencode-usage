@@ -47,6 +47,12 @@ test("computeCost matches the official CommandCode sample", () => {
   assert.equal(Number(cost.toFixed(9)), 0.000523992);
 });
 
+test("computeCost bills reasoning at the output rate (D7)", () => {
+  const table = { input: 1, output: 10, cacheRead: 0.1, cacheWrite: 0 };
+  const withReasoning = computeCost({ output: 100, reasoning: 50 }, table);
+  assert.equal(withReasoning.cost, ((100 + 50) * 10) / 1000000);
+});
+
 test("resolveTable applies tier by input + cacheRead context", () => {
   const entry = {
     pricing: {

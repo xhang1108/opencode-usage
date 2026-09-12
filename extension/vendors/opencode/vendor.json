@@ -8,6 +8,7 @@
     "worker": "content/crawl-worker.js"
   },
   "import": ["json"],
+  "ratesPreset": "rates.preset.json",
   "storage": {
     "opfs": "opencode_token_cache_<workspace>.json",
     "lease": true

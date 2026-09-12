@@ -36,7 +36,7 @@
 * D4 Schema：canonical 最小必填 `id/source/time/model` + 至少一 token > 0 + optional + `v:1`；ID `<source>:<orig>`（無 orig-id 時 adapter 生成穩定 hash）；舊無 source 視 opencode。
 * D5 查價：`modelMap["<source>:<raw>"] → target`；target 雙價 `rates`/`curatedRates`；`priceChoice` 按廠商（預設 curated，保底原廠）；每筆標 `priceBasis`；版本只加不減；改價作者制。
 * D6 free 變體獨立 target，可顯示 0 或併主群；合併規則以後定。
-* D7 reasoning 併 output 顯示；CSV 加 `Source`/`priceBasis`/`requests`。
+* D7 reasoning 併 output 顯示、**並按 output 價計**；CSV 加 `Source`/`priceBasis`/`requests`。
 * D8 Settings（dashboard 內嵌）：General / Vendors / Models / Rates。
 * D9 廠商開關 `vendorSettings` 按人存；新廠預設 off；新用戶 seed `{opencode:true}` + onboarding；舊用戶一次性提醒。
 * D10 Popup split-button，下拉只列 enabled；無 crawler 顯示 disabled。
@@ -47,6 +47,7 @@
 * D15 遷移：舊 rates 原樣轉初始 map（free 只建議）；遷移前自動備份 + 提示匯出。
 * D16 廠商回傳金額可存為 `vendorCost`（opaque），**僅**供 cache token 反算/稽核，pricing/charts/tables/CSV/加總一律不得讀、永不顯示；反算須過 reconciliation guard，失敗則 fallback（全量進 `input` + `cacheBasis:"unknown"`）。首用：CommandCode。
 * D17 統一檔案匯入：dashboard 一個拖放/選檔入口，可一次多檔、自動分派各家 parser（JSON / ZIP / CSV / **XLSX**）；**壓縮檔在 extension 內解壓**（ZIP 讀 central directory + `DecompressionStream('deflate-raw')`；XLSX 讀 `sharedStrings.xml` + `sheet*.xml`；或 vendored fflate），不要求使用者手動解壓；parser 置 `vendors/<source>/import-*`。
+* D18 廠商回傳的**每個欄位都照存**進 record 的 `raw`（opaque，含用不到的價格/成本/狀態）；core 永不讀取或顯示，日後可能有用才回頭用。憑證類（`api_key` 等）一律剔除；`raw` 會增加 snapshot 體積，>5MB 拆分預案需重估。
 
 ## 目標目錄
 

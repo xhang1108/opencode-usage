@@ -86,18 +86,19 @@ export function resolveTable(entry, window, inputTokens, cacheReadTokens) {
   return table;
 }
 
-// USD per 1M tokens.
+// USD per 1M tokens. reasoning is billed at the output rate (D7).
 export function computeCost(record, table) {
   const inputRate = table.input || 0;
   const outputRate = table.output || 0;
   const cacheReadRate = table.cacheRead || 0;
   const cacheWriteRate = table.cacheWrite || 0;
   const cacheWrite = (record.cacheWrite5m || 0) + (record.cacheWrite1h || 0);
+  const outputTokens = (record.output || 0) + (record.reasoning || 0);
   const cost =
     ((record.input || 0) * inputRate +
       (record.cacheRead || 0) * cacheReadRate +
       cacheWrite * cacheWriteRate +
-      (record.output || 0) * outputRate) /
+      outputTokens * outputRate) /
     1000000;
   const savings = ((record.cacheRead || 0) * (inputRate - cacheReadRate)) / 1000000;
   return { cost, savings };

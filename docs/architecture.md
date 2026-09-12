@@ -40,6 +40,7 @@ flowchart LR
   sessionID, keyID, plan, costMultiplier,
   cacheBasis,  // optional: "derived" | "unknown"（廠商無原生 cache 拆分時）
   vendorCost,  // optional, opaque: 廠商回傳金額，僅供 cache token 反算/稽核，永不顯示或加總（D16）
+  raw,         // optional, opaque: 廠商該筆原始 payload（去憑證）；記錄一切、永不顯示/加總（D18）
   v: 1
 }
 ```
@@ -47,6 +48,7 @@ flowchart LR
 * 驗證 `validateCanonical`：必填 `id/source/model/time` + 至少一 token > 0，缺則拒收；無 orig-id 時 adapter 生成穩定 hash。
 * cache 欄必留；廠商沒拆分全進 `input` 並在該廠附錄註明（不估）。
 * 廠商回傳金額（`vendorCost`）僅可作 cache token 反算與稽核；pricing/charts/tables/CSV/加總一律不得讀（D16），`cacheBasis` 記 derived/unknown。
+* `raw`（D18）：adapter 把廠商回傳的**每個欄位**照存（含用不到的價格/成本/狀態），只剔除憑證；core 永不讀取或顯示，日後要補算才回頭用。
 * 無 `source` 舊記錄視為 `opencode`。
 
 ## 4. 計費
@@ -72,7 +74,7 @@ targets:  { "<target-id>": { label, scope, rates: [...], curatedRates: [...] } }
 
 ### 4.3 版本鏈與公式
 
-* 公式：`(input*ir + cacheRead*cr + cacheWrite*cw + output*or)/1e6`，USD/1M。
+* 公式：`(input*ir + cacheRead*cr + cacheWrite*cw + (output+reasoning)*or)/1e6`，USD/1M（reasoning 按 output 價，D7）。
 * `flat` / `peak|offpeak` / `tier` 語意不變；peak window UTC，各 target 自帶。
 * 版本只加不減：preset 新 `from` 缺了 append，已有 `from` 不覆蓋，preset 刪版不刪用戶版。
 * 改價作者制：price-watch 出候選，人合併進 preset；用戶改價走 Rates JSON 或 Models 視覺編輯（`userPricing`）。
@@ -89,7 +91,7 @@ targets:  { "<target-id>": { label, scope, rates: [...], curatedRates: [...] } }
 * dedupe（`hideCrawlerDuplicates`）只跑**同廠內部**：同一 `source` 的雙軌（crawl + 檔案）fingerprint 去重避免翻倍（opencode = crawler vs local、deepseek = crawl vs CSV）；fingerprint 加 `source`。
 * 跨廠不自動去重（BYOK 等可能同筆用量兩家都記）。
 * 全量備份：`Export Full JSON`；還原走各源 import。
-* 預案：snapshot > 5MB 或變慢才按 source 拆 key。
+* 預案：snapshot > 5MB 或變慢才按 source 拆 key（`raw` 會增加體積，見 D18）。
 
 ## 6. Dashboard 與 Crawl
 

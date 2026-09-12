@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "manifest": "node tools/build-manifest.mjs"
+    "manifest": "node tools/build-manifest.mjs",
+    "preset": "node tools/extract-preset.mjs"
   }
 }
