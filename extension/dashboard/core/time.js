@@ -29,12 +29,13 @@ export function todayISO(now = new Date()) {
   return toISODate(now);
 }
 
-// Whole-day difference between two local "YYYY-MM-DD" strings.
+// Inclusive count of local calendar days between two "YYYY-MM-DD" strings
+// (same day -> 1), matching the dashboard's "average tokens/day" denominator.
 export function inclusiveDayDiff(startISO, endISO) {
   const a = new Date(`${startISO}T00:00:00`);
   const b = new Date(`${endISO}T00:00:00`);
   if (isNaN(a.getTime()) || isNaN(b.getTime())) return 0;
-  return Math.round((b - a) / 86400000);
+  return Math.max(1, Math.round((b - a) / 86400000) + 1);
 }
 
 export function localDateRange(records) {

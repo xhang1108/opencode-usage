@@ -34,9 +34,9 @@ test("todayISO formats a local date", () => {
   assert.equal(todayISO(new Date(2026, 8, 12, 1, 0)), "2026-09-12");
 });
 
-test("inclusiveDayDiff counts whole days and guards bad input", () => {
-  assert.equal(inclusiveDayDiff("2026-09-01", "2026-09-30"), 29);
-  assert.equal(inclusiveDayDiff("2026-09-10", "2026-09-10"), 0);
+test("inclusiveDayDiff counts inclusive days and guards bad input", () => {
+  assert.equal(inclusiveDayDiff("2026-09-01", "2026-09-30"), 30);
+  assert.equal(inclusiveDayDiff("2026-09-10", "2026-09-10"), 1);
   assert.equal(inclusiveDayDiff("bad", "2026-09-10"), 0);
 });
 

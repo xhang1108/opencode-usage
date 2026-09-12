@@ -2,6 +2,8 @@
 // injected automatically by the extension. MV3 page CSP forbids inline scripts/handlers,
 // so all events are wired here.
 
+import { toISODate, todayISO, inclusiveDayDiff } from "./core/time.js";
+
 const globalCache = {};
 let filteredRecordsCache = [];
 
@@ -181,14 +183,6 @@ const rangePicker = {
   viewMonth: null, // displayed calendar month (0-based)
 };
 
-function toISODate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function todayISO() {
-  return toISODate(new Date());
-}
-
 // Shared calendar core used by BOTH the date-range picker and the single
 // date+time picker, so the two always render identically.
 // decorate(btn, iso) applies per-picker highlight classes; onPick(iso) handles selection.
@@ -233,17 +227,6 @@ function shiftViewMonth(view, delta) {
 
 function fmtISO(dateStr) {
   return dateStr ? dateStr : "—";
-}
-
-// Inclusive count of calendar days between two YYYY-MM-DD dates (e.g. the same
-// day returns 1). Used for "average tokens/day", which is driven by the
-// user-selected date range.
-function inclusiveDayDiff(startISO, endISO) {
-  const s = new Date(startISO + "T00:00:00");
-  const e = new Date(endISO + "T00:00:00");
-  if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
-  const diff = Math.round((e - s) / 86400000);
-  return Math.max(1, diff + 1);
 }
 
 function updateRangeTrigger() {
