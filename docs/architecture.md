@@ -41,6 +41,7 @@ flowchart LR
   cacheBasis,  // optional: "derived" | "unknown"（廠商無原生 cache 拆分時）
   vendorCost,  // optional, opaque: 廠商回傳金額，僅供 cache token 反算/稽核，永不顯示或加總（D16）
   raw,         // optional, opaque: 廠商該筆原始 payload（去憑證）；記錄一切、永不顯示/加總（D18）
+  tzOffset,    // optional: 廠商該列的 UTC offset（分鐘）；原始值在 raw，供稽核
   v: 1
 }
 ```
@@ -49,6 +50,7 @@ flowchart LR
 * cache 欄必留；廠商沒拆分全進 `input` 並在該廠附錄註明（不估）。
 * 廠商回傳金額（`vendorCost`）僅可作 cache token 反算與稽核；pricing/charts/tables/CSV/加總一律不得讀（D16），`cacheBasis` 記 derived/unknown。
 * `raw`（D18）：adapter 把廠商回傳的**每個欄位**照存（含用不到的價格/成本/狀態），只剔除憑證；core 永不讀取或顯示，日後要補算才回頭用。
+* `time` 一律 UTC；**顯示全部用 viewer local（含圖表）**（D19）。`id` 由**廠商原始欄位**生成（非轉換後時間），確保重匯同列 id 穩定、不重複。
 * 無 `source` 舊記錄視為 `opencode`。
 
 ## 4. 計費

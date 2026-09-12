@@ -12,9 +12,9 @@ manifest 寫死 origin（現有 `opencode.ai` + `api.github.com`）；以後每�
 `importScripts` 同步 top-level；`content_scripts` 靜態。「讀 registry 動態載入各家」太理想。
 **解法**：定調為 shared 用固定 `importScripts`；vendor content script 由 build script 產生進 manifest；runtime 補註冊用 `chrome.scripting.registerContentScripts`。
 
-### B3 date 從 local 改 UTC 會移動歷史
-決策 P8 要 UTC，但現況三處不一致：stored `date` 是爬取當下本地日期（`content.js:823`）；render 層 `dashboard.js:139` `localDateOf` 用 local，且註明「always reflects the viewer's timezone」是有意設計；hourly 也混用——`dashboard.js:853` 已 `getUTCHours()`，`dashboard.js:1127/1332` 仍 local `getHours()`，與 UTC peak window 基準不一致。
-**解法**：hourly 先統一成 UTC（`1127/1332`）；stored `date` 一律不信，只從 `time`（ISO）重算。render 改 UTC 屬 breaking——非 UTC 時區用戶的日/小時歸屬會整體平移、圖表跳動，需在 M1 明講並決定是否保留 local 開關（見 ROADMAP 待定）。
+### B3 時區（已定案：存 UTC、顯示 local）
+決策 D19：canonical `time` 一律 UTC；**顯示（含圖表、hourly）一律 viewer local**，由 `time` 現算，不信 stored `date`。廠商聚合列的原始 offset 存 `tzOffset`/`raw` 供稽核，但不「對回廠商日曆」。
+**實作**：hourly 統一改用同一 local 基準（現況 `dashboard.js:853` 用 `getUTCHours()`、`1127/1332` 用 local，不一致，M3 一次收斂）。peak/offpeak 判定仍用 UTC（價表 window 定義，P8）。
 
 ### B4 「token 正確」缺對帳測試
 golden-file 只驗 mapper 穩定，不驗數字對不對；`input = prompt - cached`、reasoning 是否已含在 completion、cache 是否重複計，全是假設。

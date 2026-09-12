@@ -7,7 +7,7 @@ export const SCHEMA_VERSION = 1;
 // Token fields are always present in canonical records (P7). Numeric coercion
 // happens in normalizeRecord so downstream math never deals with strings.
 export const TOKEN_FIELDS = ["input", "output", "reasoning", "cacheRead", "cacheWrite5m", "cacheWrite1h"];
-export const OPTIONAL_NUMERIC_FIELDS = ["requests"];
+export const OPTIONAL_NUMERIC_FIELDS = ["requests", "tzOffset"];
 
 // date is derived from time in UTC (P8); stored date is never trusted.
 export function canonicalDate(timeIso) {

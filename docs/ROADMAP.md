@@ -48,6 +48,7 @@
 * D16 廠商回傳金額可存為 `vendorCost`（opaque），**僅**供 cache token 反算/稽核，pricing/charts/tables/CSV/加總一律不得讀、永不顯示；反算須過 reconciliation guard，失敗則 fallback（全量進 `input` + `cacheBasis:"unknown"`）。首用：CommandCode。
 * D17 統一檔案匯入：dashboard 一個拖放/選檔入口，可一次多檔、自動分派各家 parser（JSON / ZIP / CSV / **XLSX**）；**壓縮檔在 extension 內解壓**（ZIP 讀 central directory + `DecompressionStream('deflate-raw')`；XLSX 讀 `sharedStrings.xml` + `sheet*.xml`；或 vendored fflate），不要求使用者手動解壓；parser 置 `vendors/<source>/import-*`。
 * D18 廠商回傳的**每個欄位都照存**進 record 的 `raw`（opaque，含用不到的價格/成本/狀態）；core 永不讀取或顯示，日後可能有用才回頭用。憑證類（`api_key` 等）一律剔除；`raw` 會增加 snapshot 體積，>5MB 拆分預案需重估。
+* D19 **儲存一律 UTC、顯示一律 viewer local（含圖表）**；`id` 由**廠商原始欄位**生成（非轉換後時間）確保重匯冪等。廠商聚合列的原始 offset 存 `tzOffset`/`raw` 供稽核，**不做「對回廠商日曆」**；peak/offpeak 判定仍用 UTC（價表窗口）。
 
 ## 目標目錄
 
@@ -95,3 +96,4 @@ tools/probe-vendors.mjs tools/price-watch/ tools/tests/ tools/build-manifest.mjs
 * **DeepSeek**：crawl 路（選配）未驗。收在 **M5**。
 * **MiMo**：crawl 路（選配）未驗。收在 **M6**。
 * **價格來源未實測**：DeepSeek 鏡像 repo、MiMo docs 快照、CommandCode cc-price-tracker。收在 **M7**。
+* **OpenRouter naive 時間是否真為 UTC**：`date__day`/`date__hour` 無 offset（文件稱 UTC），需實測確認。收在 **M5**。
