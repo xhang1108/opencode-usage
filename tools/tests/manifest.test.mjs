@@ -55,6 +55,16 @@ test("manifest permissions and content scripts match vendor.json (B1/B2)", () =>
   }
 });
 
+test("manifest pins a stable extension ID and a plain semver", () => {
+  const manifest = readJSON(path.join(ext, "manifest.json"));
+  assert.match(manifest.version, /^\d+\.\d+\.\d+$/, "version must be plain semver");
+  // The key is what makes the extension ID stable across folder moves; losing
+  // it silently re-introduces the one-time storage reset for every upgrade.
+  assert.equal(typeof manifest.key, "string");
+  const der = Buffer.from(manifest.key, "base64");
+  assert.ok(der.length > 100, "key must be a DER-encoded public key");
+});
+
 test("every web_accessible_resource file exists", () => {
   const manifest = readJSON(path.join(ext, "manifest.json"));
   for (const entry of manifest.web_accessible_resources || []) {

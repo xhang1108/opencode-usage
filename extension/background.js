@@ -24,6 +24,8 @@ import {
   hideDayAnchoredImportCopies,
   isLocalLooking,
 } from "./shared/merge.js";
+import { STORAGE_SCHEMA_VERSION, pendingMigrations, planMigrations } from "./shared/migrate.js";
+import { OPFS_STORE_KEY, LOCAL_STORE_KEY, VENDOR_STORE_PREFIX } from "./shared/stores.js";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -527,16 +529,26 @@ async function handleGetDatabase() {
   try {
     snapshot = JSON.parse(cachedData || "{}");
   } catch (e) {}
+
+  // A record's store is decided by the bucket it lives in, not by guessing
+  // provenance: opfs = opencode snapshot records not owned by any chrome.storage
+  // bucket. So a record is listed in exactly one store (no double-listing).
+  const localMap = await getLocalImportMap();
+  const vendorMaps = {};
+  for (const source of await getVendorImportSources()) vendorMaps[source] = await getVendorImportMap(source);
+  const managedIds = new Set(Object.keys(localMap));
+  for (const map of Object.values(vendorMaps)) for (const id of Object.keys(map)) managedIds.add(id);
+
   const opfsRecords = {};
   for (const [id, rec] of Object.entries(snapshot)) {
     if (!rec || typeof rec !== "object") continue;
     if ((rec.source || "opencode") !== "opencode") continue;
-    if (isLocalLooking(id, rec)) continue;
+    if (managedIds.has(id)) continue;
     opfsRecords[id] = rec;
   }
   stores.push(
     databaseStoreFrom({
-      key: "opfs",
+      key: OPFS_STORE_KEY,
       label: "opencode crawl",
       location: "OPFS · opencode_token_cache_<workspace>.json (opencode.ai origin)",
       managed: false,
@@ -547,25 +559,25 @@ async function handleGetDatabase() {
 
   stores.push(
     databaseStoreFrom({
-      key: "local",
+      key: LOCAL_STORE_KEY,
       label: "opencode local import",
       location: "chrome.storage.local · localImportData",
       managed: true,
       source: "opencode",
-      map: await getLocalImportMap(),
+      map: localMap,
     })
   );
 
-  for (const source of await getVendorImportSources()) {
+  for (const [source, map] of Object.entries(vendorMaps)) {
     const vendor = ((registry && registry.vendors) || []).find((v) => v && v.source === source);
     stores.push(
       databaseStoreFrom({
-        key: `vendor:${source}`,
+        key: `${VENDOR_STORE_PREFIX}${source}`,
         label: (vendor && vendor.label) || source,
         location: `chrome.storage.local · ${source}ImportData`,
         managed: true,
         source,
-        map: await getVendorImportMap(source),
+        map,
       })
     );
   }
@@ -1292,7 +1304,28 @@ async function seedVendorSettings(reason) {
   return seeded;
 }
 
+// Storage-level schema migrations (additive + idempotent; see shared/migrate.js).
+// Reads only the keys the pending steps declare, then writes every patched key
+// plus the new version in a single set. Legacy keys are never deleted, and a
+// failure leaves the store untouched so the next startup retries.
+async function ensureStorageSchema() {
+  try {
+    const { schemaVersion } = await chrome.storage.local.get("schemaVersion");
+    const pending = pendingMigrations(schemaVersion);
+    if (pending.length === 0) return { version: Number(schemaVersion) || 0, applied: [] };
+    const keys = [...new Set(pending.flatMap((s) => s.keys || []))];
+    const state = keys.length ? await chrome.storage.local.get(keys) : {};
+    const { version, patch, applied } = planMigrations({ ...state, schemaVersion });
+    if (applied.length === 0) return { version, applied };
+    await chrome.storage.local.set({ ...patch, schemaVersion: version });
+    return { version, applied };
+  } catch (e) {
+    return { version: null, applied: [], error: String((e && e.message) || e) };
+  }
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
+  ensureStorageSchema().catch(() => {});
   loadVendorRegistry().catch(() => {});
   seedVendorSettings((details && details.reason) || "install")
     .then(() => syncVendorContentScripts())
@@ -1300,13 +1333,15 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  ensureStorageSchema().catch(() => {});
   loadVendorRegistry()
     .then(() => syncVendorContentScripts())
     .catch(() => {});
 });
 
 // Re-cache the registry + re-sync runtime content scripts on service-worker
-// start (survives eviction).
+// start (survives eviction), and make sure the storage schema is current.
+ensureStorageSchema().catch(() => {});
 loadVendorRegistry()
   .then(() => syncVendorContentScripts())
   .catch(() => {});

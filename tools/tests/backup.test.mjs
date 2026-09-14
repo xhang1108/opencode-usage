@@ -85,6 +85,26 @@ test("csvToRecords skips rows without a model or without tokens", () => {
   assert.equal(csvToRecords(csv).length, 0);
 });
 
+test("a full export -> import -> export round-trip is stable and idempotent", () => {
+  const recs = [
+    normalizeRecord(SAMPLE, { source: "openrouter" }),
+    normalizeRecord(
+      { id: "opencode:crawl1", source: "opencode", time: "2026-07-08T00:00:00.000Z", model: "m", input: 10, output: 4, reasoning: 2, outputExcludesReasoning: true, workspaceID: "wrk_1" },
+      { source: "opencode" }
+    ),
+    normalizeRecord(
+      { id: "opencode:msg_1", source: "opencode", time: "2026-07-08T01:00:00.000Z", model: "m2", input: 5, output: 1, workspaceID: "Local" },
+      { source: "opencode" }
+    ),
+  ];
+  const csv = recordsToCSV(recs);
+  const imported = csvToRecords(csv);
+  assert.equal(imported.length, recs.length);
+  // Re-exporting what we imported must reproduce the same file (no drift, no
+  // duplication) - the property a backup/restore cycle relies on.
+  assert.equal(recordsToCSV(imported), csv);
+});
+
 test("groupBySource separates opencode from vendors", () => {
   const a = normalizeRecord(SAMPLE, { source: "openrouter" });
   const b = normalizeRecord({ ...SAMPLE, id: "opencode:z", source: "opencode" }, { source: "opencode" });

@@ -1070,17 +1070,9 @@
   // read - and only rebuild the merged export when a file actually changed.
   // Invalidated by a completed crawl (see startCrawling) and whenever the
   // fingerprint changes.
-  // D23 self-heal for crawl rows written before the parser stored an exclusive
-  // `output` (legacy rows kept console outputTokens, reasoning INCLUDED, and
-  // core adds reasoning again). Idempotent via the outputExcludesReasoning flag.
-  // Mirror of shared/canonical.healOpencodeCrawlOutput (keep in sync).
-  function healOpencodeCrawlOutput(rec) {
-    if (!rec || typeof rec !== "object" || rec.outputExcludesReasoning) return rec;
-    const reasoning = Number(rec.reasoning) || 0;
-    if (reasoning > 0) rec.output = Math.max(0, (Number(rec.output) || 0) - reasoning);
-    rec.outputExcludesReasoning = true;
-    return rec;
-  }
+  // D23 legacy repair is applied in the background (healCrawlMap ->
+  // shared/canonical.healOpencodeCrawlOutput) whenever this export is read, so
+  // there is exactly one implementation and no copy to keep in sync here.
 
   async function readAllCache() {
     const root = await navigator.storage.getDirectory();
@@ -1111,7 +1103,6 @@
       const data = JSON.parse(text);
       for (const [id, rec] of Object.entries(data)) {
         if (!rec.workspaceID) rec.workspaceID = inferredWS;
-        healOpencodeCrawlOutput(rec); // D23 legacy repair
         globalCache[id] = rec;
       }
       files.push({ name, count: Object.keys(data).length });

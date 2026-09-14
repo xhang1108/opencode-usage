@@ -5,6 +5,7 @@
 // read-only; chrome.storage.local stores support per-record and full delete.
 
 import { escHTML } from "../views/format.js";
+import { clearMessageFor } from "../../shared/stores.js";
 
 const RENDER_LIMIT = 500;
 
@@ -82,10 +83,8 @@ function buildStoreBody(ctx, store, body) {
     toolbar.innerHTML = `<button type="button" class="btn btn-danger" data-clear-all>Delete all ${store.count.toLocaleString()}</button>`;
     toolbar.querySelector("[data-clear-all]").addEventListener("click", async () => {
       if (!confirm(`Delete all ${store.count} ${store.label} record(s)?`)) return;
-      const msg =
-        store.source === "opencode"
-          ? { type: "clear-local-data" }
-          : { type: "clear-vendor-data", source: store.source };
+      const msg = clearMessageFor(store.key);
+      if (!msg) return;
       let r = null;
       try {
         r = await chrome.runtime.sendMessage(msg);

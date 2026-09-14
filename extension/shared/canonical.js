@@ -42,8 +42,8 @@ export function exclusiveOutput(outputInclusive, reasoning) {
 // `outputTokens` (reasoning INCLUDED) while core adds `reasoning` again, so
 // they must be repaired once. New rows carry `outputExcludesReasoning: true`
 // and are skipped, which also makes this safe to call on every read.
-// NOTE: background.js / content.js keep an inline copy (classic scripts can't
-// import this ESM module) — keep the three in sync.
+// NOTE: background.js imports this module and heals every opencode export, so
+// there is a single implementation (the opencode content script does not heal).
 export function healOpencodeCrawlOutput(rec) {
   if (!rec || typeof rec !== "object" || rec.outputExcludesReasoning) return rec;
   const reasoning = Number(rec.reasoning) || 0;
