@@ -1,5 +1,28 @@
 // background.js - Manages the icon badge and popup message routing (export / manual sync / status).
-importScripts("time-reminder.js");
+// Module service worker (manifest "type": "module"): it imports the shared pure
+// modules directly, so there are no inlined copies to drift out of sync.
+import {
+  TIME_RATES_KEY,
+  TIME_ENABLED_KEY,
+  TIME_MODEL_KEY,
+  loadTimeRates,
+  loadTimeModel,
+  loadTimeEnabled,
+  saveTimeModel,
+  listPeakModels,
+  collectPeakWindowsForModel,
+  nextPeakBoundary,
+  formatLocalTime,
+  formatUtcTime,
+  isPeakAt,
+} from "./shared/time-reminder.js";
+import { healOpencodeCrawlOutput } from "./shared/canonical.js";
+import {
+  DEDUP_BUCKET_MS,
+  fingerprintOf,
+  buildFingerprintBuckets,
+  hideDayAnchoredImportCopies,
+} from "./shared/merge.js";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -169,6 +192,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
 
+    case "sync-vendor-scripts":
+      // Re-register runtime content scripts after the user grants a vendor's
+      // optional origin (B1/B2).
+      syncVendorContentScripts()
+        .then(() => sendResponse({ ok: true }))
+        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+      return true;
+
+    case "remove-records":
+      // D11: delete specific records (opencode local imports / vendor maps) and
+      // rebuild the snapshot. Crawler-owned OPFS records are not removable here.
+      handleRemoveRecords(msg)
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+      return true;
+
+    case "get-database":
+      // Settings → Database tab: every usage store + where it lives.
+      handleGetDatabase()
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+      return true;
+
     case "get-local-status":
       sendLocalStatus()
         .then(sendResponse)
@@ -308,6 +354,22 @@ async function sendStartVendorCrawl(vendor, days, full) {
   const registry = await loadVendorRegistry();
   const cfg = crawlConfigFromRegistry(registry, vendor);
   if (!cfg) return { ok: false, error: `Unknown crawl vendor: ${vendor}` };
+  // B1: a non-default vendor's origin is optional; crawling without it just
+  // fails silently, so tell the user where to grant it.
+  if (cfg.origins.length > 0) {
+    let granted = true;
+    try {
+      granted = await chrome.permissions.contains({ origins: cfg.origins });
+    } catch (e) {
+      granted = true;
+    }
+    if (!granted) {
+      return {
+        ok: false,
+        error: `Access to ${cfg.origins.join(", ")} is not granted. Open the dashboard → Settings → Vendors and click "Grant access" for ${vendor}.`,
+      };
+    }
+  }
   // Incremental: newest stored date lets the content script resume from there
   // (D12, one-day overlap). No stored data -> full range.
   const since = full ? null : await newestStoredDate(vendor);
@@ -408,6 +470,143 @@ async function handleClearVendorData(msg) {
   if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
   const removed = Object.keys(await getVendorImportMap(source)).length;
   await chrome.storage.local.remove([`${source}ImportData`, `${source}ImportMeta`]);
+  let total = 0;
+  try {
+    const res = await sendDashboardData();
+    if (res && res.ok) total = res.count;
+  } catch (e) {}
+  await chrome.storage.local.set({ totalRecords: total });
+  return { ok: true, source, removed, total };
+}
+
+// D11: the Settings → Database tab lists every usage store, where it lives
+// (OPFS vs chrome.storage.local), and which ones the extension can delete.
+const DB_MAX_ROWS = 2000;
+const DB_TOKEN_FIELDS = ["input", "output", "reasoning", "cacheRead", "cacheWrite5m", "cacheWrite1h"];
+
+function databaseStoreFrom({ key, label, location, managed, source, map }) {
+  const rows = Object.values(map || {})
+    .filter((r) => r && typeof r === "object" && r.model)
+    .map((r) => ({
+      id: r.id || "",
+      source: r.source || source || "opencode",
+      model: r.model,
+      time: r.time || r.date || "",
+      input: Number(r.input) || 0,
+      output: Number(r.output) || 0,
+      cacheRead: Number(r.cacheRead) || 0,
+    }))
+    .sort((a, b) => String(b.time).localeCompare(String(a.time)));
+  let tokens = 0;
+  for (const r of Object.values(map || {})) {
+    if (!r || typeof r !== "object") continue;
+    for (const f of DB_TOKEN_FIELDS) tokens += Number(r[f]) || 0;
+  }
+  return {
+    key,
+    label,
+    location,
+    managed,
+    source: source || null,
+    count: rows.length,
+    tokens,
+    truncated: rows.length > DB_MAX_ROWS,
+    rows: rows.slice(0, DB_MAX_ROWS),
+  };
+}
+
+async function handleGetDatabase() {
+  const stores = [];
+  const registry = await loadVendorRegistry();
+
+  // opencode crawl records live in OPFS (opencode.ai origin) and are owned by
+  // the content script; the background only sees them via the merged snapshot.
+  const { cachedData } = await chrome.storage.local.get("cachedData");
+  let snapshot = {};
+  try {
+    snapshot = JSON.parse(cachedData || "{}");
+  } catch (e) {}
+  const opfsRecords = {};
+  for (const [id, rec] of Object.entries(snapshot)) {
+    if (!rec || typeof rec !== "object") continue;
+    if ((rec.source || "opencode") !== "opencode") continue;
+    if (isLocalLooking(id, rec)) continue;
+    opfsRecords[id] = rec;
+  }
+  stores.push(
+    databaseStoreFrom({
+      key: "opfs",
+      label: "opencode crawl",
+      location: "OPFS · opencode_token_cache_<workspace>.json (opencode.ai origin)",
+      managed: false,
+      source: "opencode",
+      map: opfsRecords,
+    })
+  );
+
+  stores.push(
+    databaseStoreFrom({
+      key: "local",
+      label: "opencode local import",
+      location: "chrome.storage.local · localImportData",
+      managed: true,
+      source: "opencode",
+      map: await getLocalImportMap(),
+    })
+  );
+
+  for (const source of await getVendorImportSources()) {
+    const vendor = ((registry && registry.vendors) || []).find((v) => v && v.source === source);
+    stores.push(
+      databaseStoreFrom({
+        key: `vendor:${source}`,
+        label: (vendor && vendor.label) || source,
+        location: `chrome.storage.local · ${source}ImportData`,
+        managed: true,
+        source,
+        map: await getVendorImportMap(source),
+      })
+    );
+  }
+  return { ok: true, stores };
+}
+
+
+// D11: delete specific records by id. Only the records the background owns are
+// removable — opencode local imports and per-vendor `<source>ImportData` maps.
+// Crawled opencode OPFS records belong to the content script, so removing their
+// ids is a no-op (they re-sync); the caller reports how many were actually gone.
+async function handleRemoveRecords(msg) {
+  const source = (msg && msg.source) || "opencode";
+  const ids = Array.isArray(msg && msg.ids) ? msg.ids.filter(Boolean) : [];
+  if (ids.length === 0) return { ok: false, error: "No record ids given" };
+
+  if (source === "opencode") {
+    const map = await getLocalImportMap();
+    let removed = 0;
+    for (const id of ids) if (map[id]) { delete map[id]; removed++; }
+    await chrome.storage.local.set({
+      localImportData: JSON.stringify(map),
+      localImportMeta: { count: Object.keys(map).length, updatedAt: Date.now() },
+    });
+    fpCache = { key: null, buckets: null }; // fingerprint cache is now stale
+    let total = 0;
+    try {
+      const res = await sendDashboardData();
+      if (res && res.ok) total = res.count;
+    } catch (e) {}
+    await chrome.storage.local.set({ totalRecords: total });
+    return { ok: true, source, removed, total };
+  }
+
+  if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
+  const map = await getVendorImportMap(source);
+  let removed = 0;
+  for (const id of ids) if (map[id]) { delete map[id]; removed++; }
+  await chrome.storage.local.set({
+    [`${source}ImportData`]: JSON.stringify(map),
+    [`${source}ImportMeta`]: { count: Object.keys(map).length, updatedAt: Date.now() },
+  });
   let total = 0;
   try {
     const res = await sendDashboardData();
@@ -571,23 +770,7 @@ function normalizeLocalRecord(rec) {
 // (it carries project provenance); the crawler copy is hidden from totals.
 // Only crawler-looking records are ever hidden; anything local-looking or
 // without a parseable timestamp is always kept (conservative: hide only on
-// positive match).
-const DEDUP_BUCKET_MS = 2 * 60 * 1000;
-
-function fingerprintOf(rec) {
-  if (!rec || typeof rec !== "object") return null;
-  const t = new Date(rec.time).getTime();
-  if (isNaN(t)) return null;
-  const cacheWrite = (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
-  return [
-    rec.model || "",
-    rec.input || 0,
-    rec.output || 0,
-    rec.reasoning || 0,
-    rec.cacheRead || 0,
-    cacheWrite,
-  ].join("|");
-}
+// positive match). fingerprintOf / DEDUP_BUCKET_MS are imported from shared/merge.
 
 function isLocalLooking(id, rec) {
   // Vendor records (non-opencode) are handled by their own pipeline; never let
@@ -599,6 +782,8 @@ function isLocalLooking(id, rec) {
     (typeof rec.workspaceID === "string" && rec.workspaceID.startsWith("local:"))
   );
 }
+
+// Day-anchored import copies are hidden by shared/merge.hideDayAnchoredImportCopies.
 
 function hideCrawlerDuplicates(crawlerMap, localMap) {
   return getLocalBuckets(localMap).then((buckets) => hideWithBuckets(crawlerMap, buckets));
@@ -629,22 +814,9 @@ async function getLocalBuckets(localMap) {
   if (key && fpCache.key === key && fpCache.buckets) {
     return { buckets: fpCache.buckets, cached: true };
   }
-  const buckets = buildLocalBuckets(recs);
+  const buckets = buildFingerprintBuckets(recs);
   if (key) fpCache = { key, buckets };
   return { buckets, cached: false };
-}
-
-function buildLocalBuckets(localRecs) {
-  const buckets = new Set();
-  for (const rec of localRecs) {
-    const fp = fingerprintOf(rec);
-    if (!fp) continue;
-    const b = Math.floor(new Date(rec.time).getTime() / DEDUP_BUCKET_MS);
-    buckets.add(`${fp}@${b - 1}`);
-    buckets.add(`${fp}@${b}`);
-    buckets.add(`${fp}@${b + 1}`);
-  }
-  return buckets;
 }
 
 function hideWithBuckets(crawlerMap, { buckets, cached }) {
@@ -802,17 +974,7 @@ async function sendLocalStatus() {
 }
 
 // D23 self-heal for crawl rows written before the parser stored an exclusive
-// `output` (legacy rows kept console outputTokens, reasoning INCLUDED, and core
-// adds reasoning again). Idempotent via the outputExcludesReasoning flag.
-// Mirror of shared/canonical.healOpencodeCrawlOutput (keep in sync).
-function healOpencodeCrawlOutput(rec) {
-  if (!rec || typeof rec !== "object" || rec.outputExcludesReasoning) return rec;
-  const reasoning = Number(rec.reasoning) || 0;
-  if (reasoning > 0) rec.output = Math.max(0, (Number(rec.output) || 0) - reasoning);
-  rec.outputExcludesReasoning = true;
-  return rec;
-}
-
+// `output` — healOpencodeCrawlOutput is imported from shared/canonical.js.
 function healCrawlMap(map) {
   for (const rec of Object.values(map || {})) healOpencodeCrawlOutput(rec);
   return map;
@@ -823,7 +985,8 @@ function healCrawlMap(map) {
 // snapshot so the dashboard survives refreshes even with no tab open.
 async function sendDashboardData() {
   const localMap = await getLocalImportMap();
-  const vendorRecords = await getAllVendorRecords();
+  const vendorRecordsRaw = await getAllVendorRecords();
+  const vendorRecords = hideDayAnchoredImportCopies(vendorRecordsRaw).map;
   const tab = await findAnyOpencodeTab();
   if (tab) {
     try {
@@ -1058,6 +1221,58 @@ async function loadVendorRegistry() {
   }
 }
 
+// Non-default crawl vendors are NOT declared in the static manifest; their
+// content script is registered at runtime once the vendor is enabled and its
+// optional origin granted, so a disabled vendor needs no permission (B1/B2).
+async function registerVendorScript(v) {
+  const spec = [
+    {
+      id: `vendor-${v.source}`,
+      matches: v.origins,
+      js: [v.crawlScript],
+      runAt: v.crawlRunAt || "document_idle",
+      persistAcrossSessions: true,
+    },
+  ];
+  try {
+    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [spec[0].id] });
+    if (existing && existing.length > 0) await chrome.scripting.updateContentScripts(spec);
+    else await chrome.scripting.registerContentScripts(spec);
+  } catch (e) {
+    try {
+      await chrome.scripting.registerContentScripts(spec);
+    } catch (e2) {}
+  }
+}
+
+async function unregisterVendorScript(id) {
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [id] });
+  } catch (e) {}
+}
+
+async function syncVendorContentScripts() {
+  const registry = await loadVendorRegistry();
+  const { vendorSettings } = await chrome.storage.local.get("vendorSettings");
+  const enabled = vendorSettings && typeof vendorSettings === "object" ? vendorSettings : {};
+  for (const v of (registry && registry.vendors) || []) {
+    if (!v || !v.crawl || !v.crawlScript || v.defaultEnabled) continue;
+    const id = `vendor-${v.source}`;
+    if (enabled[v.source] !== true || !v.origins || v.origins.length === 0) {
+      await unregisterVendorScript(id);
+      continue;
+    }
+    let granted = false;
+    try {
+      granted = await chrome.permissions.contains({ origins: v.origins });
+    } catch (e) {
+      granted = false;
+    }
+    if (granted) await registerVendorScript(v);
+    else await unregisterVendorScript(id);
+  }
+}
+
 function defaultVendorSettings(registry) {
   const settings = {};
   for (const vendor of (registry && registry.vendors) || []) {
@@ -1086,13 +1301,20 @@ async function seedVendorSettings(reason) {
 
 chrome.runtime.onInstalled.addListener((details) => {
   loadVendorRegistry().catch(() => {});
-  seedVendorSettings((details && details.reason) || "install").catch(() => {});
+  seedVendorSettings((details && details.reason) || "install")
+    .then(() => syncVendorContentScripts())
+    .catch(() => {});
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  loadVendorRegistry().catch(() => {});
+  loadVendorRegistry()
+    .then(() => syncVendorContentScripts())
+    .catch(() => {});
 });
 
-// Re-cache the registry on service-worker start (survives eviction).
-loadVendorRegistry().catch(() => {});
+// Re-cache the registry + re-sync runtime content scripts on service-worker
+// start (survives eviction).
+loadVendorRegistry()
+  .then(() => syncVendorContentScripts())
+  .catch(() => {});
 

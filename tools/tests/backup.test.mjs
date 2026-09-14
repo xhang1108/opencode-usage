@@ -35,13 +35,19 @@ const SAMPLE = {
 
 test("buildSettingsPayload keeps only user-authored keys", () => {
   const payload = buildSettingsPayload(
-    { vendorSettings: { opencode: true }, unifiedPricing: { groups: [] }, pricing: { junk: 1 }, registry: { vendors: [] } },
+    {
+      vendorSettings: { opencode: true },
+      unifiedPricing: { groups: [] },
+      unmappedFirstSeen: { "opencode:m": 1 },
+      pricing: { junk: 1 },
+      registry: { vendors: [] },
+    },
     { now: () => new Date("2026-07-08T00:00:00.000Z") }
   );
   assert.equal(payload.format, SETTINGS_FORMAT);
   assert.equal(payload.version, 1);
   assert.equal(payload.exportedAt, "2026-07-08T00:00:00.000Z");
-  assert.deepEqual(Object.keys(payload.settings).sort(), ["unifiedPricing", "vendorSettings"]);
+  assert.deepEqual(Object.keys(payload.settings).sort(), ["unifiedPricing", "unmappedFirstSeen", "vendorSettings"]);
 });
 
 test("parseSettingsPayload returns the settings patch and rejects other formats", () => {

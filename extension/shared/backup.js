@@ -19,6 +19,7 @@ export const SETTINGS_KEYS = [
   "unifiedPricing",
   "defaultCrawl",
   "workspaceLabels",
+  "unmappedFirstSeen",
 ];
 
 export function buildSettingsPayload(settings, { now = () => new Date() } = {}) {

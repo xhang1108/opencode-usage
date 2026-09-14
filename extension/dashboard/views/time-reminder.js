@@ -1,6 +1,22 @@
 // extension/dashboard/views/time-reminder.js
-// Peak/off-peak reminder card. Peak-window math lives in the classic
-// ../time-reminder.js script (globals); this module owns the DOM + 1s ticker.
+// Peak/off-peak reminder card. Peak-window math lives in shared/time-reminder.js
+// (imported module); this module owns the DOM + 1s ticker.
+
+import {
+  TIME_RATES_KEY,
+  collectPeakWindowsForModel,
+  formatLocalTime,
+  formatUtcTime,
+  isPeakAt,
+  buildTimeline,
+  nextPeakBoundary,
+  formatCountdownClock,
+  listPeakModels,
+  loadTimeModel,
+  saveTimeModel,
+  loadTimeEnabled,
+  saveTimeEnabled,
+} from "../../shared/time-reminder.js";
 
 // `getRateModels()` -> [{ model, rates }] derived from the live pricing config.
 export function createTimeReminder({ getRateModels }) {

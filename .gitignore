@@ -9,5 +9,9 @@ Thumbs.db
 docs/
 
 # Generated opencode price-crawl artifacts
+/clean_diffs.txt
 tools/opencode/alldiffs.txt
 tools/opencode/clean_diffs.txt
+
+# Scratch fixtures for manual browser checks
+/manual-test/

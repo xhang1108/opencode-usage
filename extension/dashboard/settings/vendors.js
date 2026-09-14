@@ -98,13 +98,65 @@ export function renderVendors(ctx) {
     }
 
     row.querySelector("[data-enable]").addEventListener("change", async (e) => {
-      ctx.settings.vendorSettings = { ...ctx.settings.vendorSettings, [v.source]: e.target.checked };
+      const wantEnabled = e.target.checked;
+      // B1: a non-default vendor's origins are optional, so ask for access on the
+      // enable gesture. Default vendors are already granted (request throws).
+      if (wantEnabled && v.origins && v.origins.length > 0) {
+        let granted = true;
+        try {
+          granted = await chrome.permissions.request({ origins: v.origins });
+        } catch (err) {
+          granted = true;
+        }
+        if (!granted) {
+          e.target.checked = false;
+          alert(`${v.label || v.source} needs access to ${v.origins.join(", ")} to sync. Access was not granted.`);
+          return;
+        }
+      }
+      ctx.settings.vendorSettings = { ...ctx.settings.vendorSettings, [v.source]: wantEnabled };
       await saveVendorSettings(ctx.settings.vendorSettings);
+      await chrome.runtime.sendMessage({ type: "sync-vendor-scripts" }).catch(() => {});
       await ctx.reload();
     });
 
+    if (enabled && v.origins && v.origins.length > 0) decorateOriginAccess(v, row, ctx);
+
     wrap.appendChild(row);
   }
+}
+
+// B1: an enabled vendor whose optional origin was not granted (e.g. after an
+// update moved it out of host_permissions) shows a Grant button; sync is paused
+// until the user grants it.
+async function decorateOriginAccess(v, row, ctx) {
+  let granted = true;
+  try {
+    granted = await chrome.permissions.contains({ origins: v.origins });
+  } catch (e) {
+    granted = true;
+  }
+  if (granted || !row.isConnected) return;
+  const crawlBtn = row.querySelector("[data-crawl]");
+  if (crawlBtn) crawlBtn.disabled = true;
+  const warn = document.createElement("div");
+  warn.className = "settings-vendor-warn";
+  warn.innerHTML =
+    `Access to ${escHTML(v.origins.join(", "))} is not granted — sync is paused. ` +
+    `<button type="button" class="btn btn-secondary" data-grant>Grant access</button>`;
+  warn.querySelector("[data-grant]").addEventListener("click", async () => {
+    let ok = false;
+    try {
+      ok = await chrome.permissions.request({ origins: v.origins });
+    } catch (e) {
+      ok = false;
+    }
+    if (ok) {
+      await chrome.runtime.sendMessage({ type: "sync-vendor-scripts" }).catch(() => {});
+      await ctx.reload();
+    }
+  });
+  row.appendChild(warn);
 }
 
 function renderUnifiedToggle(ctx) {

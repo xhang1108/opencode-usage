@@ -5,15 +5,13 @@
 // source of truth; never hand-edit the generated arrays.
 //
 // Generated in manifest.json:
-//   * host_permissions           — core hosts + every vendor origin (static
-//                                  content_scripts need them at install)
-//   * content_scripts            — each crawl vendor's contentScript (B2)
+//   * host_permissions           — core hosts + default-enabled vendors (B1)
+//   * optional_host_permissions  — the rest, requested on enable (B1)
+//   * content_scripts            — default vendors only; other crawl vendors are
+//                                  registered at runtime after the origin is
+//                                  granted (chrome.scripting.registerContentScripts, B2)
 //   * web_accessible_resources   — each crawl vendor's dynamically imported files
 // Generated: shared/vendors.json (the runtime registry).
-//
-// NOTE: optional_host_permissions stays empty until vendor content scripts are
-// registered at runtime (B1/B2); with static content_scripts the origins are
-// required at install, so listing them as optional would be misleading.
 //
 // Usage:
 //   node tools/build-manifest.mjs           # write
@@ -41,15 +39,20 @@ function loadVendors() {
 
 function buildVendorSections(vendors) {
   const host = new Set(CORE_HOSTS);
+  const optional = new Set();
   const contentScripts = [];
   const war = [];
   for (const v of vendors) {
     const origins = v.origins || [];
     if (origins.length === 0) continue;
-    for (const o of origins) host.add(o);
+    const isDefault = v.defaultEnabled === true;
+    for (const o of origins) (isDefault ? host : optional).add(o);
 
     const crawl = v.crawl || {};
-    if (crawl.contentScript) {
+    // Default vendors are declared statically; every other crawl vendor is
+    // registered at runtime once the user enables it and grants its optional
+    // origin, so a disabled vendor needs no permission (B1/B2).
+    if (crawl.contentScript && isDefault) {
       contentScripts.push({
         matches: origins,
         js: [crawl.contentScript],
@@ -61,7 +64,7 @@ function buildVendorSections(vendors) {
   }
   return {
     host_permissions: [...host].sort(),
-    optional_host_permissions: [],
+    optional_host_permissions: [...optional].sort(),
     content_scripts: contentScripts,
     web_accessible_resources: war,
   };
@@ -77,7 +80,7 @@ function buildRegistry(vendors) {
       defaultEnabled: v.defaultEnabled === true,
       crawl: !!v.crawl,
       ...(v.crawl && v.crawl.everyDays ? { crawlEveryDays: v.crawl.everyDays } : {}),
-      ...(v.crawl ? { crawlScript: v.crawl.contentScript, crawlHome: v.crawl.home, crawlDefaultDays: v.crawl.defaultDays || 0 } : {}),
+      ...(v.crawl ? { crawlScript: v.crawl.contentScript, crawlRunAt: v.crawl.runAt || "document_idle", crawlHome: v.crawl.home, crawlDefaultDays: v.crawl.defaultDays || 0 } : {}),
       ...(v.costSource ? { costSource: v.costSource } : {}),
       import: v.import || [],
       origins: v.origins || [],

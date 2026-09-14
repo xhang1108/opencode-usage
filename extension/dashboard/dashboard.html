@@ -238,11 +238,42 @@
     .settings-kv b { font-variant-numeric: tabular-nums; text-align: right; }
     .settings-section-title { font-size: 13px; font-weight: 700; margin: 16px 0 8px; }
     .settings-vendor, .settings-inbox-row {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
       background: var(--bg-content); border: 1px solid var(--border-muted);
       border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px;
     }
     .settings-vendor.disabled { opacity: 0.6; }
+    .settings-vendor-warn {
+      flex: 1 0 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: rgba(204, 111, 102, 0.1); border: 1px solid var(--border-muted);
+      border-radius: var(--radius-md); padding: 8px 10px; color: var(--text-muted); font-size: 12px;
+    }
+    .row-del {
+      background: none; border: 1px solid var(--border-muted); border-radius: var(--radius-md);
+      color: var(--text-muted); width: 22px; height: 22px; line-height: 1; cursor: pointer; font-size: 13px;
+    }
+    .row-del:hover { color: #cc6f66; border-color: #cc6f66; }
+    .db-store { margin-bottom: 10px; border: 1px solid var(--border-muted); border-radius: var(--radius-md); padding: 0 10px; }
+    .db-store[open] { padding-bottom: 10px; }
+    .db-store-head {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      cursor: pointer; list-style: none; padding: 10px 0;
+    }
+    .db-store-head::-webkit-details-marker { display: none; }
+    .db-caret { color: var(--text-disabled); transition: transform 0.15s; }
+    .db-store[open] .db-caret { transform: rotate(90deg); }
+    .db-store-toolbar { display: flex; justify-content: flex-end; margin: 4px 0 8px; }
+    .db-store-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .db-loc { color: var(--text-disabled); font-family: var(--font-mono); font-size: 11px; }
+    .db-store-meta { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
+    .db-note-block {
+      margin: 6px 0 0; padding: 8px 10px; background: var(--bg-content); border: 1px dashed var(--border-muted);
+      border-radius: var(--radius-md); color: var(--text-muted); font-size: 11.5px; line-height: 1.5;
+    }
+    .db-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+    .db-table th { text-align: left; color: var(--text-disabled); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border-muted); }
+    .db-table td { padding: 4px 8px; border-bottom: 1px solid var(--border-muted); font-variant-numeric: tabular-nums; }
+    .db-time { color: var(--text-muted); white-space: nowrap; }
     .settings-vendor-main, .settings-inbox-key { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .settings-vendor-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .settings-vendor-meta, .settings-inbox-age { color: var(--text-disabled); font-size: 11px; }
@@ -874,7 +905,8 @@
       <div class="settings-tabs">
         <button type="button" class="settings-tab" data-tab="general">General</button>
         <button type="button" class="settings-tab" data-tab="vendors">Vendors</button>
-        <button type="button" class="settings-tab" data-tab="pricing">Pricing</button>
+        <button type="button" class="settings-tab" data-tab="pricing">Pricing <span class="badge" id="pricingUnmappedBadge" hidden></span></button>
+        <button type="button" class="settings-tab" data-tab="database">Database</button>
         <button type="button" class="settings-tab" data-tab="how">How it works</button>
       </div>
       <div class="settings-body">
@@ -908,12 +940,15 @@
           <div id="pricingBoard"></div>
         </section>
 
+        <section class="settings-pane" id="settings-database" hidden>
+          <div id="databaseStores"></div>
+        </section>
+
         <section class="settings-pane" id="settings-how" hidden></section>
       </div>
     </div>
   </div>
 
-  <script src="../time-reminder.js"></script>
   <script type="module" src="dashboard.js"></script>
 </body>
 </html>

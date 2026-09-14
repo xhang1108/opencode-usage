@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   unified: "unifiedPricing",
   defaultCrawl: "defaultCrawl",
   workspaceLabels: "workspaceLabels",
+  unmappedFirstSeen: "unmappedFirstSeen",
 };
 
 const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -31,6 +32,7 @@ export async function readSettings() {
     unifiedStored: rawUnified != null,
     defaultCrawl: typeof stored[STORAGE_KEYS.defaultCrawl] === "string" ? stored[STORAGE_KEYS.defaultCrawl] : "",
     workspaceLabels: asObject(stored[STORAGE_KEYS.workspaceLabels]),
+    unmappedFirstSeen: asObject(stored[STORAGE_KEYS.unmappedFirstSeen]),
   };
 }
 
@@ -48,6 +50,11 @@ export async function saveDefaultCrawl(source) {
 
 export async function saveWorkspaceLabels(map) {
   await chrome.storage.local.set({ [STORAGE_KEYS.workspaceLabels]: asObject(map) });
+}
+
+// B7: first time each unmapped `model` was seen, so the badge can show age.
+export async function saveUnmappedFirstSeen(map) {
+  await chrome.storage.local.set({ [STORAGE_KEYS.unmappedFirstSeen]: asObject(map) });
 }
 
 // D9: vendors default off unless the registry seeds otherwise; unseeded legacy

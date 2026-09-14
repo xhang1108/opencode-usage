@@ -80,7 +80,7 @@ export function renderUnified(ctx) {
         ${unassigned.map(chip).join("") || '<span class="up-empty">Every known model is assigned.</span>'}
       </div>
       <div class="modal-actions" style="justify-content:flex-start; margin-top:8px;">
-        <button type="button" class="btn btn-secondary" id="upAddGroup">＋ Add group</button>
+        <button type="button" class="btn btn-secondary" id="upAddGroup">+ Add group</button>
         <button type="button" class="btn btn-secondary" id="upResetPreset">Reset to preset</button>
       </div>
     </div>

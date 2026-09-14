@@ -5,8 +5,8 @@ import {
   fingerprintOf,
   buildFingerprintBuckets,
   mergeRecords,
-  hideSameSourceDuplicates,
-  DEDUP_BUCKET_MS,
+  hideDayAnchoredImportCopies,
+  isDayAnchoredRecord,
 } from "../../extension/shared/merge.js";
 
 function rec(over) {
@@ -38,29 +38,42 @@ test("mergeRecords is N-way by id and idempotent", () => {
   assert.equal(override.merged.a.input, 9999);
 });
 
-test("hideSameSourceDuplicates hides crawl copies matching a file record", () => {
-  const crawl = { "crawler:1": rec({ source: "opencode", input: 1000 }) };
-  const file = { "msg_1": rec({ source: "opencode", input: 1000, time: "2026-09-12T12:01:00Z" }) };
-  const { map, dropped } = hideSameSourceDuplicates(crawl, file, { source: "opencode" });
-  assert.equal(dropped, 1);
-  assert.deepEqual(Object.keys(map), []);
-});
-
-test("hideSameSourceDuplicates never hides across different sources", () => {
-  const crawl = { "crawler:1": rec({ source: "opencode", input: 1000 }) };
-  const other = { "x:1": rec({ source: "commandcode", input: 1000 }) };
-  const { dropped } = hideSameSourceDuplicates(crawl, other, { source: "opencode" });
-  assert.equal(dropped, 0);
-});
-
-test("hideSameSourceDuplicates absorbs clock skew within one bucket", () => {
-  const crawl = { "crawler:1": rec({ time: "2026-09-12T12:00:00Z" }) };
-  const file = { "msg_1": rec({ time: new Date(Date.parse("2026-09-12T12:00:00Z") + DEDUP_BUCKET_MS).toISOString() }) };
-  const { dropped } = hideSameSourceDuplicates(crawl, file, { source: "opencode" });
-  assert.equal(dropped, 1);
-});
-
 test("buildFingerprintBuckets ignores records without a parseable time", () => {
   const buckets = buildFingerprintBuckets([{ model: "m", input: 1 }]);
   assert.equal(buckets.size, 0);
+});
+
+test("isDayAnchoredRecord detects D22 day-anchored times only", () => {
+  assert.equal(isDayAnchoredRecord({ time: "2026-09-12T00:00:00.000Z" }), true);
+  assert.equal(isDayAnchoredRecord({ time: "2026-09-12T03:00:00Z" }), false);
+});
+
+test("hideDayAnchoredImportCopies hides a day-anchored import copy of a crawl record (B5)", () => {
+  const records = {
+    "deepseek-official:crawl1": rec({ source: "deepseek-official", time: "2026-09-12T03:00:00Z", input: 500 }),
+    "deepseek-official:import1": rec({ source: "deepseek-official", time: "2026-09-12T00:00:00.000Z", input: 500 }),
+  };
+  const { map, dropped } = hideDayAnchoredImportCopies(records);
+  assert.equal(dropped, 1);
+  assert.deepEqual(Object.keys(map), ["deepseek-official:crawl1"]);
+});
+
+test("hideDayAnchoredImportCopies keeps records when tokens or source differ", () => {
+  const otherSource = {
+    "opencode:c": rec({ source: "opencode", time: "2026-09-12T03:00:00Z", input: 500 }),
+    "mimo:i": rec({ source: "mimo", time: "2026-09-12T00:00:00.000Z", input: 500 }),
+  };
+  assert.equal(hideDayAnchoredImportCopies(otherSource).dropped, 0);
+  const otherTokens = {
+    "mimo:c": rec({ source: "mimo", time: "2026-09-12T03:00:00Z", input: 500 }),
+    "mimo:i": rec({ source: "mimo", time: "2026-09-12T00:00:00.000Z", input: 501 }),
+  };
+  assert.equal(hideDayAnchoredImportCopies(otherTokens).dropped, 0);
+});
+
+test("hideDayAnchoredImportCopies keeps imports when no instant crawl record exists", () => {
+  const onlyImport = { "mimo:i": rec({ source: "mimo", time: "2026-09-12T00:00:00.000Z" }) };
+  const { map, dropped } = hideDayAnchoredImportCopies(onlyImport);
+  assert.equal(dropped, 0);
+  assert.deepEqual(Object.keys(map), ["mimo:i"]);
 });

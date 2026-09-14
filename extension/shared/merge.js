@@ -47,23 +47,30 @@ export function mergeRecords(...maps) {
 
 // Hide `primary` records (e.g. crawl) that duplicate `secondary` (e.g. file/DB).
 // Only within the same source (D2); cross-vendor duplicates are never hidden.
-export function hideSameSourceDuplicates(primary, secondary, { source } = {}) {
-  const sameSource = (r) => !source || (r && (r.source || "opencode") === source);
-  const buckets = buildFingerprintBuckets(Object.values(secondary || {}).filter(sameSource));
-  const out = { ...(primary || {}) };
-  if (buckets.size === 0) return { map: out, dropped: 0 };
-  let dropped = 0;
-  for (const id of Object.keys(out)) {
-    const rec = out[id];
-    if (!rec || typeof rec !== "object") continue;
-    if (!sameSource(rec)) continue;
+// Day-anchored records (D22, `<day>T00:00:00Z`) are import snapshots; an instant
+// crawl record from the SAME source with an identical fingerprint is the same
+// usage, so the import copy is hidden (B5). Exact token match is required, and
+// the fingerprint is scoped by source, so cross-vendor records never collapse.
+export function isDayAnchoredRecord(rec) {
+  return !!rec && typeof rec.time === "string" && /T00:00:00(?:\.000)?Z$/.test(rec.time);
+}
+
+export function hideDayAnchoredImportCopies(records) {
+  const out = {};
+  const crawlFps = new Set();
+  for (const rec of Object.values(records || {})) {
+    if (!rec || isDayAnchoredRecord(rec)) continue;
     const fp = fingerprintOf(rec);
-    if (!fp) continue;
-    const b = Math.floor(new Date(rec.time).getTime() / DEDUP_BUCKET_MS);
-    if (buckets.has(`${fp}@${b}`)) {
-      delete out[id];
+    if (fp) crawlFps.add(`${rec.source || "opencode"}|${fp}`);
+  }
+  let dropped = 0;
+  for (const [id, rec] of Object.entries(records || {})) {
+    const fp = fingerprintOf(rec);
+    if (rec && fp && isDayAnchoredRecord(rec) && crawlFps.has(`${rec.source || "opencode"}|${fp}`)) {
       dropped++;
+      continue;
     }
+    out[id] = rec;
   }
   return { map: out, dropped };
 }

@@ -11,12 +11,13 @@ import { wireTableSort, renderWorkspaceTable, renderModelTable } from "./views/t
 import { createTimeReminder } from "./views/time-reminder.js";
 import { initDecorBg } from "./views/decor.js";
 import { fmtMoney, escHTML, workspaceName } from "./views/format.js";
-import { readSettings, loadPricing, loadUnifiedPreset, isSourceEnabled, saveVendorSettings, saveUnifiedPricing, saveDefaultCrawl, saveWorkspaceLabels } from "./settings/store.js";
+import { readSettings, loadPricing, loadUnifiedPreset, isSourceEnabled, saveVendorSettings, saveUnifiedPricing, saveDefaultCrawl, saveWorkspaceLabels, saveUnmappedFirstSeen } from "./settings/store.js";
 import { normalizeUnifiedPricing, buildUnifiedIndex, priceUnified, unifiedRateModels } from "../shared/unified.js";
 import { createSettingsModal } from "./settings/tabs.js";
 import { renderGeneral } from "./settings/general.js";
 import { renderVendors } from "./settings/vendors.js";
 import { renderUnified } from "./settings/unified.js";
+import { renderDatabase } from "./settings/database.js";
 import { renderHowItWorks } from "./settings/how-it-works.js";
 import { parseXlsx } from "../shared/xlsx.js";
 import { parseMimoSheets } from "../vendors/mimo/import-usage.js";
@@ -57,6 +58,34 @@ const price = (rec) => {
 };
 const getRateModels = () => (unifiedPricing.enabled ? unifiedRateModels(unifiedPricing) : legacyModelsFromPricing(pricing));
 const wsLabel = (wsID) => workspaceName(wsID, settings ? settings.workspaceLabels : {});
+
+// B7: every model with at least one unpriced record among the enabled sources.
+function globalUnpricedModels() {
+  const set = new Set();
+  for (const rec of enabledRecords()) {
+    if (price(rec).unpriced) set.add(rec.model);
+  }
+  return set;
+}
+
+// Record first-seen timestamps for the current unpriced set (pruning the ones
+// that got priced), returning the map used to show age. Persisted async.
+function syncUnmappedFirstSeen(models) {
+  const prev = (settings && settings.unmappedFirstSeen) || {};
+  const now = Date.now();
+  const next = {};
+  let changed = false;
+  for (const m of models) {
+    next[m] = prev[m] != null ? prev[m] : now;
+    if (prev[m] == null) changed = true;
+  }
+  for (const k of Object.keys(prev)) if (!(k in next)) changed = true;
+  if (changed && settings) {
+    settings.unmappedFirstSeen = next;
+    saveUnmappedFirstSeen(next).catch(() => {});
+  }
+  return next;
+}
 
 const charts = createCharts({
   getRecords: enabledRecords,
@@ -114,6 +143,7 @@ function renderSettingsPage(tab) {
   if (tab === "general") { renderGeneral(settingsCtx); refreshLocalImportStatus(); }
   else if (tab === "vendors") renderVendors(settingsCtx);
   else if (tab === "pricing") renderUnified(settingsCtx);
+  else if (tab === "database") renderDatabase(settingsCtx);
   else if (tab === "how") renderHowItWorks();
 }
 
@@ -158,7 +188,18 @@ function renderDashboard(skipCharts) {
   const records = enabledRecords();
   const agg = aggregate(records, { price, startDate, endDate, selectedWS, selectedModel });
   const { dailyMap, dailyTokenMap, hourlyMap, modelMap, wsMap, singleModelDailyMap } = agg;
-  const unpricedModels = new Set(agg.unpricedModels);
+  // B7: unpriced set is global (not filter-scoped) so the Settings badge and the
+  // notice stay meaningful regardless of the current filter.
+  const unpricedModels = globalUnpricedModels();
+  const firstSeen = syncUnmappedFirstSeen(unpricedModels);
+  const oldestDays = unpricedModels.size > 0
+    ? Math.max(0, Math.floor((Date.now() - Math.min(...Object.values(firstSeen))) / 86400000))
+    : 0;
+  const pricingBadge = document.getElementById("pricingUnmappedBadge");
+  if (pricingBadge) {
+    pricingBadge.hidden = unpricedModels.size === 0;
+    pricingBadge.textContent = String(unpricedModels.size);
+  }
   const totalReq = agg.totals.req;
   const totalCost = agg.totals.cost;
   const totalSavings = agg.totals.savings;
@@ -205,7 +246,7 @@ function renderDashboard(skipCharts) {
           .map((m) => `<span class="badge">${escHTML(m)}</span>`)
           .join("") +
         `</span>` +
-        `<span class="notice-hint">— Assign them to a group in Settings → Pricing to price them.</span>`;
+        `<span class="notice-hint">— Assign them to a group in Settings → Pricing to price them${oldestDays > 0 ? ` (oldest ${oldestDays}d)` : ""}.</span>`;
     } else {
       unpricedEl.hidden = true;
     }
@@ -352,6 +393,12 @@ async function restoreSettings(payload) {
   if (patch.unifiedPricing) await saveUnifiedPricing(patch.unifiedPricing);
   if (patch.defaultCrawl != null) await saveDefaultCrawl(patch.defaultCrawl);
   if (patch.workspaceLabels) await saveWorkspaceLabels(patch.workspaceLabels);
+  if (patch.unmappedFirstSeen) await saveUnmappedFirstSeen(patch.unmappedFirstSeen);
+  // A restored vendorSettings may enable optional vendors; re-sync their runtime
+  // content scripts so crawl works without a manual toggle (B1/B2).
+  if (patch.vendorSettings) {
+    await chrome.runtime.sendMessage({ type: "sync-vendor-scripts" }).catch(() => {});
+  }
   return `settings restored (${Object.keys(patch).length} section${Object.keys(patch).length === 1 ? "" : "s"})`;
 }
 

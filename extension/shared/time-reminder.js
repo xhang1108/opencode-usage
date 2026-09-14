@@ -15,12 +15,12 @@
 // "off-peak". This keeps the reminder in sync with the rate settings without
 // hard-coding any times.
 
-const TIME_RATES_KEY = "opencode_time_rates";
-const TIME_ENABLED_KEY = "opencode_time_reminder_enabled";
-const TIME_MODEL_KEY = "opencode_time_model";
+export const TIME_RATES_KEY = "opencode_time_rates";
+export const TIME_ENABLED_KEY = "opencode_time_reminder_enabled";
+export const TIME_MODEL_KEY = "opencode_time_model";
 
 // Parse "HH:MM" -> minutes since midnight; null when malformed.
-function timeToMinutes(hhmm) {
+export function timeToMinutes(hhmm) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || "").trim());
   if (!m) return null;
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
@@ -28,7 +28,7 @@ function timeToMinutes(hhmm) {
 
 // Extract the union of all peak windows from a rate config (array of rules).
 // Each window: { days: number[], start: "HH:MM", end: "HH:MM" }.
-function collectPeakWindows(models) {
+export function collectPeakWindows(models) {
   const windows = [];
   if (!Array.isArray(models)) return windows;
   for (const rule of models) {
@@ -47,7 +47,7 @@ function collectPeakWindows(models) {
 
 // List the model names that have at least one peak window (candidates for the
 // time-reminder model selector).
-function listPeakModels(models) {
+export function listPeakModels(models) {
   const names = [];
   if (!Array.isArray(models)) return names;
   for (const rule of models) {
@@ -62,7 +62,7 @@ function listPeakModels(models) {
 }
 
 // Collect the peak windows for a single model.
-function collectPeakWindowsForModel(models, modelName) {
+export function collectPeakWindowsForModel(models, modelName) {
   if (!Array.isArray(models)) return [];
   const rule = models.find((r) => r && r.model === modelName);
   if (!rule) return [];
@@ -70,18 +70,18 @@ function collectPeakWindowsForModel(models, modelName) {
 }
 
 // Load the selected model name from chrome.storage.local.
-async function loadTimeModel() {
+export async function loadTimeModel() {
   const { [TIME_MODEL_KEY]: model } = await chrome.storage.local.get(TIME_MODEL_KEY);
   return model || null;
 }
 
 // Save the selected model name to chrome.storage.local.
-async function saveTimeModel(model) {
+export async function saveTimeModel(model) {
   await chrome.storage.local.set({ [TIME_MODEL_KEY]: model || "" });
 }
 
 // Is the given Date inside any peak window? Uses UTC (matching the rate logic).
-function isPeakAt(date, peakWindows) {
+export function isPeakAt(date, peakWindows) {
   if (!peakWindows || peakWindows.length === 0) return false;
   const weekday = date.getUTCDay();
   const minutes = date.getUTCHours() * 60 + date.getUTCMinutes();
@@ -102,26 +102,26 @@ function isPeakAt(date, peakWindows) {
 }
 
 // Load the mirrored rate config from chrome.storage.local.
-async function loadTimeRates() {
+export async function loadTimeRates() {
   const { [TIME_RATES_KEY]: rates } = await chrome.storage.local.get(TIME_RATES_KEY);
   return rates || null;
 }
 
 // Load the reminder toggle state.
-async function loadTimeEnabled() {
+export async function loadTimeEnabled() {
   const { [TIME_ENABLED_KEY]: enabled } = await chrome.storage.local.get(TIME_ENABLED_KEY);
   return enabled !== false; // default on
 }
 
 // Save the reminder toggle state.
-async function saveTimeEnabled(enabled) {
+export async function saveTimeEnabled(enabled) {
   await chrome.storage.local.set({ [TIME_ENABLED_KEY]: !!enabled });
 }
 
 // Build a 24h timeline (one entry per local hour) marking each hour as
 // peak/off-peak, based on the union of peak windows. The timeline is laid out
 // in local time (00:00-24:00), matching how the user reads the clock.
-function buildTimeline(peakWindows) {
+export function buildTimeline(peakWindows) {
   const timeline = [];
   const now = new Date();
   for (let hour = 0; hour < 24; hour++) {
@@ -135,7 +135,7 @@ function buildTimeline(peakWindows) {
 
 // Compute the start/end UTC Date for a peak window on a given UTC day.
 // Handles windows that cross midnight (start > end): the end lands on the next day.
-function windowBoundariesForDate(day, w) {
+export function windowBoundariesForDate(day, w) {
   const start = timeToMinutes(w.start);
   const end = timeToMinutes(w.end);
   const startDate = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), Math.floor(start / 60), start % 60));
@@ -150,7 +150,7 @@ function windowBoundariesForDate(day, w) {
 // { time: Date, type: "start" | "end" } or null when there are no windows.
 // When currently in peak, the next boundary is the peak end (back to off-peak);
 // when off-peak, it is the next peak start.
-function nextPeakBoundary(now, peakWindows) {
+export function nextPeakBoundary(now, peakWindows) {
   if (!peakWindows || peakWindows.length === 0) return null;
   const candidates = [];
   // Scan a full week so windows restricted to a specific weekday are found even
@@ -173,7 +173,7 @@ function nextPeakBoundary(now, peakWindows) {
 }
 
 // Format a millisecond countdown as "HH:MM:SS" (ticks every second).
-function formatCountdownClock(ms) {
+export function formatCountdownClock(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
@@ -183,13 +183,13 @@ function formatCountdownClock(ms) {
 }
 
 // Format a Date in the local timezone as "HH:MM".
-function formatLocalTime(date) {
+export function formatLocalTime(date) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 // Format a Date in UTC as "HH:MM".
-function formatUtcTime(date) {
+export function formatUtcTime(date) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }

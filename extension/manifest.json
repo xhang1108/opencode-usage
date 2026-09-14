@@ -11,15 +11,12 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://*.commandcode.ai/*",
-    "https://*.deepseek.com/*",
     "https://api.github.com/*",
-    "https://commandcode.ai/*",
-    "https://opencode.ai/*",
-    "https://openrouter.ai/*"
+    "https://opencode.ai/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "web_accessible_resources": [
     {
@@ -77,41 +74,18 @@
   "content_scripts": [
     {
       "matches": [
-        "https://commandcode.ai/*",
-        "https://*.commandcode.ai/*"
-      ],
-      "js": [
-        "vendors/commandcode/content.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://*.deepseek.com/*"
-      ],
-      "js": [
-        "vendors/deepseek-official/content.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
         "https://opencode.ai/*"
       ],
       "js": [
         "vendors/opencode/content.js"
       ],
       "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "https://openrouter.ai/*"
-      ],
-      "js": [
-        "vendors/openrouter/content.js"
-      ],
-      "run_at": "document_idle"
     }
   ],
-  "optional_host_permissions": []
+  "optional_host_permissions": [
+    "https://*.commandcode.ai/*",
+    "https://*.deepseek.com/*",
+    "https://commandcode.ai/*",
+    "https://openrouter.ai/*"
+  ]
 }

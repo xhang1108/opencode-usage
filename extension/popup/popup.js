@@ -1,4 +1,17 @@
 // popup.js - Shows sync status and triggers background actions.
+import {
+  TIME_MODEL_KEY,
+  isPeakAt,
+  buildTimeline,
+  nextPeakBoundary,
+  formatCountdownClock,
+  loadTimeEnabled,
+  saveTimeEnabled,
+  loadTimeRates,
+  loadTimeModel,
+  collectPeakWindowsForModel,
+} from "../shared/time-reminder.js";
+
 const $ = (sel) => document.querySelector(sel);
 
 const statusEl = $("#status");
