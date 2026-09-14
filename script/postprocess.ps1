@@ -1,4 +1,4 @@
-$lines = Get-Content "d:\Antigravity\opencode-usage\alldiffs.txt"
+$lines = Get-Content (Join-Path $PSScriptRoot "alldiffs.txt")
 
 # Extract price signature from the three universal per-token price columns:
 # input (field 2), output (field 3), cache (field 4) after splitting on '|'.
@@ -51,5 +51,5 @@ foreach ($l in $lines) {
 }
 if ($curHeader -ne $null) { FlushBlock $curHeader $curPlus $curMinus }
 
-$output | Set-Content "d:\Antigravity\opencode-usage\clean_diffs.txt"
-"LINES=$($output.Count)" | Add-Content "d:\Antigravity\opencode-usage\clean_diffs.txt"
+$output | Set-Content (Join-Path $PSScriptRoot "clean_diffs.txt")
+"LINES=$($output.Count)" | Add-Content (Join-Path $PSScriptRoot "clean_diffs.txt")

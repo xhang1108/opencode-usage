@@ -5,6 +5,15 @@
 
 import { localDateOf } from "./time.js";
 
+// Request count for one record. Aggregated sources (DeepSeek/MiMo export days,
+// OpenRouter day rows, CommandCode 5-min buckets) carry many requests in a
+// single record; opencode crawl/local records are one request each and have no
+// `requests` field. Never count a record as 0 requests.
+export function requestCount(rec) {
+  const n = Number(rec && rec.requests);
+  return isFinite(n) && n > 0 ? n : 1;
+}
+
 export function listWorkspaces(records) {
   const set = new Set();
   for (const rec of records || []) set.add(rec.workspaceID || "wrk_unknown");
@@ -18,8 +27,17 @@ export function listModels(records) {
 }
 
 // `price(rec)` -> { cost, savings, window, unpriced }.
-// selectedWS / selectedModel use "ALL" as the no-filter sentinel.
+// selectedWS / selectedModel may be: "ALL"/""/undefined (no filter), a single
+// string value, or an array (empty == all; non-empty == matches that set).
+function asFilter(v) {
+  if (Array.isArray(v)) return v;
+  if (!v || v === "ALL") return [];
+  return [v];
+}
+
 export function aggregate(records, { price, startDate = "", endDate = "", selectedWS = "ALL", selectedModel = "ALL" } = {}) {
+  const wsFilter = asFilter(selectedWS);
+  const modelFilter = asFilter(selectedModel);
   const totals = { req: 0, cost: 0, savings: 0, tokens: 0, prompt: 0, cacheRead: 0, peakCost: 0, offpeakCost: 0, flatCost: 0 };
   const dailyMap = {};
   const dailyTokenMap = {};
@@ -33,32 +51,36 @@ export function aggregate(records, { price, startDate = "", endDate = "", select
   let maxDate = null;
 
   for (const rec of records || []) {
+    const source = rec.source || "opencode";
     const wsID = rec.workspaceID || "wrk_unknown";
+    // Workspaces are per-source: "<source>:<workspaceID>" so the same id from
+    // different vendors never merges (D2).
+    const wsKey = `${source}:${wsID}`;
     const modelName = rec.model || "Unknown";
     const recDate = localDateOf(rec);
 
     if (startDate && recDate && recDate < startDate) continue;
     if (endDate && recDate && recDate > endDate) continue;
 
-    const { cost, savings, window, unpriced } = price(rec);
+    const { cost, savings, window, unpriced, priceBasis } = price(rec);
     const cacheWrite = (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
     const tokens = (rec.input || 0) + (rec.output || 0) + (rec.reasoning || 0) + (rec.cacheRead || 0) + cacheWrite;
     const promptTokens = (rec.input || 0) + (rec.cacheRead || 0);
 
-    if (!wsMap[wsID]) wsMap[wsID] = { req: 0, tokens: 0, prompt: 0, cacheRead: 0, cost: 0 };
-    wsMap[wsID].req++;
-    wsMap[wsID].tokens += tokens;
-    wsMap[wsID].prompt += promptTokens;
-    wsMap[wsID].cacheRead += rec.cacheRead || 0;
-    wsMap[wsID].cost += cost;
+    if (!wsMap[wsKey]) wsMap[wsKey] = { req: 0, tokens: 0, prompt: 0, cacheRead: 0, cost: 0 };
+    wsMap[wsKey].req += requestCount(rec);
+    wsMap[wsKey].tokens += tokens;
+    wsMap[wsKey].prompt += promptTokens;
+    wsMap[wsKey].cacheRead += rec.cacheRead || 0;
+    wsMap[wsKey].cost += cost;
 
-    if (selectedWS !== "ALL" && wsID !== selectedWS) continue;
-    if (selectedModel !== "ALL" && modelName !== selectedModel) continue;
+    if (wsFilter.length && !wsFilter.includes(wsKey)) continue;
+    if (modelFilter.length && !modelFilter.includes(modelName)) continue;
 
     if (unpriced) unpricedSet.add(modelName);
-    filtered.push({ id: rec.id, ...rec, cost, savings, tokens, window, unpriced });
+    filtered.push({ id: rec.id, ...rec, cost, savings, tokens, window, unpriced, priceBasis });
 
-    totals.req++;
+    totals.req += requestCount(rec);
     totals.cost += cost;
     totals.savings += savings;
     totals.tokens += tokens;
@@ -89,31 +111,34 @@ export function aggregate(records, { price, startDate = "", endDate = "", select
     }
 
     if (!singleModelDailyMap[date]) singleModelDailyMap[date] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0 };
-    singleModelDailyMap[date].req++;
+    singleModelDailyMap[date].req += requestCount(rec);
     singleModelDailyMap[date].input += rec.input || 0;
     singleModelDailyMap[date].output += rec.output || 0;
     singleModelDailyMap[date].cacheRead += rec.cacheRead || 0;
     singleModelDailyMap[date].cost += cost;
 
-    if (!modelMap[modelName]) {
-      modelMap[modelName] = { req: 0, input: 0, output: 0, cacheRead: 0, cost: 0, peakCost: 0, offpeakCost: 0, flatCost: 0 };
+    // Models are per-source too (D2): the same model name from different
+    // vendors must not merge into one row. Key is "<source>:<model>".
+    const modelKey = `${source}:${modelName}`;
+    if (!modelMap[modelKey]) {
+      modelMap[modelKey] = { model: modelName, source, req: 0, input: 0, output: 0, cacheRead: 0, cost: 0, peakCost: 0, offpeakCost: 0, flatCost: 0 };
     }
-    modelMap[modelName].req++;
-    modelMap[modelName].input += rec.input || 0;
-    modelMap[modelName].output += rec.output || 0;
-    modelMap[modelName].cacheRead += rec.cacheRead || 0;
-    modelMap[modelName].cost += cost;
-    if (window === "peak") modelMap[modelName].peakCost += cost;
-    else if (window === "offpeak") modelMap[modelName].offpeakCost += cost;
-    else if (window === "flat") modelMap[modelName].flatCost += cost;
+    modelMap[modelKey].req += requestCount(rec);
+    modelMap[modelKey].input += rec.input || 0;
+    modelMap[modelKey].output += rec.output || 0;
+    modelMap[modelKey].cacheRead += rec.cacheRead || 0;
+    modelMap[modelKey].cost += cost;
+    if (window === "peak") modelMap[modelKey].peakCost += cost;
+    else if (window === "offpeak") modelMap[modelKey].offpeakCost += cost;
+    else if (window === "flat") modelMap[modelKey].flatCost += cost;
   }
 
   let topModel = "-";
   let topModelCost = 0;
-  for (const [m, stats] of Object.entries(modelMap)) {
+  for (const stats of Object.values(modelMap)) {
     if (stats.cost > topModelCost) {
       topModelCost = stats.cost;
-      topModel = m;
+      topModel = stats.model;
     }
   }
 

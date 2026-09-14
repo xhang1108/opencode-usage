@@ -8,6 +8,7 @@ import {
   resolveTable,
   resolveTargetId,
   priceRecord,
+  priceFromRates,
 } from "../../extension/shared/pricing.js";
 
 const FLASH_TARGET = {
@@ -97,24 +98,12 @@ test("priceRecord: offpeak sample, priceBasis=vendor when no curated", () => {
   assert.equal(Number(res.cost.toFixed(9)), 0.000523992);
 });
 
-test("priceRecord: curated wins by default, vendor on priceChoice", () => {
-  const record = {
-    source: "commandcode",
-    time: "2026-09-12T11:55:00Z",
-    model: "deepseek/deepseek-v4.1-flash",
-    input: 1000,
-    output: 0,
-    cacheRead: 0,
-  };
-  const targets = {
-    "deepseek-v4.1-flash": {
-      ...FLASH_TARGET,
-      curatedRates: [{ from: null, pricing: { flat: { input: 1 } } }],
-    },
-  };
-  const modelMap = { "commandcode:deepseek/deepseek-v4.1-flash": "deepseek-v4.1-flash" };
-  assert.equal(priceRecord(record, { modelMap, targets }).priceBasis, "curated");
-  assert.equal(priceRecord(record, { modelMap, targets, priceChoice: { commandcode: "vendor" } }).priceBasis, "vendor");
+test("priceFromRates prices against an explicit rate list", () => {
+  const record = { source: "commandcode", time: "2026-09-12T11:55:00Z", model: "m", input: 1000, output: 0, cacheRead: 0 };
+  const res = priceFromRates(record, [{ from: null, pricing: { flat: { input: 1, output: 0, cacheRead: 0, cacheWrite: 0 } } }], "unified");
+  assert.equal(res.unpriced, false);
+  assert.equal(res.priceBasis, "unified");
+  assert.equal(res.cost, 0.001);
 });
 
 test("priceRecord marks unmapped models unpriced (P5, in box)", () => {

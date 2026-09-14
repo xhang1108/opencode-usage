@@ -1,0 +1,362 @@
+{
+  "presetVersion": 2,
+  "source": "deepseek-official",
+  "modelMap": {
+    "deepseek-official:deepseek-chat": "deepseek-official:deepseek-chat",
+    "deepseek-official:deepseek-coder": "deepseek-official:deepseek-coder",
+    "deepseek-official:deepseek-reasoner": "deepseek-official:deepseek-reasoner",
+    "deepseek-official:deepseek-v4-flash": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4-pro": "deepseek-official:deepseek-v4-pro",
+    "deepseek-official:deepseek-flash": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4.1-flash": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4-flash-free": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4.1-flash-free": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4-flash-vision-exp": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4-flash-0731": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4-pro-free": "deepseek-official:deepseek-v4-pro"
+  },
+  "targets": {
+    "deepseek-official:deepseek-chat": {
+      "label": "deepseek-chat",
+      "scope": "deepseek-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2024-12-26T11:58:37.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.27,
+              "output": 1.1,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-06T20:23:57.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.56,
+              "output": 1.68,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-29T10:16:28.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.28,
+              "output": 0.42,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "deepseek-official:deepseek-coder": {
+      "label": "deepseek-coder",
+      "scope": "deepseek-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "deepseek-official:deepseek-reasoner": {
+      "label": "deepseek-reasoner",
+      "scope": "deepseek-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.55,
+              "output": 2.19,
+              "cacheRead": 0.14,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "deepseek-official:deepseek-v4-flash": {
+      "label": "deepseek-v4-flash",
+      "scope": "deepseek-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-26T15:11:33.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.0028,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-22T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-09-10T07:12:52.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.003,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "deepseek-official:deepseek-v4-pro": {
+      "label": "deepseek-v4-pro",
+      "scope": "deepseek-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.74,
+              "output": 3.48,
+              "cacheRead": 0.145,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-25T16:58:22.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.03625,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-26T15:11:33.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.003625,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 1.32,
+              "output": 3.96,
+              "cacheRead": 0.044,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.66,
+              "output": 1.98,
+              "cacheRead": 0.022,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-22T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 1.32,
+              "output": 3.96,
+              "cacheRead": 0.044,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.66,
+              "output": 1.98,
+              "cacheRead": 0.022,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  }
+}

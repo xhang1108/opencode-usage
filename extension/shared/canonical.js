@@ -16,6 +16,42 @@ export function canonicalDate(timeIso) {
   return d.toISOString().slice(0, 10);
 }
 
+// D22: day-granular sources store the calendar day anchored at UTC midnight
+// (`<day>T00:00:00Z`). This keeps the day stable no matter what offset the
+// vendor printed, and makes re-imports idempotent. Real-timestamp sources keep
+// their exact UTC instant instead.
+export function dayToISO(day) {
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(day == null ? "" : day).trim());
+  return m ? `${m[1]}T00:00:00.000Z` : null;
+}
+
+// Canonical `output` EXCLUDES reasoning; `reasoning` is a separate, additive
+// count (matches opencode's stored session schema and its cost formula
+// `(output + reasoning) * outputRate`). Some vendors report completion tokens
+// INCLUSIVE of reasoning (opencode console `outputTokens`, OpenRouter
+// `tokens_completion`) — adapters subtract at the boundary so dashboard token
+// totals and cost never count reasoning twice.
+export function exclusiveOutput(outputInclusive, reasoning) {
+  const out = Number(outputInclusive) || 0;
+  const r = Number(reasoning) || 0;
+  return Math.max(0, out - r);
+}
+
+// D23 one-time self-heal for opencode crawl records written before the parser
+// started storing an exclusive `output`. Legacy rows kept the console
+// `outputTokens` (reasoning INCLUDED) while core adds `reasoning` again, so
+// they must be repaired once. New rows carry `outputExcludesReasoning: true`
+// and are skipped, which also makes this safe to call on every read.
+// NOTE: background.js / content.js keep an inline copy (classic scripts can't
+// import this ESM module) — keep the three in sync.
+export function healOpencodeCrawlOutput(rec) {
+  if (!rec || typeof rec !== "object" || rec.outputExcludesReasoning) return rec;
+  const reasoning = Number(rec.reasoning) || 0;
+  if (reasoning > 0) rec.output = Math.max(0, (Number(rec.output) || 0) - reasoning);
+  rec.outputExcludesReasoning = true;
+  return rec;
+}
+
 // FNV-1a 32-bit -> 8 hex chars. Stable across runs, used for ids without an
 // origin id (D4).
 export function stableHash(str) {

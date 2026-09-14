@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 import {
   SCHEMA_VERSION,
   canonicalDate,
+  dayToISO,
+  exclusiveOutput,
+  healOpencodeCrawlOutput,
   stableHash,
   makeId,
   normalizeRecord,
@@ -15,6 +18,43 @@ test("canonicalDate derives UTC date from time (P8)", () => {
   // DeepSeek export: PT/GMT+8 midnight shifts to the previous UTC day.
   assert.equal(canonicalDate("2026-06-16T00:00:00+08:00"), "2026-06-15");
   assert.equal(canonicalDate("not-a-date"), null);
+});
+
+test("dayToISO anchors a day at UTC midnight (D22)", () => {
+  assert.equal(dayToISO("2026-06-16"), "2026-06-16T00:00:00.000Z");
+  assert.equal(dayToISO("2026-06-16T00:00:00+08:00"), "2026-06-16T00:00:00.000Z");
+  assert.equal(dayToISO(""), null);
+  assert.equal(dayToISO(null), null);
+});
+
+test("exclusiveOutput subtracts reasoning from an inclusive completion count", () => {
+  // opencode console outputTokens / OpenRouter tokens_completion include reasoning.
+  assert.equal(exclusiveOutput(1000, 300), 700);
+  assert.equal(exclusiveOutput(1000, 0), 1000);
+  assert.equal(exclusiveOutput("1000", "300"), 700);
+  assert.equal(exclusiveOutput(100, 150), 0); // never negative
+  assert.equal(exclusiveOutput(undefined, 5), 0);
+  assert.equal(exclusiveOutput(50, undefined), 50);
+});
+
+test("healOpencodeCrawlOutput repairs legacy inclusive output once (D23)", () => {
+  const legacy = { source: "opencode", output: 500, reasoning: 200 };
+  healOpencodeCrawlOutput(legacy);
+  assert.equal(legacy.output, 300);
+  assert.equal(legacy.reasoning, 200);
+  assert.equal(legacy.outputExcludesReasoning, true);
+  // idempotent: a second pass must not subtract again
+  healOpencodeCrawlOutput(legacy);
+  assert.equal(legacy.output, 300);
+  // zero reasoning is left alone but still marked
+  const noReasoning = { source: "opencode", output: 42, reasoning: 0 };
+  healOpencodeCrawlOutput(noReasoning);
+  assert.equal(noReasoning.output, 42);
+  assert.equal(noReasoning.outputExcludesReasoning, true);
+  // never negative
+  const odd = { source: "opencode", output: 10, reasoning: 99 };
+  healOpencodeCrawlOutput(odd);
+  assert.equal(odd.output, 0);
 });
 
 test("stableHash is deterministic, 8 hex chars", () => {

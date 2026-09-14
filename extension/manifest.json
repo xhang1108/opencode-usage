@@ -12,6 +12,11 @@
   ],
   "host_permissions": [
     "https://opencode.ai/*",
+    "https://openrouter.ai/*",
+    "https://commandcode.ai/*",
+    "https://*.commandcode.ai/*",
+    "https://api.commandcode.ai/*",
+    "https://*.deepseek.com/*",
     "https://api.github.com/*"
   ],
   "background": {
@@ -24,6 +29,38 @@
       ],
       "matches": [
         "https://opencode.ai/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/openrouter/content.js",
+        "vendors/openrouter/mapper.js",
+        "vendors/openrouter/analytics-query.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://openrouter.ai/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/commandcode/content.js",
+        "vendors/commandcode/mapper.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://commandcode.ai/*",
+        "https://*.commandcode.ai/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/deepseek-official/content.js",
+        "vendors/deepseek-official/mapper.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://*.deepseek.com/*"
       ]
     }
   ],
@@ -50,9 +87,35 @@
         "content/content.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://openrouter.ai/*"
+      ],
+      "js": [
+        "vendors/openrouter/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://commandcode.ai/*",
+        "https://*.commandcode.ai/*"
+      ],
+      "js": [
+        "vendors/commandcode/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.deepseek.com/*"
+      ],
+      "js": [
+        "vendors/deepseek-official/content.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
-  "optional_host_permissions": [
-    "https://api.commandcode.ai/*"
-  ]
+  "optional_host_permissions": []
 }

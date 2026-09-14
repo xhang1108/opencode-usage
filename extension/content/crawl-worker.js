@@ -17,7 +17,7 @@
 //                   { type: "error", message }
 //
 // Logic is a port of startCrawling() in content.js (same record shape, same
-// retry/timeout semantics). `cost` is intentionally NOT stored.
+// retry/timeout semantics). `cost` is stored opaque as vendorCost (D16).
 "use strict";
 
 onmessage = async (e) => {
@@ -64,6 +64,32 @@ onmessage = async (e) => {
     };
   };
 
+  // One-shot page fetch used to probe the page index base (see below).
+  const probePage = async (pg) => {
+    try {
+      const built = buildBodyPayload(payloadTemplate, workspaceID, pg);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 20000);
+      const resp = await fetch("https://opencode.ai/_server", {
+        headers: {
+          accept: "*/*",
+          "content-type": "application/json",
+          "x-server-id": serverID,
+          "x-server-instance": "server-fn:1",
+        },
+        body: built.body,
+        method: "POST",
+        credentials: "include",
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (!resp.ok) return null;
+      return await resp.text();
+    } catch (e) {
+      return null;
+    }
+  };
+
   let page = 0;
   let hasMoreData = true;
   let localCache = {};
@@ -74,6 +100,10 @@ onmessage = async (e) => {
   let leaseOwner = "";
   let beatLease = async () => {};
   let stopReason = "";
+  // True when the server itself has no records for this workspace (valid but
+  // empty usage envelope on the first page). The local cache is left intact so
+  // the UI can keep showing the last synced data instead of dropping to zero.
+  let serverEmpty = false;
   // Persist incrementally every few pages so a mid-crawl stall/interruption
   // keeps everything fetched so far (the worker is autonomous: even if the
   // page dies, completed pages are already in OPFS).
@@ -144,6 +174,24 @@ onmessage = async (e) => {
     // sync point). Old records without the new schema fields are left as-is;
     // only new/changed records are written. No backfill sweep.
 
+    // Some accounts' usage starts at page 1: page 0 returns a valid but empty
+    // usage result, which would stop a full rescan immediately. Probe once and
+    // start where the data actually is.
+    let startPage = 0;
+    try {
+      const first = await probePage(0);
+      if (first && !first.includes("inputTokens:") && /usage:\s*\$R\[/.test(first)) {
+        const second = await probePage(1);
+        if (second && second.includes("inputTokens:")) {
+          startPage = 1;
+          log("page 0 empty but page 1 has data -> starting at page 1");
+        } else {
+          log("page 0 and page 1 both returned no usage -> server has no records for this workspace");
+        }
+      }
+    } catch (e) {}
+    page = startPage;
+
     while (hasMoreData) {
       const built = buildBodyPayload(payloadTemplate, workspaceID, page);
       const bodyPayload = built.body;
@@ -211,8 +259,8 @@ onmessage = async (e) => {
         break;
       }
 
-      const text = pageText;
-      if (!text.includes("inputTokens:")) {
+        const text = pageText;
+        if (!text.includes("inputTokens:")) {
         // A stale x-server-id doesn't always come back as 401/403: the
         // server can answer 200 with a Flight error payload (e.g.
         // RangeError: Invalid time value). The main thread re-captures +
@@ -225,17 +273,29 @@ onmessage = async (e) => {
         // with a DIFFERENT function payload (e.g. referral) when the SID
         // belongs to an older deploy. Page 0 must be usage data; a referral
         // payload here means stale SID (main thread re-captures + retries).
-        if (page === 0 && /referralCode|hasReferral|rewardAmount/.test(text)) {
+        if (page === startPage && /referralCode|hasReferral|rewardAmount/.test(text)) {
           log(`page 0: server answered with referral payload - treating as stale serverID`);
           throw new Error(`StaleServerID: page 0 answered with referral payload, not usage data`);
         }
-        // Stale f index or stale SID after a redeploy: empty
-        // `["server-fn:N"]=[]` on page 0 is only stale when we already have
-        // cached records; an account with no history legitimately returns
-        // an empty page 0 (end-of-history, not stale).
-        if (page === 0 && Object.keys(localCache).length > 0 && /\["server-fn:\d+"\]\s*=\s*\[\]/.test(text)) {
+        // Stale f index or stale SID after a redeploy: empty usage on page 0 is
+        // only stale when we already have cached records AND the response is
+        // not a valid usage envelope. When the server returns its `keys:` list
+        // (a real, just-empty usage result, e.g. a workspace with no usage)
+        // we must stop as end-of-data instead of re-capturing forever.
+        if (page === startPage && Object.keys(localCache).length > 0 && /\["server-fn:\d+"\]\s*=\s*\[\]/.test(text) && !/usage:\s*\$R\[/.test(text)) {
           log(`page 0: server answered with empty server-fn payload (f=${built.f}${built.observed ? ",observed" : ",default"}) - treating as stale serverID`);
           throw new Error(`StaleServerID: page 0 answered with empty server-fn payload (f=${built.f}), not usage data`);
+        }
+        // A valid but empty usage envelope on the first page means the server
+        // has no records for this workspace (aged out / not this account's
+        // active workspace). Stop without touching the local cache and report
+        // it distinctly so the UI shows the last synced data, not zero.
+        if (page === startPage && /usage:\s*\$R\[/.test(text)) {
+          serverEmpty = true;
+          stopReason = `server has no usage records for this workspace`;
+          note({ type: "info", message: `Server has no records for this workspace - showing last synced data` });
+          log(`crawl stopped: ${stopReason}`);
+          break;
         }
         const snippet = text.slice(0, 160).replace(/\s+/g, " ");
         stopReason = `page ${page} response has no records. Server said: ${snippet}`;
@@ -244,17 +304,18 @@ onmessage = async (e) => {
         break; // Last page reached / no usable data
       }
 
-      // Record shape (server is authoritative; `cost` is intentionally NOT stored):
-      // id, workspaceID, timeCreated, timeUpdated, timeDeleted, model,
-      // provider, input/output/reasoning/cacheRead/cacheWrite5m/cacheWrite1h,
-      // keyID, sessionID, enrichment{plan,costMultiplier} (may be null).
+      // Record shape (server is authoritative): id, workspaceID, timeCreated,
+      // timeUpdated, timeDeleted, model, provider, input/output/reasoning/
+      // cacheRead/cacheWrite5m/cacheWrite1h, cost (vendor USD*1e8 - the console
+      // stores it as a Redis incrby integer; /1e8 -> USD, opaque vendorCost per
+      // D16), keyID, sessionID, enrichment{plan,costMultiplier}.
       // $R[n]= prefixes are React Flight reference assignments - tolerated.
       const regex =
-        /id:\s*"([^"]+)",[\s\S]*?workspaceID:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?timeUpdated:[\s\S]*?(?:new Date\("([^"]+)"\)|null),[\s\S]*?timeDeleted:\s*(?:new Date\("([^"]+)"\)|null),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?provider:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null),[\s\S]*?keyID:\s*"([^"]+)",[\s\S]*?sessionID:\s*"([^"]+)",[\s\S]*?enrichment:(?:null|[\s\S]*?\{plan:"([^"]+)",costMultiplier:([\d.]+)\})/g;
+        /id:\s*"([^"]+)",[\s\S]*?workspaceID:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?timeUpdated:[\s\S]*?(?:new Date\("([^"]+)"\)|null),[\s\S]*?timeDeleted:\s*(?:new Date\("([^"]+)"\)|null),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?provider:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null),[\s\S]*?cost:\s*(-?[\d.]+|null),[\s\S]*?keyID:\s*"([^"]+)",[\s\S]*?sessionID:\s*"([^"]+)",[\s\S]*?enrichment:(?:null|[\s\S]*?\{plan:"([^"]+)",costMultiplier:([\d.]+)\})/g;
 
       // Legacy fallback (pre-sessionID server shape): new fields backfill as null.
       const legacyRegex =
-        /id:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null)/g;
+        /id:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null),[\s\S]*?cost:\s*(-?[\d.]+|null)/g;
 
       let match;
       let newRecordCount = 0; // Genuinely new (not previously cached)
@@ -289,6 +350,12 @@ onmessage = async (e) => {
           ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
           : "Unknown";
 
+        // Console `outputTokens` is INCLUSIVE of `reasoningTokens`; canonical
+        // `output` excludes reasoning (additive elsewhere) so totals/cost never
+        // double count it.
+        const outputTokens = parseSafe(match[9]);
+        const reasoningTokens = parseSafe(match[10]);
+
         localCache[id] = {
           workspaceID: match[2] || workspaceID,
           time: dateIso,
@@ -297,20 +364,23 @@ onmessage = async (e) => {
           model: match[6],
           provider: match[7] || null,
           input: parseSafe(match[8]),
-          output: parseSafe(match[9]),
-          reasoning: parseSafe(match[10]),
+          output: Math.max(0, outputTokens - reasoningTokens),
+          reasoning: reasoningTokens,
+          outputExcludesReasoning: true, // D23
           cacheRead: parseSafe(match[11]),
           cacheWrite5m: parseSafe(match[12]),
           cacheWrite1h: parseSafe(match[13]),
-          keyID: match[14] || null,
-          sessionID: match[15] || null,
-          plan: match[16] || null,
-          costMultiplier: match[17] !== undefined ? parseFloat(match[17]) : null,
+          vendorCost: match[14] !== "null" ? parseFloat(match[14]) : undefined,
+          costScale: 1e8, // raw vendor cost is USD×1e8; divided at compute time, never stored scaled
+          keyID: match[15] || null,
+          sessionID: match[16] || null,
+          plan: match[17] || null,
+          costMultiplier: match[18] !== undefined ? parseFloat(match[18]) : null,
         };
         pageWriteCount++;
         if (!existed) {
           newRecordCount++; // Genuinely new
-          newTokensTotal += parseSafe(match[8]) + parseSafe(match[9]) + parseSafe(match[10]) + parseSafe(match[11]) + parseSafe(match[12]) + parseSafe(match[13]);
+          newTokensTotal += parseSafe(match[8]) + outputTokens + parseSafe(match[11]) + parseSafe(match[12]) + parseSafe(match[13]);
         }
       }
 
@@ -332,6 +402,10 @@ onmessage = async (e) => {
             ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
             : "Unknown";
 
+          // Legacy shape: output is also INCLUSIVE of reasoning.
+          const outputTokens = parseSafe(match[5]);
+          const reasoningTokens = parseSafe(match[6]);
+
           localCache[id] = {
             workspaceID: workspaceID,
             time: dateIso,
@@ -340,11 +414,14 @@ onmessage = async (e) => {
             model: match[3],
             provider: null,
             input: parseSafe(match[4]),
-            output: parseSafe(match[5]),
-            reasoning: parseSafe(match[6]),
+            output: Math.max(0, outputTokens - reasoningTokens),
+            reasoning: reasoningTokens,
+            outputExcludesReasoning: true, // D23
             cacheRead: parseSafe(match[7]),
             cacheWrite5m: parseSafe(match[8]),
             cacheWrite1h: parseSafe(match[9]),
+            vendorCost: match[10] !== "null" ? parseFloat(match[10]) : undefined,
+            costScale: 1e8, // raw vendor cost is USD×1e8; divided at compute time
             keyID: null,
             sessionID: null,
             plan: null,
@@ -353,7 +430,7 @@ onmessage = async (e) => {
           pageWriteCount++;
           if (!existed) {
             newRecordCount++; // Genuinely new
-            newTokensTotal += parseSafe(match[4]) + parseSafe(match[5]) + parseSafe(match[6]) + parseSafe(match[7]) + parseSafe(match[8]) + parseSafe(match[9]);
+            newTokensTotal += parseSafe(match[4]) + outputTokens + parseSafe(match[7]) + parseSafe(match[8]) + parseSafe(match[9]);
           }
         }
       }
@@ -449,6 +526,7 @@ onmessage = async (e) => {
     newTokens: newTokensTotal,
     lastPage: page,
     stopReason,
+    serverEmpty,
   };
   // Terminal state goes through postMessage only; the main thread sends the
   // single crawl-done notification (this also covers the inline fallback,

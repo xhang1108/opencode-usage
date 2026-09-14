@@ -116,6 +116,8 @@ for (const row of rows) {
     cacheRead: t.cache?.read || 0,
     cacheWrite5m: t.cache?.write || 0, // local DB has no 5m/1h split; all goes to 5m
     cacheWrite1h: 0,
+    vendorCost: typeof msg.cost === "number" ? msg.cost : undefined, // opaque (D16)
+    costScale: 1, // local DB cost is already USD
   };
   sessions.add(row.pid);
   models.add(msg.modelID);

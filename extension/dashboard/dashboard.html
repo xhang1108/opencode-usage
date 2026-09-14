@@ -19,14 +19,6 @@
       justify-content: space-between;
       align-items: center;
     }
-    #btnExportCSV {
-      background: rgba(242, 237, 237, 0.12);
-      color: var(--text);
-      border: 1px solid rgba(242, 237, 237, 0.25);
-    }
-    #btnExportCSV:hover:not(:disabled) {
-      background: rgba(242, 237, 237, 0.2);
-    }
     h1 {
       margin: 0;
       font-size: 26px;
@@ -38,9 +30,22 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 12px 16px;
+      padding: 14px 16px;
       color: var(--text-muted);
       font-size: 12.5px;
+      line-height: 1.6;
+    }
+    .notice-badges {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      vertical-align: middle;
+      margin: 6px 6px 0 0;
+    }
+    .notice-hint {
+      display: block;
+      margin-top: 8px;
+      opacity: 0.75;
     }
 
     /* Responsive multi-row filter bar */
@@ -207,6 +212,126 @@
       max-height: 85vh; display: flex; flex-direction: column;
     }
     .modal--rates { width: min(820px, 96vw); }
+    .modal--settings { width: min(900px, 96vw); max-height: 90vh; }
+    .settings-tabs {
+      display: flex; gap: 4px; border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .settings-tab {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--text-muted); font-family: inherit; font-size: 13px; font-weight: 600;
+      padding: 8px 14px; cursor: pointer;
+    }
+    .settings-tab:hover { color: var(--text); }
+    .settings-tab.active { color: var(--text); border-bottom-color: var(--primary); }
+    /* The body is the single scroll region; panes expand to their natural
+       height. `[hidden]` must win over .settings-pane's own display. */
+    .settings-body { flex: 1; min-height: 0; overflow-y: auto; }
+    .settings-pane { display: block; }
+    .settings-pane[hidden] { display: none !important; }
+    .settings-field { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .settings-field label { color: var(--text-muted); font-size: 12.5px; white-space: nowrap; }
+    .settings-field select { max-width: 320px; }
+    .settings-summary { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; margin-bottom: 8px; }
+    .settings-kv { display: contents; }
+    .settings-kv span { color: var(--text-muted); font-size: 12.5px; }
+    .settings-kv b { font-variant-numeric: tabular-nums; text-align: right; }
+    .settings-section-title { font-size: 13px; font-weight: 700; margin: 16px 0 8px; }
+    .settings-vendor, .settings-inbox-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      background: var(--bg-content); border: 1px solid var(--border-muted);
+      border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 8px;
+    }
+    .settings-vendor.disabled { opacity: 0.6; }
+    .settings-vendor-main, .settings-inbox-key { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .settings-vendor-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .settings-vendor-meta, .settings-inbox-age { color: var(--text-disabled); font-size: 11px; }
+    .settings-vendor-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+    .settings-price-choice { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
+    .settings-inbox-key code { font-family: var(--font-mono); font-size: 12px; }
+    .settings-target-info { margin: 10px 0; padding: 10px 12px; background: var(--bg-content); border: 1px solid var(--border-muted); border-radius: var(--radius-md); display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; }
+    .settings-target-editor .rates-json { min-height: 180px; }
+    .settings-mapped { grid-column: 1 / -1; margin-top: 6px; color: var(--text-secondary); font-size: 11.5px; line-height: 1.5; }
+    .settings-mono { font-family: var(--font-mono); }
+    /* Unified pricing board */
+    .up-master { border-color: var(--primary); }
+    .up-muted { opacity: 0.5; }
+    .up-unassigned {
+      display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px; padding: 10px;
+      background: var(--bg-content); border: 1px dashed var(--border-muted);
+      border-radius: var(--radius-md); margin-bottom: 6px;
+    }
+    .up-chip {
+      display: inline-flex; align-items: center; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
+      font-family: var(--font-mono); font-size: 11.5px; cursor: grab; user-select: none;
+    }
+    .up-chip.dragging { opacity: 0.4; }
+    .up-group {
+      background: var(--bg-content); border: 1px solid var(--border-muted);
+      border-radius: var(--radius-md); padding: 12px; margin-bottom: 10px;
+    }
+    .up-group.drop-hot, .up-unassigned.drop-hot { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106,143,192,0.15); }
+    .up-group-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .up-group-head strong { font-family: var(--font-mono); font-size: 12.5px; }
+    .up-group-head .up-group-name { max-width: 260px; font-family: var(--font-mono); font-size: 12.5px; padding: 4px 8px; }
+    .up-group-count { color: var(--text-disabled); font-size: 11px; }
+    .up-group-head .up-group-del { margin-left: auto; }
+    .up-group-models {
+      display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; padding: 8px;
+      border: 1px dashed var(--border-muted); border-radius: var(--radius-sm); margin-bottom: 8px;
+    }
+    .up-group .rates-json { min-height: 160px; }
+    .up-empty { color: var(--text-disabled); font-size: 11.5px; }
+    /* Pin the drag source so chips stay reachable while scrolling the groups. */
+    .up-sticky {
+      position: sticky; top: 0; z-index: 6;
+      background: var(--surface);
+      padding: 10px 0 8px; margin: 0 0 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .up-sticky .up-unassigned { max-height: 120px; overflow-y: auto; }
+    .up-group-rates > summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 4px 0; }
+    .up-group-rates[open] > summary { margin-bottom: 6px; }
+    .up-off-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      background: var(--bg-content); border: 1px solid var(--primary);
+      border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px;
+    }
+    .up-off-bar span { color: var(--text-secondary); font-size: 12.5px; }
+    .up-board.up-locked { opacity: 0.45; }
+    .up-json-details { margin: 0 0 14px; }
+    .up-json-details > summary { cursor: pointer; color: var(--text-secondary); font-size: 12.5px; font-weight: 600; }
+    /* How it works reference page */
+    .hw-vendors { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; }
+    .hw-jump {
+      background: var(--bg-content); border: 1px solid var(--border-muted);
+      border-radius: 999px; color: var(--text-secondary); font-family: inherit;
+      font-size: 12px; padding: 4px 12px; cursor: pointer;
+    }
+    .hw-jump:hover { color: var(--text); border-color: var(--border); }
+    .hw-sec { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 18px; }
+    .hw-sec:first-of-type { border-top: none; margin-top: 0; }
+    .hw-sec h4 { margin: 0 0 4px; font-size: 14px; }
+    .hw-tag {
+      display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .04em; color: var(--primary); background: rgba(106,143,192,0.12);
+      border-radius: 999px; padding: 2px 8px; margin-left: 8px; vertical-align: middle;
+    }
+    .hw-src { color: var(--text-disabled); font-size: 11.5px; margin: 0 0 10px; }
+    .hw-sec p { margin: 6px 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.6; }
+    .hw-sec ul { margin: 6px 0; padding-left: 18px; color: var(--text-secondary); font-size: 12.5px; line-height: 1.6; }
+    .hw-sec li { margin: 3px 0; }
+    .hw-sec code { font-family: var(--font-mono); font-size: 11.5px; }
+    .hw-kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0; }
+    .hw-kv dt { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+    .hw-kv dd { margin: 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.6; }
+    .hw-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+    .hw-table th, .hw-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border-muted); vertical-align: top; }
+    .hw-table th { color: var(--text-muted); font-weight: 600; }
+    .hw-table td { color: var(--text-secondary); }
+    .hw-table code { font-family: var(--font-mono); }
+    .hw-kv-table th { white-space: nowrap; vertical-align: top; width: 1%; padding-right: 16px; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .modal-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
     .modal-close { background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; }
@@ -387,6 +512,44 @@
       background: rgba(106, 143, 192, 0.12);
       color: var(--primary);
     }
+    .select-option-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .select-option-check input[type="checkbox"] {
+      margin: 0;
+      flex-shrink: 0;
+      accent-color: var(--primary);
+    }
+    .select-option-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .select-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 8px 6px 6px;
+      margin: -6px -6px 6px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: -6px;
+      background: var(--surface);
+      z-index: 1;
+    }
+    .select-footer .btn-link {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+    .select-footer .btn-link:hover { text-decoration: underline; }
 
     /* Time reminder */
     .time-card { padding: 16px 20px; }
@@ -487,12 +650,11 @@
     <header>
       <h1>Opencode Token Usage</h1>
       <div style="display:flex; gap:10px;">
-        <button class="btn btn-secondary" id="btnRates">Rate Settings</button>
-        <button class="btn btn-secondary" id="btnImportLocal" title="Import records exported by tools/import-local.mjs from the local opencode.db">Import Local JSON</button>
-        <button class="btn btn-primary" id="btnExportCSV">Export Filtered Data (CSV)</button>
+        <button class="btn btn-secondary" id="btnSettings">Settings</button>
+        <button class="btn btn-primary" id="btnImportExport" title="Import vendor exports (MiMo XLSX, opencode local JSON) or a backup (settings JSON + records CSV). Multi-select a mix of types.">Import Usage</button>
       </div>
     </header>
-    <input type="file" id="localImportFile" accept=".json,application/json" hidden>
+    <input type="file" id="importExportFile" accept=".csv,.json,.xlsx" multiple hidden>
 
     <!-- Time reminder -->
     <div class="card time-card" id="time-card">
@@ -539,9 +701,7 @@
             <div class="select-options" id="wsSelectOptions"></div>
           </div>
         </div>
-        <select class="input" id="workspaceSelect" hidden>
-          <option value="ALL">All Workspaces (Total)</option>
-        </select>
+        <select class="input" id="workspaceSelect" hidden></select>
       </div>
       <div class="filter-group">
         <label for="modelSelect">Model:</label>
@@ -554,9 +714,7 @@
             <div class="select-options" id="modelSelectOptions"></div>
           </div>
         </div>
-        <select class="input" id="modelSelect" hidden>
-          <option value="ALL">All Models</option>
-        </select>
+        <select class="input" id="modelSelect" hidden></select>
       </div>
       <div class="filter-group date-range-group">
         <label>Date Range:</label>
@@ -595,9 +753,9 @@
     <!-- Key metric KPI cards -->
     <div class="stats-grid">
       <div class="card">
-        <div class="title">Total Requests</div>
+        <div class="title" title="Counts differ by vendor. opencode: one per usage record. CommandCode / DeepSeek / OpenRouter / MiMo: the vendor's own request count (CommandCode is aggregated into 5-minute buckets). When vendors are mixed, this total is approximate.">Total Data</div>
         <div class="value" id="statRequests">0</div>
-        <div class="sub" id="statAvgCostPerReq">Avg per request: $0.0000</div>
+        <div class="sub" id="statAvgCostPerReq">Avg per data: $0.0000</div>
       </div>
       <div class="card">
         <div class="title">Estimated Cost</div>
@@ -609,7 +767,7 @@
       <div class="card">
         <div class="title">Total Tokens</div>
         <div class="value" id="statTokens">0</div>
-        <div class="sub" id="statAvgTokens">Avg tokens/request: 0</div>
+        <div class="sub" id="statAvgTokens">Avg tokens/data: 0</div>
         <div class="sub" id="statAvgTokensPerDay">Avg tokens/day: 0</div>
       </div>
       <div class="card">
@@ -668,7 +826,7 @@
           <thead>
             <tr>
               <th data-col="ws" class="sortable">Workspace ID</th>
-              <th data-col="req" class="sortable">Requests</th>
+              <th data-col="req" class="sortable">Data</th>
               <th data-col="tokens" class="sortable">Total Tokens</th>
               <th data-col="hitRate" class="sortable">Cache Hit Rate</th>
               <th data-col="cost" class="sortable">Estimated Cost</th>
@@ -689,7 +847,8 @@
           <thead id="modelTableHead">
             <tr>
               <th>Model</th>
-              <th>Requests</th>
+              <th>Source</th>
+              <th>Data</th>
               <th>Input</th>
               <th>Output</th>
               <th>Cache Read</th>
@@ -698,57 +857,58 @@
             </tr>
           </thead>
           <tbody id="modelTableBody">
-            <tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No data loaded yet</td></tr>
+            <tr><td colspan="8" style="text-align:center; color: var(--text-muted);">No data loaded yet</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- Rate settings modal — JSON only -->
-  <div class="modal-overlay" id="ratesModal" style="display:none;">
-    <div class="modal modal--rates">
+  <!-- Settings modal — General / Vendors / Pricing / How it works -->
+  <div class="modal-overlay" id="settingsModal" style="display:none;">
+    <div class="modal modal--settings">
       <div class="modal-head">
-        <h3>Model Rate Settings (JSON)</h3>
-        <button class="modal-close" id="ratesClose">✕</button>
+        <h3>Settings</h3>
+        <button class="modal-close" id="settingsClose">✕</button>
       </div>
-      <p class="modal-hint">Edit JSON to configure rates. Supports full config or just the <code>models</code> array.</p>
-      <div id="ratesError" class="rates-error" hidden></div>
-      <textarea id="ratesJson" class="rates-json" spellcheck="false" placeholder='{"version":5,"timezone":"UTC","models":[...]}'></textarea>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" id="ratesReset">Reset to Defaults</button>
-        <button class="btn btn-secondary" id="ratesCopy">Copy</button>
-        <button class="btn btn-secondary" id="ratesExport">Export JSON</button>
-        <label class="btn btn-secondary" for="ratesImportFile" id="ratesImport" style="cursor:pointer;">Import JSON</label>
-        <input type="file" id="ratesImportFile" accept=".json,application/json" hidden>
-        <button class="btn btn-secondary" id="ratesFormat">Format</button>
-        <button class="btn btn-primary" id="ratesSave">Save</button>
+      <div class="settings-tabs">
+        <button type="button" class="settings-tab" data-tab="general">General</button>
+        <button type="button" class="settings-tab" data-tab="vendors">Vendors</button>
+        <button type="button" class="settings-tab" data-tab="pricing">Pricing</button>
+        <button type="button" class="settings-tab" data-tab="how">How it works</button>
       </div>
-    </div>
-  </div>
+      <div class="settings-body">
+        <section class="settings-pane" id="settings-general">
+          <div class="settings-field">
+            <label for="generalDefaultCrawl">Default crawl vendor</label>
+            <select class="input" id="generalDefaultCrawl"></select>
+          </div>
+          <div class="settings-summary" id="generalSummary"></div>
+          <div class="settings-section-title">Workspaces</div>
+          <div id="generalWorkspaces"></div>
+          <div class="settings-section-title">Local usage import</div>
+          <p class="modal-hint">Export your local opencode database, then add the JSON via <strong>Import Usage</strong>. Serves models the server no longer reports (e.g. free models).</p>
+          <div class="cmd-box">
+            <code id="generalLocalCmd">node tools/import-local.mjs --out opencode_local_records.json</code>
+            <button class="btn btn-secondary" id="generalLocalCopy">Copy</button>
+          </div>
+          <div class="notice" id="generalLocalStatus" style="margin:10px 0;">No local records imported yet.</div>
+          <div class="modal-actions">
+            <button class="btn btn-danger" id="generalLocalClear" title="Remove all locally imported records">Clear local records</button>
+            <button class="btn btn-secondary" id="generalExportFull" title="Download a backup: opencode-usage_settings_*.json (settings + pricing) and opencode-usage_records_*.csv (every record, every source).">Export Backup</button>
+          </div>
+        </section>
 
-  <!-- Local import guide modal -->
-  <div class="modal-overlay" id="localImportModal" style="display:none;">
-    <div class="modal">
-      <div class="modal-head">
-        <h3>Import Local Usage</h3>
-        <button class="modal-close" id="localImportClose">✕</button>
-      </div>
-      <ol class="steps">
-        <li>Run in the repo folder (Node ≥ 22.5):</li>
-      </ol>
-      <div class="cmd-box">
-        <code id="localImportCmd">node tools/import-local.mjs --out opencode_local_records.json</code>
-        <button class="btn btn-secondary" id="localImportCopy">Copy</button>
-      </div>
-      <ol class="steps" start="2">
-        <li>Click <strong>Select JSON file</strong> and choose the exported file.</li>
-      </ol>
-      <div class="notice" id="localImportStatus" style="margin-bottom:12px;">No local records imported yet.</div>
-      <div class="modal-actions">
-        <button class="btn btn-danger" id="localImportClear" title="Remove all locally imported records">Clear local records</button>
-        <button class="btn btn-secondary" id="localImportCancel">Close</button>
-        <button class="btn btn-primary" id="localImportPick">Select JSON file</button>
+        <section class="settings-pane" id="settings-vendors" hidden>
+          <p class="modal-hint">Enable the vendors you use. <strong>Unified pricing</strong> bills every vendor from your own price list (see the Pricing tab); when it is off, vendors fall back to their reported spend or the shipped price tables.</p>
+          <div id="vendorsList"></div>
+        </section>
+
+        <section class="settings-pane" id="settings-pricing" hidden>
+          <div id="pricingBoard"></div>
+        </section>
+
+        <section class="settings-pane" id="settings-how" hidden></section>
       </div>
     </div>
   </div>

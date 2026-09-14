@@ -16,6 +16,7 @@
   let lastServerID = null;
   let pendingCrawl = null; // Pending crawl awaiting a serverID { forceRescan }
   let exportCache = null;  // In-memory merged export cache (see readAllCache)
+  let interceptorInjected = false;
 
   const notify = (msg) => {
     try {
@@ -56,6 +57,10 @@
       lastSeenWorkspace = ws;
       storageSet({ lastVisitedWorkspace: ws, lastVisitedAt: Date.now() });
     }
+    // SPA: the usage page can be reached after injection, so make sure the
+    // interceptor is (re)injected whenever we land on it - without it the SID
+    // is never captured and the crawl can't start.
+    ensureInterceptor();
   }
   trackVisitedWorkspace();
   setInterval(trackVisitedWorkspace, 1000);
@@ -327,14 +332,20 @@
   }
 
   // ---------- ServerID capture (MAIN world, injected by background to bypass page CSP) ----------
-  const injectInterceptor = () => {
+  function injectInterceptor() {
     try {
       const p = chrome.runtime.sendMessage({ type: "inject-interceptor" });
       if (p && typeof p.catch === "function") p.catch(() => {});
     } catch (e) {
       // Ignore when the background isn't ready
     }
-  };
+  }
+
+  function ensureInterceptor() {
+    if (interceptorInjected || !isUsagePage()) return;
+    interceptorInjected = true;
+    injectInterceptor();
+  }
 
   // Stored SID goes stale on redeploy; also expire by age so a days-old
   // ID is never trusted blindly (forces a fresh capture instead).
@@ -344,7 +355,7 @@
   async function recordServerID(serverID) {
     if (serverID === lastServerID) return;
     lastServerID = serverID;
-    await storageSet({ lastServerID: serverID, lastServerIDAt: Date.now() });
+    await storageSet({ lastServerID: serverID, lastServerIDAt: Date.now(), lastServerIDWorkspace: getWorkspaceID() || null });
   }
 
   // Observed request template (captured from the page's own /_server traffic
@@ -408,9 +419,7 @@
   });
 
   // ---------- Init: inject the interceptor only (no auto crawling) ----------
-  if (isUsagePage()) {
-    injectInterceptor();
-  }
+  ensureInterceptor();
 
   // ---------- Message handling (from background / popup) ----------
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -466,9 +475,16 @@
     // to capture a FRESH one by kicking the page; fall back to the stored value
     // only if a fresh capture times out.
     if (!lastServerID) {
-      const { lastServerID: sid, lastServerIDAt: sidAt } = await storageGet(["lastServerID", "lastServerIDAt"]);
+      const { lastServerID: sid, lastServerIDAt: sidAt, lastServerIDWorkspace: sidWs } = await storageGet(["lastServerID", "lastServerIDAt", "lastServerIDWorkspace"]);
+      const ws = getWorkspaceID();
       if (sid) {
-        if (sidAt && Date.now() - sidAt > SID_TTL_MS) {
+        if (sidWs && ws && sidWs !== ws) {
+          // Account/workspace switched - the stored SID belongs to the old one.
+          clog(`stored serverID is for another workspace (${sidWs} != ${ws}), discarding`);
+          await storageRemove("lastServerID");
+          await storageRemove("lastServerIDAt");
+          await storageRemove("lastServerIDWorkspace");
+        } else if (sidAt && Date.now() - sidAt > SID_TTL_MS) {
           clog(`stored serverID expired (age ${((Date.now() - sidAt) / 3600000).toFixed(1)}h), discarding`);
           await storageRemove("lastServerID");
           await storageRemove("lastServerIDAt");
@@ -532,6 +548,12 @@
         lastServerID = null;
         await storageRemove("lastServerID");
         await storageRemove("lastServerIDAt");
+        await storageRemove("lastServerIDWorkspace");
+        // The observed request template can also be stale (account switch or
+        // redeploy). Drop it so the retry either re-observes a fresh one or
+        // falls back to the built-in shape with the current workspace + f.
+        lastPayloadTemplate = null;
+        await storageRemove("lastServerPayload");
         pendingCrawl = { forceRescan: !!forceRescan };
         clog("serverID stale, re-capturing (page will be clicked) and retrying crawl once…");
         const sid = await refreshServerID(8000);
@@ -626,6 +648,10 @@
     let newTokensTotal = 0; // Sum of all token fields of genuinely new records
     let fileHandle;
     let stopReason = "";
+    // True when the server itself has no records for this workspace (valid but
+    // empty usage envelope on the first page). The local cache is left intact so
+    // the UI can keep showing the last synced data instead of dropping to zero.
+    let serverEmpty = false;
     // Persist incrementally every few pages so a mid-crawl stall/interruption
     // (closed tab, throttled session) keeps everything fetched so far.
     const WRITE_EVERY_PAGES = 5;
@@ -652,6 +678,45 @@
       await writable.write(JSON.stringify(localCache));
       await writable.close();
     };
+
+    // One-shot page fetch used to probe the page index base.
+    const probePage = async (pg) => {
+      try {
+        const built = buildBodyPayload(payloadTemplate, workspaceID, pg);
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 20000);
+        const resp = await fetch("https://opencode.ai/_server", {
+          headers: { accept: "*/*", "content-type": "application/json", "x-server-id": serverID, "x-server-instance": "server-fn:1" },
+          body: built.body,
+          method: "POST",
+          credentials: "include",
+          signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+        if (!resp.ok) return null;
+        return await resp.text();
+      } catch (e) {
+        return null;
+      }
+    };
+
+    // Some accounts' usage starts at page 1: page 0 returns a valid but empty
+    // result, which would stop a full rescan immediately. Probe once and start
+    // where the data actually is.
+    let startPage = 0;
+    try {
+      const first = await probePage(0);
+      if (first && !first.includes("inputTokens:") && /usage:\s*\$R\[/.test(first)) {
+        const second = await probePage(1);
+        if (second && second.includes("inputTokens:")) {
+          startPage = 1;
+          clog("page 0 empty but page 1 has data -> starting at page 1");
+        } else {
+          clog("page 0 and page 1 both returned no usage -> server has no records for this workspace");
+        }
+      }
+    } catch (e) {}
+    page = startPage;
 
     try {
       while (hasMoreData) {
@@ -746,19 +811,30 @@
           // with a DIFFERENT function payload (e.g. referral) when the SID
           // belongs to an older deploy. Page 0 must be usage data; a referral
           // payload here means stale SID (re-capture + retry once).
-          if (page === 0 && /referralCode|hasReferral|rewardAmount/.test(text)) {
+          if (page === startPage && /referralCode|hasReferral|rewardAmount/.test(text)) {
             clog(`page 0: server answered with referral payload - treating as stale serverID, will re-capture and retry once`);
             throw new Error(`StaleServerID: page 0 answered with referral payload, not usage data`);
           }
           // Stale f index or stale SID after a redeploy: the server answers
-          // 200 with an empty `["server-fn:N"]=[]` Flight payload (no usage
-          // rows). Page 0 can only be stale when we ALREADY have cached
-          // records for this workspace - an account with no history yet
-          // legitimately returns an empty page 0 (end-of-history, not stale).
+          // 200 with an empty usage payload. Page 0 is only stale when we
+          // ALREADY have cached records AND the response is not a valid usage
+          // envelope. A server response carrying its `keys:` list is a real
+          // (just-empty) usage result - stop as end-of-data, don't re-capture.
           const cachedCount = Object.keys(localCache).length;
-          if (page === 0 && cachedCount > 0 && /\["server-fn:\d+"\]\s*=\s*\[\]/.test(text)) {
+          if (page === startPage && cachedCount > 0 && /\["server-fn:\d+"\]\s*=\s*\[\]/.test(text) && !/usage:\s*\$R\[/.test(text)) {
             clog(`page 0: server answered with empty server-fn payload (f=${built.f}${built.observed ? ",observed" : ",default"}) - treating as stale, will re-capture and retry once`);
             throw new Error(`StaleServerID: page 0 answered with empty server-fn payload (f=${built.f}), not usage data`);
+          }
+          // A valid but empty usage envelope on the first page means the server
+          // has no records for this workspace (aged out / not this account's
+          // active workspace). Stop without touching the local cache and report
+          // it distinctly so the UI shows the last synced data, not zero.
+          if (page === startPage && /usage:\s*\$R\[/.test(text)) {
+            serverEmpty = true;
+            stopReason = `server has no usage records for this workspace`;
+            notify({ type: "info", message: `Server has no records for this workspace - showing last synced data` });
+            clog(`crawl stopped: ${stopReason}`);
+            break;
           }
           // No data rows in the response. Show a hint so we can tell a stale server
           // ID / session expiry from a genuinely empty page.
@@ -769,18 +845,19 @@
           break; // Last page reached / no usable data
         }
 
-        // Record shape (server is authoritative; `cost` is intentionally NOT stored):
-        // id, workspaceID, timeCreated, timeUpdated, timeDeleted, model,
-        // provider, input/output/reasoning/cacheRead/cacheWrite5m/cacheWrite1h,
-        // keyID, sessionID, enrichment{plan,costMultiplier} (may be null).
+        // Record shape (server is authoritative): id, workspaceID, timeCreated,
+        // timeUpdated, timeDeleted, model, provider, input/output/reasoning/
+        // cacheRead/cacheWrite5m/cacheWrite1h, cost (vendor USD*1e8 - the console
+        // stores it as a Redis incrby integer; /1e8 -> USD, opaque vendorCost per
+        // D16), keyID, sessionID, enrichment{plan,costMultiplier}.
         // $R[n]= prefixes are React Flight reference assignments - tolerated.
         const regex =
-          /id:\s*"([^"]+)",[\s\S]*?workspaceID:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?timeUpdated:[\s\S]*?(?:new Date\("([^"]+)"\)|null),[\s\S]*?timeDeleted:\s*(?:new Date\("([^"]+)"\)|null),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?provider:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null),[\s\S]*?keyID:\s*"([^"]+)",[\s\S]*?sessionID:\s*"([^"]+)",[\s\S]*?enrichment:(?:null|[\s\S]*?\{plan:"([^"]+)",costMultiplier:([\d.]+)\})/g;
+          /id:\s*"([^"]+)",[\s\S]*?workspaceID:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?timeUpdated:[\s\S]*?(?:new Date\("([^"]+)"\)|null),[\s\S]*?timeDeleted:\s*(?:new Date\("([^"]+)"\)|null),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?provider:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null),[\s\S]*?cost:\s*(-?[\d.]+|null),[\s\S]*?keyID:\s*"([^"]+)",[\s\S]*?sessionID:\s*"([^"]+)",[\s\S]*?enrichment:(?:null|[\s\S]*?\{plan:"([^"]+)",costMultiplier:([\d.]+)\})/g;
 
         // Legacy fallback (pre-sessionID server shape): keeps the crawler working
         // if the server ever omits the new fields. New fields backfill as null.
         const legacyRegex =
-          /id:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null)/g;
+          /id:\s*"([^"]+)",[\s\S]*?timeCreated:[\s\S]*?new Date\("([^"]+)"\),[\s\S]*?model:\s*"([^"]+)",[\s\S]*?inputTokens:\s*(\d+|null),[\s\S]*?outputTokens:\s*(\d+|null),[\s\S]*?reasoningTokens:\s*(\d+|null),[\s\S]*?cacheReadTokens:\s*(\d+|null),[\s\S]*?cacheWrite5mTokens:\s*(\d+|null),[\s\S]*?cacheWrite1hTokens:\s*(\d+|null),[\s\S]*?cost:\s*(-?[\d.]+|null)/g;
 
         let match;
         let newRecordCount = 0; // Genuinely new (not previously cached)
@@ -816,6 +893,11 @@
             ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
             : "Unknown";
 
+          // Console `outputTokens` is INCLUSIVE of `reasoningTokens`; canonical
+          // `output` excludes reasoning (additive elsewhere). Subtract here so
+          // the dashboard total/cost never double counts reasoning.
+          const outputTokens = parseSafe(match[9]);
+          const reasoningTokens = parseSafe(match[10]);
           const record = {
             workspaceID: match[2] || workspaceID,
             time: dateIso,
@@ -824,22 +906,25 @@
             model: match[6],
             provider: match[7] || null,
             input: parseSafe(match[8]),
-            output: parseSafe(match[9]),
-            reasoning: parseSafe(match[10]),
+            output: Math.max(0, outputTokens - reasoningTokens),
+            reasoning: reasoningTokens,
+            outputExcludesReasoning: true, // D23: output already excludes reasoning
             cacheRead: parseSafe(match[11]),
             cacheWrite5m: parseSafe(match[12]),
             cacheWrite1h: parseSafe(match[13]),
-            keyID: match[14] || null,
-            sessionID: match[15] || null,
-            plan: match[16] || null,
-            costMultiplier: match[17] !== undefined ? parseFloat(match[17]) : null,
+            vendorCost: match[14] !== "null" ? parseFloat(match[14]) : undefined,
+            costScale: 1e8, // raw vendor cost is USD×1e8; divided at compute time, never stored scaled
+            keyID: match[15] || null,
+            sessionID: match[16] || null,
+            plan: match[17] || null,
+            costMultiplier: match[18] !== undefined ? parseFloat(match[18]) : null,
           };
 
           localCache[id] = record;
           pageWriteCount++;
           if (!existed) {
             newRecordCount++; // Genuinely new
-            newTokensTotal += record.input + record.output + record.reasoning + record.cacheRead + record.cacheWrite5m + record.cacheWrite1h;
+            newTokensTotal += record.input + outputTokens + record.cacheRead + record.cacheWrite5m + record.cacheWrite1h;
           }
           // Content scripts share the page's main thread: yield every 200
           // records so a huge page can't freeze the usage tab while parsing.
@@ -864,6 +949,9 @@
               ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`
               : "Unknown";
 
+            // Legacy shape: output is also INCLUSIVE of reasoning.
+            const outputTokens = parseSafe(match[5]);
+            const reasoningTokens = parseSafe(match[6]);
             const record = {
               workspaceID: workspaceID,
               time: dateIso,
@@ -872,11 +960,14 @@
               model: match[3],
               provider: null,
               input: parseSafe(match[4]),
-              output: parseSafe(match[5]),
-              reasoning: parseSafe(match[6]),
+              output: Math.max(0, outputTokens - reasoningTokens),
+              reasoning: reasoningTokens,
+              outputExcludesReasoning: true, // D23
               cacheRead: parseSafe(match[7]),
               cacheWrite5m: parseSafe(match[8]),
               cacheWrite1h: parseSafe(match[9]),
+              vendorCost: match[10] !== "null" ? parseFloat(match[10]) : undefined,
+              costScale: 1e8, // raw vendor cost is USD×1e8; divided at compute time
               keyID: null,
               sessionID: null,
               plan: null,
@@ -887,7 +978,7 @@
             pageWriteCount++;
             if (!existed) {
               newRecordCount++; // Genuinely new
-              newTokensTotal += record.input + record.output + record.reasoning + record.cacheRead + record.cacheWrite5m + record.cacheWrite1h;
+              newTokensTotal += record.input + outputTokens + record.cacheRead + record.cacheWrite5m + record.cacheWrite1h;
             }
             if (++parseYield % 200 === 0) await new Promise((r) => setTimeout(r, 0));
           }
@@ -968,6 +1059,7 @@
       newTokens: newTokensTotal,
       lastPage: page,
       stopReason,
+      serverEmpty,
     };
   }
 
@@ -978,6 +1070,18 @@
   // read - and only rebuild the merged export when a file actually changed.
   // Invalidated by a completed crawl (see startCrawling) and whenever the
   // fingerprint changes.
+  // D23 self-heal for crawl rows written before the parser stored an exclusive
+  // `output` (legacy rows kept console outputTokens, reasoning INCLUDED, and
+  // core adds reasoning again). Idempotent via the outputExcludesReasoning flag.
+  // Mirror of shared/canonical.healOpencodeCrawlOutput (keep in sync).
+  function healOpencodeCrawlOutput(rec) {
+    if (!rec || typeof rec !== "object" || rec.outputExcludesReasoning) return rec;
+    const reasoning = Number(rec.reasoning) || 0;
+    if (reasoning > 0) rec.output = Math.max(0, (Number(rec.output) || 0) - reasoning);
+    rec.outputExcludesReasoning = true;
+    return rec;
+  }
+
   async function readAllCache() {
     const root = await navigator.storage.getDirectory();
     const entries = [];
@@ -1007,6 +1111,7 @@
       const data = JSON.parse(text);
       for (const [id, rec] of Object.entries(data)) {
         if (!rec.workspaceID) rec.workspaceID = inferredWS;
+        healOpencodeCrawlOutput(rec); // D23 legacy repair
         globalCache[id] = rec;
       }
       files.push({ name, count: Object.keys(data).length });

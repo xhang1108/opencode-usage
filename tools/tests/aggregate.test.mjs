@@ -31,7 +31,7 @@ test("aggregate totals and local-day buckets", () => {
   assert.equal(a.totals.tokens, 3600);
   assert.equal(a.dailyTokenMap[DAY1], 3000);
   assert.equal(a.dailyTokenMap[DAY2], 600);
-  assert.equal(a.modelMap.m1.req, 2);
+  assert.equal(a.modelMap["opencode:m1"].req, 2);
   assert.equal(a.topModel, "m1");
   assert.equal(a.minDate, DAY1);
   assert.equal(a.maxDate, DAY2);
@@ -41,8 +41,8 @@ test("aggregate pre-aggregates workspaces before model/ws filters", () => {
   const a = aggregate(records, { price, selectedModel: "m1" });
   assert.equal(a.filtered.length, 2);
   assert.equal(a.totals.req, 2);
-  assert.equal(a.wsMap.w1.req, 2);
-  assert.equal(a.wsMap.w2.req, 1); // still counted in the workspace rollup
+  assert.equal(a.wsMap["opencode:w1"].req, 2);
+  assert.equal(a.wsMap["opencode:w2"].req, 1); // still counted in the workspace rollup
 });
 
 test("aggregate buckets hourly minutes in local time", () => {
@@ -69,4 +69,50 @@ test("aggregate reports unpriced models only among filtered records", () => {
 test("listWorkspaces and listModels are sorted and de-duplicated", () => {
   assert.deepEqual(listWorkspaces(records), ["w1", "w2"]);
   assert.deepEqual(listModels(records), ["m1", "m2"]);
+});
+
+test("aggregate sums the requests field, defaulting to 1 per record", () => {
+  const recs = [
+    { id: "a", time: at(2026, 9, 12, 10, 0), model: "m1", workspaceID: "w1", input: 10, requests: 5 },
+    { id: "b", time: at(2026, 9, 12, 11, 0), model: "m1", workspaceID: "w1", input: 10 },
+    { id: "c", time: at(2026, 9, 12, 12, 0), model: "m2", workspaceID: "w1", input: 10, requests: 0 },
+  ];
+  const a = aggregate(recs, { price });
+  assert.equal(a.totals.req, 7); // 5 + 1 + (0 -> 1)
+  assert.equal(a.modelMap["opencode:m1"].req, 6);
+  assert.equal(a.modelMap["opencode:m2"].req, 1);
+});
+
+test("aggregate totals add reasoning on top of an exclusive output", () => {
+  const recs = [
+    { id: "r", time: at(2026, 9, 12, 10, 0), model: "m1", workspaceID: "w1", input: 100, output: 300, reasoning: 200, cacheRead: 50 },
+  ];
+  const a = aggregate(recs, { price });
+  assert.equal(a.totals.tokens, 650); // 100 + 300 + 200 + 50
+  assert.equal(a.modelMap["opencode:m1"].output, 300); // reasoning kept separate
+});
+
+test("aggregate keys workspaces per source and filters by the composite key", () => {
+  const recs = [
+    { id: "a", time: at(2026, 9, 12, 10, 0), model: "m", source: "opencode", workspaceID: "x", input: 10 },
+    { id: "b", time: at(2026, 9, 12, 11, 0), model: "m", source: "deepseek-official", workspaceID: "x", input: 20 },
+  ];
+  const all = aggregate(recs, { price });
+  assert.deepEqual(Object.keys(all.wsMap).sort(), ["deepseek-official:x", "opencode:x"]);
+  const only = aggregate(recs, { price, selectedWS: "deepseek-official:x" });
+  assert.equal(only.totals.req, 1);
+  assert.equal(only.filtered[0].id, "b");
+});
+
+test("aggregate keeps same-named models from different sources separate", () => {
+  const recs = [
+    { id: "a", time: at(2026, 9, 12, 10, 0), model: "deepseek-v4-flash", source: "opencode", workspaceID: "x", input: 10 },
+    { id: "b", time: at(2026, 9, 12, 11, 0), model: "deepseek-v4-flash", source: "deepseek-official", workspaceID: "x", input: 20 },
+  ];
+  const a = aggregate(recs, { price });
+  assert.deepEqual(Object.keys(a.modelMap).sort(), ["deepseek-official:deepseek-v4-flash", "opencode:deepseek-v4-flash"]);
+  assert.equal(a.modelMap["opencode:deepseek-v4-flash"].req, 1);
+  assert.equal(a.modelMap["opencode:deepseek-v4-flash"].model, "deepseek-v4-flash");
+  assert.equal(a.modelMap["opencode:deepseek-v4-flash"].source, "opencode");
+  assert.equal(a.modelMap["deepseek-official:deepseek-v4-flash"].source, "deepseek-official");
 });

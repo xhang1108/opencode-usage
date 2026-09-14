@@ -1,0 +1,98 @@
+{
+  "capturedAt": "2026-08-24T17:18:26.000Z",
+  "source": "deepseek-official",
+  "models": {
+    "deepseek-v4-flash": {
+      "label": "deepseek-v4-flash",
+      "effectiveAt": "2026-08-22T16:00:00.000Z",
+      "entry": {
+        "windows": {
+          "peak": [
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "01:00",
+              "end": "04:00"
+            },
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "06:00",
+              "end": "10:00"
+            }
+          ]
+        },
+        "pricing": {
+          "peak": {
+            "input": 0.44,
+            "output": 1.32,
+            "cacheRead": 0.014,
+            "cacheWrite": 0
+          },
+          "offpeak": {
+            "input": 0.22,
+            "output": 0.66,
+            "cacheRead": 0.007,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "deepseek-v4-pro": {
+      "label": "deepseek-v4-pro",
+      "effectiveAt": "2026-08-22T16:00:00.000Z",
+      "entry": {
+        "windows": {
+          "peak": [
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "01:00",
+              "end": "04:00"
+            },
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "06:00",
+              "end": "10:00"
+            }
+          ]
+        },
+        "pricing": {
+          "peak": {
+            "input": 1.32,
+            "output": 3.96,
+            "cacheRead": 0.044,
+            "cacheWrite": 0
+          },
+          "offpeak": {
+            "input": 0.66,
+            "output": 1.98,
+            "cacheRead": 0.022,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

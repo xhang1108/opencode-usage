@@ -1,692 +1,63 @@
 {
-  "presetVersion": 1,
+  "presetVersion": 2,
   "source": "opencode",
   "modelMap": {
-    "opencode:big-pickle": "r1",
-    "opencode:hy3": "r2",
-    "opencode:hy3-free": "r2b",
-    "opencode:hy4-preview": "r2c",
-    "opencode:laguna-s-2.1-free": "r3",
-    "opencode:ling-3.0-flash-free": "r4",
-    "opencode:ling-3.0-flash-fin-free": "r4b",
-    "opencode:nemotron-3-ultra-free": "r5",
-    "opencode:nemotron-3.5-lightning-free": "r6",
-    "opencode:deepseek-v4-flash": "r7",
-    "opencode:deepseek-v4-flash-free": "r7b",
-    "opencode:deepseek-v4-flash-vision-exp": "r7c",
-    "opencode:deepseek-v4.1-flash": "r7d",
-    "opencode:deepseek-v4.1-flash-free": "r7e",
-    "opencode:deepseek-v4-pro": "r18",
-    "opencode:glm-5.3": "r8",
-    "opencode:glm-5.3-flash": "r8c",
-    "opencode:glm-5.2": "r8b",
-    "opencode:glm-5.1": "r12",
-    "opencode:kimi-k2.7-code": "r9",
-    "opencode:kimi-k2.6": "r10",
-    "opencode:kimi-k3": "r13",
-    "opencode:grok-4.5": "r11",
-    "opencode:grok-4.6": "r11b",
-    "opencode:mimo-v2.5-pro": "r14",
-    "opencode:mimo-v2.5": "r15",
-    "opencode:mimo-v2.5-free": "r15b",
-    "opencode:minimax-m3": "r16",
-    "opencode:minimax-m2.7": "r17",
-    "opencode:minimax-m2.5": "r17b",
-    "opencode:qwen3.8-max": "r19",
-    "opencode:qwen3.8-flash": "r19b",
-    "opencode:qwen-3.7-max": "r20",
-    "opencode:qwen-3.7-plus": "r21",
-    "opencode:qwen-3.6-plus": "r22",
-    "opencode:gpt-5.6-luna": "r23",
-    "opencode:muse-spark-1.2-contributor": "r24",
-    "opencode:muse-spark-1.2-contributor-free": "r24b",
-    "opencode:muse-spark-1.3-contributor": "r28",
-    "opencode:muse-spark-1.3-contributor-free": "r28b",
-    "opencode:omen-alpha": "r29",
-    "opencode:gemini-3.8-flash": "r30",
-    "opencode:ox-alpha-free": "r25",
-    "opencode:x-preview-f-free": "r26",
-    "opencode:longcat-2.0": "r27"
+    "opencode:glm-5.3-flash": "opencode:glm-5.3-flash",
+    "opencode:grok-4.5": "opencode:grok-4.5",
+    "opencode:grok-4.6": "opencode:grok-4.6",
+    "opencode:longcat-2.0": "opencode:longcat-2.0",
+    "opencode:deepseek-v4-flash-vision-exp": "opencode:deepseek-v4-flash-vision-exp",
+    "opencode:muse-spark-1.2-contributor": "opencode:muse-spark-1.2-contributor",
+    "opencode:muse-spark-1.2": "opencode:muse-spark-1.2",
+    "opencode:deepseek-v4-flash": "opencode:deepseek-v4-flash",
+    "opencode:deepseek-v4-pro": "opencode:deepseek-v4-pro",
+    "opencode:glm-5.3": "opencode:glm-5.3",
+    "opencode:gemini-3.7-flash": "opencode:gemini-3.7-flash",
+    "opencode:qwen3.8-max": "opencode:qwen3.8-max",
+    "opencode:gpt-5.6-luna": "opencode:gpt-5.6-luna",
+    "opencode:hy3": "opencode:hy3",
+    "opencode:mimo-v2.5-pro": "opencode:mimo-v2.5-pro",
+    "opencode:kimi-k3": "opencode:kimi-k3",
+    "opencode:kimi-k3-7-24-2x": "opencode:kimi-k3-7-24-2x",
+    "opencode:glm-5": "opencode:glm-5",
+    "opencode:glm-5.2": "opencode:glm-5.2",
+    "opencode:kimi-k2.5": "opencode:kimi-k2.5",
+    "opencode:kimi-k2.7-code": "opencode:kimi-k2.7-code",
+    "opencode:minimax-m3": "opencode:minimax-m3",
+    "opencode:qwen3.6-plus": "opencode:qwen3.6-plus",
+    "opencode:qwen3.7-plus": "opencode:qwen3.7-plus",
+    "opencode:glm-5.1": "opencode:glm-5.1",
+    "opencode:kimi-k2.6": "opencode:kimi-k2.6",
+    "opencode:mimo-v2.5": "opencode:mimo-v2.5",
+    "opencode:minimax-m2.5": "opencode:minimax-m2.5",
+    "opencode:minimax-m2.7": "opencode:minimax-m2.7",
+    "opencode:qwen3.7-max": "opencode:qwen3.7-max",
+    "opencode:hy4-preview": "opencode:hy4-preview",
+    "opencode:qwen3.8-flash": "opencode:qwen3.8-flash",
+    "opencode:omen-alpha": "opencode:omen-alpha",
+    "opencode:muse-spark-1.3-contributor": "opencode:muse-spark-1.3-contributor",
+    "opencode:deepseek-v4.1-flash": "opencode:deepseek-v4.1-flash",
+    "opencode:big-pickle": "opencode:big-pickle",
+    "opencode:hy3-free": "opencode:hy3-free",
+    "opencode:laguna-s-2.1-free": "opencode:laguna-s-2.1-free",
+    "opencode:ling-3.0-flash-free": "opencode:ling-3.0-flash-free",
+    "opencode:ling-3.0-flash-fin-free": "opencode:ling-3.0-flash-fin-free",
+    "opencode:nemotron-3-ultra-free": "opencode:nemotron-3-ultra-free",
+    "opencode:nemotron-3.5-lightning-free": "opencode:nemotron-3.5-lightning-free",
+    "opencode:deepseek-v4-flash-free": "opencode:deepseek-v4-flash-free",
+    "opencode:deepseek-v4.1-flash-free": "opencode:deepseek-v4.1-flash-free",
+    "opencode:mimo-v2.5-free": "opencode:mimo-v2.5-free",
+    "opencode:qwen-3.7-max": "opencode:qwen-3.7-max",
+    "opencode:qwen-3.7-plus": "opencode:qwen-3.7-plus",
+    "opencode:qwen-3.6-plus": "opencode:qwen-3.6-plus",
+    "opencode:muse-spark-1.2-contributor-free": "opencode:muse-spark-1.2-contributor-free",
+    "opencode:muse-spark-1.3-contributor-free": "opencode:muse-spark-1.3-contributor-free",
+    "opencode:gemini-3.8-flash": "opencode:gemini-3.8-flash",
+    "opencode:ox-alpha-free": "opencode:ox-alpha-free",
+    "opencode:x-preview-f-free": "opencode:x-preview-f-free"
   },
   "targets": {
-    "r1": {
-      "label": "big-pickle",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0,
-              "output": 0,
-              "cacheRead": 0,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r2": {
-      "label": "hy3",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.14,
-              "output": 0.58,
-              "cacheRead": 0.035,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r2b": {
-      "label": "hy3-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.14,
-              "output": 0.58,
-              "cacheRead": 0.035,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r2c": {
-      "label": "hy4-preview",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.834,
-              "output": 2.501,
-              "cacheRead": 0.042,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r3": {
-      "label": "laguna-s-2.1-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.09,
-              "output": 0.18,
-              "cacheRead": 0.045,
-              "cacheWrite": 0.09
-            }
-          }
-        }
-      ]
-    },
-    "r4": {
-      "label": "ling-3.0-flash-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.021,
-              "output": 0.063,
-              "cacheRead": 0.0042,
-              "cacheWrite": 0.021
-            }
-          }
-        }
-      ]
-    },
-    "r4b": {
-      "label": "ling-3.0-flash-fin-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0,
-              "output": 0,
-              "cacheRead": 0,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r5": {
-      "label": "nemotron-3-ultra-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.5,
-              "output": 2.2,
-              "cacheRead": 0.1,
-              "cacheWrite": 0.5
-            }
-          }
-        }
-      ]
-    },
-    "r6": {
-      "label": "nemotron-3.5-lightning-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.1,
-              "output": 0.25,
-              "cacheRead": 0.05,
-              "cacheWrite": 0.1
-            }
-          }
-        }
-      ]
-    },
-    "r7": {
-      "label": "deepseek-v4-flash",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.14,
-              "output": 0.28,
-              "cacheRead": 0.0028,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-08-16T16:01:15Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.44,
-              "output": 1.32,
-              "cacheRead": 0.014,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.22,
-              "output": 0.66,
-              "cacheRead": 0.007,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-09-10T03:05:41Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.006,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.15,
-              "output": 0.6,
-              "cacheRead": 0.003,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r7b": {
-      "label": "deepseek-v4-flash-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.14,
-              "output": 0.28,
-              "cacheRead": 0.0028,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-08-16T16:01:15Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.44,
-              "output": 1.32,
-              "cacheRead": 0.014,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.22,
-              "output": 0.66,
-              "cacheRead": 0.007,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-09-10T03:05:41Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.006,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.15,
-              "output": 0.6,
-              "cacheRead": 0.003,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r7c": {
-      "label": "deepseek-v4-flash-vision-exp",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": "2026-08-21T12:57:25Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.44,
-              "output": 1.32,
-              "cacheRead": 0.014,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.22,
-              "output": 0.66,
-              "cacheRead": 0.007,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-09-10T03:05:41Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.006,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.15,
-              "output": 0.6,
-              "cacheRead": 0.003,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r7d": {
-      "label": "deepseek-v4.1-flash",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": "2026-09-10T03:05:41Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.006,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.15,
-              "output": 0.6,
-              "cacheRead": 0.003,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r7e": {
-      "label": "deepseek-v4.1-flash-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": "2026-09-10T03:05:41Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.006,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.15,
-              "output": 0.6,
-              "cacheRead": 0.003,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r18": {
-      "label": "deepseek-v4-pro",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1.74,
-              "output": 3.48,
-              "cacheRead": 0.0145,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-07-17T15:15:48Z",
-          "pricing": {
-            "flat": {
-              "input": 0.435,
-              "output": 0.87,
-              "cacheRead": 0.003625,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-08-16T16:01:15Z",
-          "windows": {
-            "peak": [
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "01:00",
-                "end": "04:00"
-              },
-              {
-                "days": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "start": "06:00",
-                "end": "10:00"
-              }
-            ]
-          },
-          "pricing": {
-            "peak": {
-              "input": 1.32,
-              "output": 3.96,
-              "cacheRead": 0.044,
-              "cacheWrite": 0
-            },
-            "offpeak": {
-              "input": 0.66,
-              "output": 1.98,
-              "cacheRead": 0.022,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r8": {
-      "label": "glm-5.3",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1.4,
-              "output": 4.4,
-              "cacheRead": 0.26,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r8c": {
+    "opencode:glm-5.3-flash": {
       "label": "glm-5.3-flash",
       "scope": "opencode",
       "rates": [
@@ -703,114 +74,7 @@
         }
       ]
     },
-    "r8b": {
-      "label": "glm-5.2",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1,
-              "output": 3.2,
-              "cacheRead": 0.2,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-06-17T11:04:33Z",
-          "pricing": {
-            "flat": {
-              "input": 1.4,
-              "output": 4.4,
-              "cacheRead": 0.26,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r12": {
-      "label": "glm-5.1",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1.4,
-              "output": 4.4,
-              "cacheRead": 0.26,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r9": {
-      "label": "kimi-k2.7-code",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.6,
-              "output": 3,
-              "cacheRead": 0.1,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-06-12T19:57:13Z",
-          "pricing": {
-            "flat": {
-              "input": 0.95,
-              "output": 4,
-              "cacheRead": 0.19,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r10": {
-      "label": "kimi-k2.6",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.95,
-              "output": 4,
-              "cacheRead": 0.16,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r13": {
-      "label": "kimi-k3",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 3,
-              "output": 15,
-              "cacheRead": 0.3,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r11": {
+    "opencode:grok-4.5": {
       "label": "grok-4.5",
       "scope": "opencode",
       "rates": [
@@ -826,7 +90,7 @@
           }
         },
         {
-          "from": "2026-07-19T06:08:05Z",
+          "from": "2026-07-19T06:08:05.000Z",
           "pricing": {
             "flat": {
               "input": 2,
@@ -838,7 +102,7 @@
         }
       ]
     },
-    "r11b": {
+    "opencode:grok-4.6": {
       "label": "grok-4.6",
       "scope": "opencode",
       "rates": [
@@ -866,7 +130,360 @@
         }
       ]
     },
-    "r14": {
+    "opencode:longcat-2.0": {
+      "label": "longcat-2.0",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:deepseek-v4-flash-vision-exp": {
+      "label": "deepseek-v4-flash-vision-exp",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-09-10T03:05:41.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.003,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:muse-spark-1.2-contributor": {
+      "label": "muse-spark-1.2-contributor",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.2,
+              "cacheRead": 0.002,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:muse-spark-1.2": {
+      "label": "muse-spark-1.2",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.2,
+              "cacheRead": 0.002,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:deepseek-v4-flash": {
+      "label": "deepseek-v4-flash",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.0028,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:01:15.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-09-10T03:05:41.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.003,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:deepseek-v4-pro": {
+      "label": "deepseek-v4-pro",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.74,
+              "output": 3.48,
+              "cacheRead": 0.0145,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-07-17T15:15:48.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.003625,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:01:15.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 1.32,
+              "output": 3.96,
+              "cacheRead": 0.044,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.66,
+              "output": 1.98,
+              "cacheRead": 0.022,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:glm-5.3": {
+      "label": "glm-5.3",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:gemini-3.7-flash": {
+      "label": "gemini-3.7-flash",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 7.5,
+              "cacheRead": 0.15,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:qwen3.8-max": {
+      "label": "qwen3.8-max",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.25,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:gpt-5.6-luna": {
+      "label": "gpt-5.6-luna",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 0.2,
+                  "output": 1.2,
+                  "cacheRead": 0.02,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 0.4,
+                  "output": 1.8,
+                  "cacheRead": 0.04,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "opencode:hy3": {
+      "label": "hy3",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.58,
+              "cacheRead": 0.035,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:mimo-v2.5-pro": {
       "label": "mimo-v2.5-pro",
       "scope": "opencode",
       "rates": [
@@ -882,7 +499,7 @@
           }
         },
         {
-          "from": "2026-07-17T15:15:48Z",
+          "from": "2026-07-17T15:15:48.000Z",
           "pricing": {
             "flat": {
               "input": 0.435,
@@ -894,7 +511,249 @@
         }
       ]
     },
-    "r15": {
+    "opencode:kimi-k3": {
+      "label": "kimi-k3",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 15,
+              "cacheRead": 0.3,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:kimi-k3-7-24-2x": {
+      "label": "kimi-k3-7-24-2x",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 15,
+              "cacheRead": 0.3,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:glm-5": {
+      "label": "glm-5",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1,
+              "output": 3.2,
+              "cacheRead": 0.2,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:glm-5.2": {
+      "label": "glm-5.2",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:kimi-k2.5": {
+      "label": "kimi-k2.5",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 3,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:kimi-k2.7-code": {
+      "label": "kimi-k2.7-code",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.95,
+              "output": 4,
+              "cacheRead": 0.19,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:minimax-m3": {
+      "label": "minimax-m3",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 2.4,
+              "cacheRead": 0.12,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-06-08T11:16:19.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.06,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:qwen3.6-plus": {
+      "label": "qwen3.6-plus",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 3,
+              "cacheRead": 0.05,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-06-05T11:21:46.000Z",
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.5,
+                  "output": 3,
+                  "cacheRead": 0.05,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2,
+                  "output": 6,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "opencode:qwen3.7-plus": {
+      "label": "qwen3.7-plus",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 1.6,
+              "cacheRead": 0.04,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-06-05T11:21:46.000Z",
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.4,
+                  "output": 1.6,
+                  "cacheRead": 0.04,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 1.2,
+                  "output": 4.8,
+                  "cacheRead": 0.12,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "opencode:glm-5.1": {
+      "label": "glm-5.1",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:kimi-k2.6": {
+      "label": "kimi-k2.6",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.95,
+              "output": 4,
+              "cacheRead": 0.16,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:mimo-v2.5": {
       "label": "mimo-v2.5",
       "scope": "opencode",
       "rates": [
@@ -911,69 +770,7 @@
         }
       ]
     },
-    "r15b": {
-      "label": "mimo-v2.5-free",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.14,
-              "output": 0.28,
-              "cacheRead": 0.0028,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r16": {
-      "label": "minimax-m3",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.6,
-              "output": 2.4,
-              "cacheRead": 0.12,
-              "cacheWrite": 0.75
-            }
-          }
-        },
-        {
-          "from": "2026-06-08T11:16:19Z",
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.06,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r17": {
-      "label": "minimax-m2.7",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.06,
-              "cacheWrite": 0.375
-            }
-          }
-        }
-      ]
-    },
-    "r17b": {
+    "opencode:minimax-m2.5": {
       "label": "minimax-m2.5",
       "scope": "opencode",
       "rates": [
@@ -989,36 +786,70 @@
           }
         },
         {
-          "from": "2026-05-31T17:59:44Z",
+          "from": "2026-05-31T17:59:44.000Z",
           "pricing": {
             "flat": {
               "input": 0.3,
               "output": 1.2,
               "cacheRead": 0.06,
-              "cacheWrite": 0.375
+              "cacheWrite": 0
             }
           }
         }
       ]
     },
-    "r19": {
-      "label": "qwen3.8-max",
+    "opencode:minimax-m2.7": {
+      "label": "minimax-m2.7",
       "scope": "opencode",
       "rates": [
         {
           "from": null,
           "pricing": {
             "flat": {
-              "input": 2,
-              "output": 6,
-              "cacheRead": 0.25,
-              "cacheWrite": 2.5
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.06,
+              "cacheWrite": 0
             }
           }
         }
       ]
     },
-    "r19b": {
+    "opencode:qwen3.7-max": {
+      "label": "qwen3.7-max",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:hy4-preview": {
+      "label": "hy4-preview",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.834,
+              "output": 2.501,
+              "cacheRead": 0.042,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:qwen3.8-flash": {
       "label": "qwen3.8-flash",
       "scope": "opencode",
       "rates": [
@@ -1029,13 +860,254 @@
               "input": 0.15,
               "output": 0.47,
               "cacheRead": 0.016,
-              "cacheWrite": 0.2
+              "cacheWrite": 0
             }
           }
         }
       ]
     },
-    "r20": {
+    "opencode:omen-alpha": {
+      "label": "omen-alpha",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 0.66,
+              "cacheRead": 0.04,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:muse-spark-1.3-contributor": {
+      "label": "muse-spark-1.3-contributor",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.2,
+              "cacheRead": 0.002,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:deepseek-v4.1-flash": {
+      "label": "deepseek-v4.1-flash",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.003,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:big-pickle": {
+      "label": "big-pickle",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:hy3-free": {
+      "label": "hy3-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:laguna-s-2.1-free": {
+      "label": "laguna-s-2.1-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:ling-3.0-flash-free": {
+      "label": "ling-3.0-flash-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:ling-3.0-flash-fin-free": {
+      "label": "ling-3.0-flash-fin-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:nemotron-3-ultra-free": {
+      "label": "nemotron-3-ultra-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:nemotron-3.5-lightning-free": {
+      "label": "nemotron-3.5-lightning-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:deepseek-v4-flash-free": {
+      "label": "deepseek-v4-flash-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:deepseek-v4.1-flash-free": {
+      "label": "deepseek-v4.1-flash-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:mimo-v2.5-free": {
+      "label": "mimo-v2.5-free",
+      "scope": "opencode",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "opencode:qwen-3.7-max": {
       "label": "qwen-3.7-max",
       "scope": "opencode",
       "rates": [
@@ -1052,7 +1124,7 @@
         }
       ]
     },
-    "r21": {
+    "opencode:qwen-3.7-plus": {
       "label": "qwen-3.7-plus",
       "scope": "opencode",
       "rates": [
@@ -1091,7 +1163,7 @@
         }
       ]
     },
-    "r22": {
+    "opencode:qwen-3.6-plus": {
       "label": "qwen-3.6-plus",
       "scope": "opencode",
       "rates": [
@@ -1130,52 +1202,7 @@
         }
       ]
     },
-    "r23": {
-      "label": "gpt-5.6-luna",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "tier": {
-                "limit": 272000,
-                "low": {
-                  "input": 0.2,
-                  "output": 1.2,
-                  "cacheRead": 0.02,
-                  "cacheWrite": 0.25
-                },
-                "high": {
-                  "input": 0.4,
-                  "output": 1.8,
-                  "cacheRead": 0.04,
-                  "cacheWrite": 0.5
-                }
-              }
-            }
-          }
-        }
-      ]
-    },
-    "r24": {
-      "label": "muse-spark-1.2-contributor",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.1,
-              "output": 0.2,
-              "cacheRead": 0.002,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r24b": {
+    "opencode:muse-spark-1.2-contributor-free": {
       "label": "muse-spark-1.2-contributor-free",
       "scope": "opencode",
       "rates": [
@@ -1183,33 +1210,16 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 0.1,
-              "output": 0.2,
-              "cacheRead": 0.002,
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
               "cacheWrite": 0
             }
           }
         }
       ]
     },
-    "r28": {
-      "label": "muse-spark-1.3-contributor",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.1,
-              "output": 0.2,
-              "cacheRead": 0.002,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r28b": {
+    "opencode:muse-spark-1.3-contributor-free": {
       "label": "muse-spark-1.3-contributor-free",
       "scope": "opencode",
       "rates": [
@@ -1217,33 +1227,16 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 0.1,
-              "output": 0.2,
-              "cacheRead": 0.002,
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
               "cacheWrite": 0
             }
           }
         }
       ]
     },
-    "r29": {
-      "label": "omen-alpha",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.2,
-              "output": 0.66,
-              "cacheRead": 0.04,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r30": {
+    "opencode:gemini-3.8-flash": {
       "label": "gemini-3.8-flash",
       "scope": "opencode",
       "rates": [
@@ -1260,7 +1253,7 @@
         }
       ]
     },
-    "r25": {
+    "opencode:ox-alpha-free": {
       "label": "ox-alpha-free",
       "scope": "opencode",
       "rates": [
@@ -1268,16 +1261,16 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 0.15,
-              "output": 0.5,
-              "cacheRead": 0.03,
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
               "cacheWrite": 0
             }
           }
         }
       ]
     },
-    "r26": {
+    "opencode:x-preview-f-free": {
       "label": "x-preview-f-free",
       "scope": "opencode",
       "rates": [
@@ -1285,26 +1278,9 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 0.15,
-              "output": 0.5,
-              "cacheRead": 0.03,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    "r27": {
-      "label": "longcat-2.0",
-      "scope": "opencode",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.006,
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
               "cacheWrite": 0
             }
           }

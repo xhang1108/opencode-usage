@@ -1,5 +1,5 @@
 param(
-  [string]$OutFile = "alldiffs.txt",
+  [string]$OutFile = (Join-Path $PSScriptRoot "alldiffs.txt"),
   [string[]]$Shas,
   # Manual cutoff. If omitted, the script reads the newest cursor date from
   # the top of $OutFile (alldiffs.txt) so it only fetches commits after the
@@ -41,9 +41,15 @@ if ($Shas -and $Shas.Count -gt 0) {
     exit 1
   }
   Write-Host "Fetching go.mdx commits since $cursor"
-  $commits = gh api "repos/anomalyco/opencode/commits?path=packages/web/src/content/docs/go.mdx&since=$cursor&per_page=100" --jq '.[] | "\(.sha)"' 2>&1
-  if ($LASTEXITCODE -ne 0) { Write-Error "gh api failed: $commits"; exit 1 }
-  $targets = $commits | Where-Object { $_ }
+  $targets = @()
+  $page = 1
+  do {
+    $resp = gh api "repos/anomalyco/opencode/commits?path=packages/web/src/content/docs/go.mdx&since=$cursor&per_page=100&page=$page" --jq '.[] | "\(.sha)"' 2>&1
+    if ($LASTEXITCODE -ne 0) { Write-Error "gh api failed: $resp"; exit 1 }
+    $shas = $resp | Where-Object { $_ }
+    $targets += $shas
+    $page++
+  } while ($shas.Count -eq 100)
 }
 
 # Manual mode overwrites; auto mode appends (preserves existing history).
