@@ -22,6 +22,7 @@ import {
   fingerprintOf,
   buildFingerprintBuckets,
   hideDayAnchoredImportCopies,
+  isLocalLooking,
 } from "./shared/merge.js";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -772,16 +773,8 @@ function normalizeLocalRecord(rec) {
 // without a parseable timestamp is always kept (conservative: hide only on
 // positive match). fingerprintOf / DEDUP_BUCKET_MS are imported from shared/merge.
 
-function isLocalLooking(id, rec) {
-  // Vendor records (non-opencode) are handled by their own pipeline; never let
-  // the opencode crawler/local dedupe hide them (D2: dedupe is same-source only).
-  if (rec && rec.source && rec.source !== "opencode") return true;
-  return (
-    id.startsWith("msg_") ||
-    rec.workspaceID === "Local" ||
-    (typeof rec.workspaceID === "string" && rec.workspaceID.startsWith("local:"))
-  );
-}
+// isLocalLooking lives in shared/merge.js (imported above) so the dashboard's
+// backup-restore routing and this dedupe agree on provenance.
 
 // Day-anchored import copies are hidden by shared/merge.hideDayAnchoredImportCopies.
 

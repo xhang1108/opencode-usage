@@ -55,6 +55,21 @@ export function isDayAnchoredRecord(rec) {
   return !!rec && typeof rec.time === "string" && /T00:00:00(?:\.000)?Z$/.test(rec.time);
 }
 
+// Provenance classification for opencode records: a record belongs to the
+// local-DB import track (not the crawl track) when its id is a message id or
+// its workspace is the synthetic "Local" one. Vendor records are never hidden
+// by the opencode dedupe, so they count as "local" here. Shared by background
+// (dedupe) and the dashboard (routing a backup restore) so the two never drift.
+export function isLocalLooking(id, rec) {
+  if (rec && rec.source && rec.source !== "opencode") return true;
+  const sid = String(id || "");
+  return (
+    sid.startsWith("msg_") ||
+    rec?.workspaceID === "Local" ||
+    (typeof rec?.workspaceID === "string" && rec.workspaceID.startsWith("local:"))
+  );
+}
+
 export function hideDayAnchoredImportCopies(records) {
   const out = {};
   const crawlFps = new Set();

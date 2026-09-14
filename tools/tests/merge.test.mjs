@@ -7,6 +7,7 @@ import {
   mergeRecords,
   hideDayAnchoredImportCopies,
   isDayAnchoredRecord,
+  isLocalLooking,
 } from "../../extension/shared/merge.js";
 
 function rec(over) {
@@ -76,4 +77,15 @@ test("hideDayAnchoredImportCopies keeps imports when no instant crawl record exi
   const { map, dropped } = hideDayAnchoredImportCopies(onlyImport);
   assert.equal(dropped, 0);
   assert.deepEqual(Object.keys(map), ["mimo:i"]);
+});
+
+test("isLocalLooking separates the local-DB track from crawl and vendor records", () => {
+  // Local-DB import (import-local.mjs): msg_ id, synthetic "Local" workspace.
+  assert.equal(isLocalLooking("msg_abc", rec({ id: "msg_abc", workspaceID: "Local" })), true);
+  assert.equal(isLocalLooking("opencode:msg_abc", rec({ id: "opencode:msg_abc", workspaceID: "Local" })), true);
+  assert.equal(isLocalLooking("x", rec({ workspaceID: "local:proj" })), true);
+  // opencode crawl: real workspace id, server-side id.
+  assert.equal(isLocalLooking("opencode:abc", rec({ id: "opencode:abc", workspaceID: "wrk_123" })), false);
+  // Any non-opencode vendor record counts as "local" (never hidden by opencode dedupe).
+  assert.equal(isLocalLooking("deepseek-official:a", rec({ source: "deepseek-official" })), true);
 });

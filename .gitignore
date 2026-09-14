@@ -1,3 +1,6 @@
+# Private keys (signing / packing only — never commit)
+*.pem
+
 # Browser panel screenshots
 .openchamber/
 

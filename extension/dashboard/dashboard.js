@@ -22,6 +22,7 @@ import { renderHowItWorks } from "./settings/how-it-works.js";
 import { parseXlsx } from "../shared/xlsx.js";
 import { parseMimoSheets } from "../vendors/mimo/import-usage.js";
 import { SETTINGS_FORMAT, csvToRecords, groupBySource, parseSettingsPayload } from "../shared/backup.js";
+import { isLocalLooking } from "../shared/merge.js";
 
 const globalCache = {};
 let settings = null;
@@ -416,11 +417,21 @@ async function importRecordsCSV(file) {
   let unknown = 0;
   for (const [source, recs] of groupBySource(records)) {
     if (source === "opencode") {
+      // Only the local-DB track is restorable into extension storage. Crawl-track
+      // records are rebuilt from the opencode.ai cache (OPFS) by Crawl Now;
+      // restoring them here would pollute the local-import store, double-list
+      // them in Settings -> Database, and let "Clear local" wipe them.
       const map = {};
-      for (const rec of recs) map[rec.id] = rec;
-      const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(map) });
-      if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
-      parts.push(`opencode: ${res.imported}`);
+      let skippedCrawl = 0;
+      for (const rec of recs) {
+        if (!isLocalLooking(rec.id, rec)) { skippedCrawl++; continue; }
+        map[rec.id] = rec;
+      }
+      if (Object.keys(map).length > 0) {
+        const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(map) });
+        if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
+      }
+      parts.push(`opencode: ${Object.keys(map).length} local restored${skippedCrawl ? `, ${skippedCrawl} crawl skipped (open the Usage page and Crawl Now)` : ""}`);
     } else if (vendorSources.has(source)) {
       const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source, records: recs });
       if (!res || !res.ok) throw new Error((res && res.error) || `${source} restore failed`);
