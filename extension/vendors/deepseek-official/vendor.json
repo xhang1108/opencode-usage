@@ -2,9 +2,14 @@
   "source": "deepseek-official",
   "label": "DeepSeek",
   "mode": "crawl",
+  "defaultEnabled": false,
   "origins": ["https://*.deepseek.com/*"],
   "crawl": {
-    "contentScript": "vendors/deepseek-official/content.js"
+    "contentScript": "vendors/deepseek-official/content.js",
+    "runAt": "document_idle",
+    "webAccessible": ["vendors/deepseek-official/mapper.js", "shared/canonical.js"],
+    "home": "https://platform.deepseek.com/usage",
+    "defaultDays": 0
   },
   "import": [],
   "storage": {

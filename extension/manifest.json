@@ -11,13 +11,12 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://opencode.ai/*",
-    "https://openrouter.ai/*",
-    "https://commandcode.ai/*",
     "https://*.commandcode.ai/*",
-    "https://api.commandcode.ai/*",
     "https://*.deepseek.com/*",
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "https://commandcode.ai/*",
+    "https://opencode.ai/*",
+    "https://openrouter.ai/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -25,26 +24,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "content/crawl-worker.js"
-      ],
-      "matches": [
-        "https://opencode.ai/*"
-      ]
-    },
-    {
-      "resources": [
-        "vendors/openrouter/content.js",
-        "vendors/openrouter/mapper.js",
-        "vendors/openrouter/analytics-query.js",
-        "shared/canonical.js"
-      ],
-      "matches": [
-        "https://openrouter.ai/*"
-      ]
-    },
-    {
-      "resources": [
-        "vendors/commandcode/content.js",
         "vendors/commandcode/mapper.js",
         "shared/canonical.js"
       ],
@@ -55,12 +34,29 @@
     },
     {
       "resources": [
-        "vendors/deepseek-official/content.js",
         "vendors/deepseek-official/mapper.js",
         "shared/canonical.js"
       ],
       "matches": [
         "https://*.deepseek.com/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/opencode/crawl-worker.js"
+      ],
+      "matches": [
+        "https://opencode.ai/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/openrouter/mapper.js",
+        "vendors/openrouter/analytics-query.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://openrouter.ai/*"
       ]
     }
   ],
@@ -81,24 +77,6 @@
   "content_scripts": [
     {
       "matches": [
-        "https://opencode.ai/*"
-      ],
-      "js": [
-        "content/content.js"
-      ],
-      "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "https://openrouter.ai/*"
-      ],
-      "js": [
-        "vendors/openrouter/content.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
         "https://commandcode.ai/*",
         "https://*.commandcode.ai/*"
       ],
@@ -113,6 +91,24 @@
       ],
       "js": [
         "vendors/deepseek-official/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://opencode.ai/*"
+      ],
+      "js": [
+        "vendors/opencode/content.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://openrouter.ai/*"
+      ],
+      "js": [
+        "vendors/openrouter/content.js"
       ],
       "run_at": "document_idle"
     }

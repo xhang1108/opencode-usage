@@ -99,7 +99,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.scripting
         .executeScript({
           target: { tabId },
-          files: ["content/interceptor.js"],
+          files: ["vendors/opencode/interceptor.js"],
           world: "MAIN",
         })
         .then(() => sendResponse({ ok: true }))
@@ -204,7 +204,7 @@ async function sendMessageToTab(tabId, msg) {
   try {
     return await chrome.tabs.sendMessage(tabId, msg);
   } catch (e) {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["content/content.js"] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["vendors/opencode/content.js"] });
     await new Promise((r) => setTimeout(r, 300)); // Give the injected content script time to initialize
     return await chrome.tabs.sendMessage(tabId, msg);
   }
@@ -263,7 +263,7 @@ async function sendStartCrawl(rescan) {
           if (ready) break;
         } catch (e) {}
         try {
-          await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/content.js"] });
+          await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["vendors/opencode/content.js"] });
         } catch (e) {}
       }
       try {
@@ -288,29 +288,25 @@ const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
 }
 
 // ===== Generic vendor crawl routing (content-script vendors) =====
-const VENDOR_CRAWL = {
-  openrouter: {
-    origins: ["https://openrouter.ai/*"],
-    script: "vendors/openrouter/content.js",
-    home: "https://openrouter.ai/activity",
-    defaultDays: 365,
-  },
-  commandcode: {
-    origins: ["https://commandcode.ai/*", "https://*.commandcode.ai/*"],
-    script: "vendors/commandcode/content.js",
-    home: "https://commandcode.ai/",
-    defaultDays: 0,
-  },
-  "deepseek-official": {
-    origins: ["https://*.deepseek.com/*"],
-    script: "vendors/deepseek-official/content.js",
-    home: "https://platform.deepseek.com/usage",
-    defaultDays: 0, // crawler scans MAX_SCAN_DAYS on first run, incremental after
-  },
-};
+// Crawl config (origins / content script / home / default days) is read from the
+// generated registry (shared/vendors.json ← vendors/<source>/vendor.json), so a
+// new vendor needs no edit here.
+function crawlConfigFromRegistry(registry, vendor) {
+  const v = ((registry && registry.vendors) || []).find(
+    (x) => x && x.source === vendor && x.crawl && x.crawlScript
+  );
+  if (!v) return null;
+  return {
+    origins: v.origins || [],
+    script: v.crawlScript,
+    home: v.crawlHome,
+    defaultDays: v.crawlDefaultDays || 0,
+  };
+}
 
 async function sendStartVendorCrawl(vendor, days, full) {
-  const cfg = VENDOR_CRAWL[vendor];
+  const registry = await loadVendorRegistry();
+  const cfg = crawlConfigFromRegistry(registry, vendor);
   if (!cfg) return { ok: false, error: `Unknown crawl vendor: ${vendor}` };
   // Incremental: newest stored date lets the content script resume from there
   // (D12, one-day overlap). No stored data -> full range.
@@ -344,7 +340,7 @@ async function newestStoredDate(source) {
 
 async function handleVendorCrawlData(msg) {
   const source = msg && msg.source;
-  if (!VENDOR_IMPORT_SOURCES.includes(source)) return { ok: false, error: `Unknown source: ${source}` };
+  if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
   const records = msg && msg.records;
   if (!Array.isArray(records) || records.length === 0) return { ok: true, stored: 0 };
 
@@ -373,7 +369,8 @@ async function handleVendorCrawlDone(msg) {
   try {
     chrome.action.setBadgeText({ text: "" });
   } catch (e) {}
-  const count = VENDOR_IMPORT_SOURCES.includes(source) ? Object.keys(await getVendorImportMap(source)).length : 0;
+  const importSources = await getVendorImportSources();
+  const count = importSources.includes(source) ? Object.keys(await getVendorImportMap(source)).length : 0;
   // Refresh the merged snapshot so popup/dashboard see the new records without
   // an opencode tab.
   let total = count;
@@ -408,7 +405,7 @@ async function handleVendorCrawlDone(msg) {
 // old and new records don't coexist and double-count.
 async function handleClearVendorData(msg) {
   const source = msg && msg.source;
-  if (!VENDOR_IMPORT_SOURCES.includes(source)) return { ok: false, error: `Unknown source: ${source}` };
+  if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
   const removed = Object.keys(await getVendorImportMap(source)).length;
   await chrome.storage.local.remove([`${source}ImportData`, `${source}ImportMeta`]);
   let total = 0;
@@ -511,8 +508,14 @@ async function getLocalImportMap() {
 // ===== Generic vendor import maps (crawl/API vendors without OPFS) =====
 // Records live under "<source>ImportData" ({ id: record } JSON) and are merged
 // into every dashboard/status response like localImportData. Merging is keyed
-// by record id so re-crawling is idempotent.
-const VENDOR_IMPORT_SOURCES = ["openrouter", "deepseek-official", "commandcode", "mimo"];
+// by record id so re-crawling is idempotent. Every vendor except opencode (which
+// has its own OPFS cache) keeps its records this way.
+async function getVendorImportSources() {
+  const registry = await loadVendorRegistry();
+  return ((registry && registry.vendors) || [])
+    .map((v) => v && v.source)
+    .filter((s) => s && s !== "opencode");
+}
 
 async function getVendorImportMap(source) {
   try {
@@ -527,7 +530,8 @@ async function getVendorImportMap(source) {
 }
 
 async function getAllVendorRecords() {
-  const maps = await Promise.all(VENDOR_IMPORT_SOURCES.map((s) => getVendorImportMap(s)));
+  const sources = await getVendorImportSources();
+  const maps = await Promise.all(sources.map((s) => getVendorImportMap(s)));
   return Object.assign({}, ...maps);
 }
 
@@ -852,13 +856,14 @@ async function sendDashboardData() {
     // Split the snapshot so pre-dedupe caches also heal: crawler-looking
     // records are re-checked against the local import on every load.
     const parsed = JSON.parse(cachedData);
+    const importSources = await getVendorImportSources();
     const crawlerPart = {};
     const localPart = {};
     for (const [id, rec] of Object.entries(parsed || {})) {
       const src = rec && typeof rec === "object" ? rec.source : null;
       // Vendor records are authoritative in <source>ImportData; drop stale
       // copies from the cached snapshot so a Clear actually removes them.
-      if (src && VENDOR_IMPORT_SOURCES.includes(src)) continue;
+      if (src && importSources.includes(src)) continue;
       ((rec && typeof rec === "object" && isLocalLooking(id, rec)) ? localPart : crawlerPart)[id] = rec;
     }
     const { map: deduped, dropped } = await hideCrawlerDuplicates(healCrawlMap(crawlerPart), localMap);
@@ -1038,11 +1043,14 @@ scheduleUpdateCheck().catch(() => {});
 // state and only get a one-time "new vendors available" notice.
 const VENDOR_REGISTRY_URL = "shared/vendors.json";
 
+let _vendorRegistryCache = null;
 async function loadVendorRegistry() {
+  if (_vendorRegistryCache) return _vendorRegistryCache;
   try {
     const res = await fetch(chrome.runtime.getURL(VENDOR_REGISTRY_URL));
     if (!res.ok) return null;
     const registry = await res.json();
+    _vendorRegistryCache = registry;
     await chrome.storage.local.set({ vendorRegistry: registry });
     return registry;
   } catch (e) {

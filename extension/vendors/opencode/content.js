@@ -592,7 +592,7 @@
   // worker can't start (e.g. page CSP blocks blob workers), fall back to
   // the inline startCrawling below (same logic, main thread).
   async function runCrawlWorker(workspaceID, serverID, forceRescan, payloadTemplate) {
-    const src = await (await fetch(chrome.runtime.getURL("content/crawl-worker.js"))).text();
+    const src = await (await fetch(chrome.runtime.getURL("vendors/opencode/crawl-worker.js"))).text();
     const blobUrl = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
     const worker = new Worker(blobUrl);
     try {
@@ -638,7 +638,7 @@
   // forceRescan=true: full rescan that overwrites every record (including backfilling
   // `time`) without deleting any existing data.
   // NOTE: this inline loop is now the FALLBACK path (see runCrawl above);
-  // the primary path is content/crawl-worker.js. Keep the two in sync.
+  // the primary path is vendors/opencode/crawl-worker.js. Keep the two in sync.
   async function startCrawling(workspaceID, serverID, forceRescan, payloadTemplate) {
     const FILENAME = `opencode_token_cache_${workspaceID}.json`;
     let page = 0;

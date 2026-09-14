@@ -2,24 +2,21 @@
   "registryVersion": 1,
   "vendors": [
     {
-      "source": "opencode",
-      "label": "opencode",
-      "mode": "crawl",
-      "defaultEnabled": true,
-      "crawl": true,
-      "costSource": "vendor",
-      "import": ["json"],
-      "origins": ["https://opencode.ai/*"]
-    },
-    {
-      "source": "openrouter",
-      "label": "OpenRouter",
+      "source": "commandcode",
+      "label": "CommandCode",
       "mode": "crawl",
       "defaultEnabled": false,
       "crawl": true,
+      "crawlEveryDays": 3,
+      "crawlScript": "vendors/commandcode/content.js",
+      "crawlHome": "https://commandcode.ai/",
+      "crawlDefaultDays": 0,
       "costSource": "vendor",
       "import": [],
-      "origins": ["https://openrouter.ai/*"]
+      "origins": [
+        "https://commandcode.ai/*",
+        "https://*.commandcode.ai/*"
+      ]
     },
     {
       "source": "deepseek-official",
@@ -27,19 +24,13 @@
       "mode": "crawl",
       "defaultEnabled": false,
       "crawl": true,
+      "crawlScript": "vendors/deepseek-official/content.js",
+      "crawlHome": "https://platform.deepseek.com/usage",
+      "crawlDefaultDays": 0,
       "import": [],
-      "origins": ["https://*.deepseek.com/*"]
-    },
-    {
-      "source": "commandcode",
-      "label": "CommandCode",
-      "mode": "crawl",
-      "defaultEnabled": false,
-      "crawl": true,
-      "crawlEveryDays": 3,
-      "costSource": "vendor",
-      "import": [],
-      "origins": ["https://commandcode.ai/*", "https://*.commandcode.ai/*"]
+      "origins": [
+        "https://*.deepseek.com/*"
+      ]
     },
     {
       "source": "mimo",
@@ -47,8 +38,42 @@
       "mode": "import",
       "defaultEnabled": false,
       "crawl": false,
-      "import": ["xlsx"],
+      "import": [
+        "xlsx"
+      ],
       "origins": []
+    },
+    {
+      "source": "opencode",
+      "label": "opencode",
+      "mode": "crawl",
+      "defaultEnabled": true,
+      "crawl": true,
+      "crawlScript": "vendors/opencode/content.js",
+      "crawlHome": "https://opencode.ai/",
+      "crawlDefaultDays": 0,
+      "costSource": "vendor",
+      "import": [
+        "json"
+      ],
+      "origins": [
+        "https://opencode.ai/*"
+      ]
+    },
+    {
+      "source": "openrouter",
+      "label": "OpenRouter",
+      "mode": "crawl",
+      "defaultEnabled": false,
+      "crawl": true,
+      "crawlScript": "vendors/openrouter/content.js",
+      "crawlHome": "https://openrouter.ai/activity",
+      "crawlDefaultDays": 365,
+      "costSource": "vendor",
+      "import": [],
+      "origins": [
+        "https://openrouter.ai/*"
+      ]
     }
   ]
 }

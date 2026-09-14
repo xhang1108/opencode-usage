@@ -2,10 +2,15 @@
   "source": "opencode",
   "label": "opencode",
   "mode": "crawl",
+  "defaultEnabled": true,
+  "costSource": "vendor",
   "origins": ["https://opencode.ai/*"],
   "crawl": {
-    "contentScript": "content/content.js",
-    "worker": "content/crawl-worker.js"
+    "contentScript": "vendors/opencode/content.js",
+    "runAt": "document_start",
+    "worker": "vendors/opencode/crawl-worker.js",
+    "home": "https://opencode.ai/",
+    "defaultDays": 0
   },
   "import": ["json"],
   "ratesPreset": "rates.preset.json",

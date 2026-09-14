@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// tools/build-opencode-preset.mjs — rebuild extension/vendors/opencode/rates.preset.json
-// from the GitHub crawl (script/clean_diffs.txt). Implements the agreed rule:
+// tools/opencode/build-opencode-preset.mjs — rebuild extension/vendors/opencode/rates.preset.json
+// from the GitHub crawl (tools/opencode/clean_diffs.txt). Implements the agreed rule:
 //   * each price row is anchored to its commit/`from` date (date-filtered timeline)
 //   * name normalization (approach A):
 //       - drop `...limit` non-model rows
@@ -9,15 +9,15 @@
 //       - strip multi-language promo suffixes, normalize display name -> canonical id
 //   * peak/offpeak window times are FIXED (deepseek-official definition)
 //
-// Usage: node tools/build-opencode-preset.mjs [--write]
+// Usage: node tools/opencode/build-opencode-preset.mjs [--write]
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, "..");
-const CLEAN = resolve(root, "script/clean_diffs.txt");
+const root = resolve(here, "../..");
+const CLEAN = resolve(here, "clean_diffs.txt");
 const PRESET = resolve(root, "extension/vendors/opencode/rates.preset.json");
 
 // Fixed peak window (deepseek-official definition; times are UTC, all days).

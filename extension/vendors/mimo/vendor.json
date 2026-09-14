@@ -2,6 +2,7 @@
   "source": "mimo",
   "label": "MiMo",
   "mode": "import",
+  "defaultEnabled": false,
   "origins": [],
   "import": ["xlsx"],
   "storage": {

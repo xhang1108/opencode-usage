@@ -7,3 +7,7 @@ Thumbs.db
 
 # Docs
 docs/
+
+# Generated opencode price-crawl artifacts
+tools/opencode/alldiffs.txt
+tools/opencode/clean_diffs.txt

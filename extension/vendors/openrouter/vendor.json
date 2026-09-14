@@ -2,9 +2,15 @@
   "source": "openrouter",
   "label": "OpenRouter",
   "mode": "crawl",
+  "defaultEnabled": false,
+  "costSource": "vendor",
   "origins": ["https://openrouter.ai/*"],
   "crawl": {
-    "contentScript": "vendors/openrouter/content.js"
+    "contentScript": "vendors/openrouter/content.js",
+    "runAt": "document_idle",
+    "webAccessible": ["vendors/openrouter/mapper.js", "vendors/openrouter/analytics-query.js", "shared/canonical.js"],
+    "home": "https://openrouter.ai/activity",
+    "defaultDays": 365
   },
   "import": [],
   "storage": {

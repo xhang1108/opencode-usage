@@ -2,9 +2,15 @@
   "source": "commandcode",
   "label": "CommandCode",
   "mode": "crawl",
+  "defaultEnabled": false,
+  "costSource": "vendor",
   "origins": ["https://commandcode.ai/*", "https://*.commandcode.ai/*"],
   "crawl": {
     "contentScript": "vendors/commandcode/content.js",
+    "runAt": "document_idle",
+    "webAccessible": ["vendors/commandcode/mapper.js", "shared/canonical.js"],
+    "home": "https://commandcode.ai/",
+    "defaultDays": 0,
     "everyDays": 3
   },
   "import": [],
