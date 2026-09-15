@@ -10,9 +10,12 @@
 // Env keys (all optional):
 //   OPENROUTER_API_KEY, DEEPSEEK_API_KEY, MIMO_API_KEY, CMD_API_KEY
 
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 const REDACTED = "<redacted>";
 
-function shapeOf(value, depth = 0) {
+export function shapeOf(value, depth = 0) {
   if (depth > 3) return typeof value;
   if (Array.isArray(value)) {
     return value.length ? [shapeOf(value[0], depth + 1)] : [];
@@ -69,13 +72,13 @@ async function postJson(url, payload, { bearer = null } = {}) {
   }
 }
 
-function lastDays(n) {
+export function lastDays(n) {
   const end = new Date();
   const start = new Date(Date.now() - n * 24 * 3600 * 1000);
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
-function namesOf(arr) {
+export function namesOf(arr) {
   if (!Array.isArray(arr)) return null;
   return arr
     .map((x) => (typeof x === "string" ? x : x?.name ?? (x ? Object.values(x)[0] : null)))
@@ -99,98 +102,102 @@ function report(name, result, { showShapePath = ["data", 0] } = {}) {
   if (shape) console.log(`shape=${JSON.stringify(shape)}`);
 }
 
-const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || null;
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || null;
-const MIMO_KEY = process.env.MIMO_API_KEY || null;
-const CMD_KEY = process.env.COMMAND_CODE_API_KEY || process.env.CMD_API_KEY || null;
+async function main() {
+  const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || null;
+  const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || null;
+  const MIMO_KEY = process.env.MIMO_API_KEY || null;
+  const CMD_KEY = process.env.COMMAND_CODE_API_KEY || process.env.CMD_API_KEY || null;
 
-console.log(`keys present: openrouter=${!!OPENROUTER_KEY} deepseek=${!!DEEPSEEK_KEY} mimo=${!!MIMO_KEY} commandcode=${!!CMD_KEY} ${REDACTED}`);
+  console.log(`keys present: openrouter=${!!OPENROUTER_KEY} deepseek=${!!DEEPSEEK_KEY} mimo=${!!MIMO_KEY} commandcode=${!!CMD_KEY} ${REDACTED}`);
 
-// 1. OpenRouter — public models list (no key needed)
-report(
-  "openrouter GET /api/v1/models (public)",
-  await getJson("https://openrouter.ai/api/v1/models"),
-  { showShapePath: ["data", 0] }
-);
-
-// 2. OpenRouter — Bearer activity (management key required; 30d grouped by endpoint)
-if (OPENROUTER_KEY) {
+  // 1. OpenRouter — public models list (no key needed)
   report(
-    "openrouter GET /api/v1/activity (Bearer)",
-    await getJson("https://openrouter.ai/api/v1/activity", { bearer: OPENROUTER_KEY }),
+    "openrouter GET /api/v1/models (public)",
+    await getJson("https://openrouter.ai/api/v1/models"),
     { showShapePath: ["data", 0] }
   );
-  // 2b. Analytics meta (which metrics exist?) + 7d sample query.
-  // This answers: does cached_tokens exist, and does input = prompt - cached hold?
-  const meta = await getJson("https://openrouter.ai/api/v1/analytics/meta", { bearer: OPENROUTER_KEY });
-  const m = meta.json?.data ?? {};
-  console.log("\n## openrouter GET /api/v1/analytics/meta (Bearer)");
-  console.log(`status=${meta.status} meta_keys=${meta.json?.data ? Object.keys(m).join(",") : "(unreadable) snippet=" + meta.snippet.slice(0, 120)}`);
-  console.log(`metrics=${namesOf(m.metrics) ?? "(unreadable)"}`);
-  console.log(`dimensions=${namesOf(m.dimensions) ?? "(none)"}`);
-  console.log(`operators=${namesOf(m.operators) ?? "(none)"}`);
-  console.log(`granularities=${namesOf(m.granularities) ?? "(none)"}`);
-  const range = lastDays(90);
-  const q = await postJson(
-    "https://openrouter.ai/api/v1/analytics/query",
-    {
-      metrics: ["tokens_prompt", "tokens_completion", "reasoning_tokens", "cached_tokens", "request_count"],
-      dimensions: ["model"],
-      granularity: "day",
-      limit: 20,
-      time_range: range,
-    },
-    { bearer: OPENROUTER_KEY }
-  );
-  const rows = q.json?.data?.data ?? q.json?.data ?? null;
-  const first = Array.isArray(rows) ? rows[0] : null;
-  console.log("\n## openrouter POST /api/v1/analytics/query 90d sample (Bearer)");
-  console.log(`status=${q.status} range=${range.start.slice(0, 10)}..${range.end.slice(0, 10)} rows=${Array.isArray(rows) ? rows.length : "-"}`);
-  if (first) console.log(`shape=${JSON.stringify(shapeOf(first))}`);
-  else console.log(`snippet=${q.snippet.slice(0, 160)}`);
-} else {
-  console.log("\n## openrouter GET /api/v1/activity + analytics/query (Bearer)\nskipped: OPENROUTER_API_KEY not set");
-}
 
-// 3. DeepSeek — Bearer balance (account readiness only, NOT usage)
-if (DEEPSEEK_KEY) {
+  // 2. OpenRouter — Bearer activity (management key required; 30d grouped by endpoint)
+  if (OPENROUTER_KEY) {
+    report(
+      "openrouter GET /api/v1/activity (Bearer)",
+      await getJson("https://openrouter.ai/api/v1/activity", { bearer: OPENROUTER_KEY }),
+      { showShapePath: ["data", 0] }
+    );
+    // 2b. Analytics meta (which metrics exist?) + 7d sample query.
+    // This answers: does cached_tokens exist, and does input = prompt - cached hold?
+    const meta = await getJson("https://openrouter.ai/api/v1/analytics/meta", { bearer: OPENROUTER_KEY });
+    const m = meta.json?.data ?? {};
+    console.log("\n## openrouter GET /api/v1/analytics/meta (Bearer)");
+    console.log(`status=${meta.status} meta_keys=${meta.json?.data ? Object.keys(m).join(",") : "(unreadable) snippet=" + meta.snippet.slice(0, 120)}`);
+    console.log(`metrics=${namesOf(m.metrics) ?? "(unreadable)"}`);
+    console.log(`dimensions=${namesOf(m.dimensions) ?? "(none)"}`);
+    console.log(`operators=${namesOf(m.operators) ?? "(none)"}`);
+    console.log(`granularities=${namesOf(m.granularities) ?? "(none)"}`);
+    const range = lastDays(90);
+    const q = await postJson(
+      "https://openrouter.ai/api/v1/analytics/query",
+      {
+        metrics: ["tokens_prompt", "tokens_completion", "reasoning_tokens", "cached_tokens", "request_count"],
+        dimensions: ["model"],
+        granularity: "day",
+        limit: 20,
+        time_range: range,
+      },
+      { bearer: OPENROUTER_KEY }
+    );
+    const rows = q.json?.data?.data ?? q.json?.data ?? null;
+    const first = Array.isArray(rows) ? rows[0] : null;
+    console.log("\n## openrouter POST /api/v1/analytics/query 90d sample (Bearer)");
+    console.log(`status=${q.status} range=${range.start.slice(0, 10)}..${range.end.slice(0, 10)} rows=${Array.isArray(rows) ? rows.length : "-"}`);
+    if (first) console.log(`shape=${JSON.stringify(shapeOf(first))}`);
+    else console.log(`snippet=${q.snippet.slice(0, 160)}`);
+  } else {
+    console.log("\n## openrouter GET /api/v1/activity + analytics/query (Bearer)\nskipped: OPENROUTER_API_KEY not set");
+  }
+
+  // 3. DeepSeek — Bearer balance (account readiness only, NOT usage)
+  if (DEEPSEEK_KEY) {
+    report(
+      "deepseek GET /user/balance (Bearer)",
+      await getJson("https://api.deepseek.com/user/balance", { bearer: DEEPSEEK_KEY }),
+      { showShapePath: [] }
+    );
+    report(
+      "deepseek GET /v1/models (Bearer)",
+      await getJson("https://api.deepseek.com/v1/models", { bearer: DEEPSEEK_KEY }),
+      { showShapePath: ["data", 0] }
+    );
+  } else {
+    console.log("\n## deepseek /user/balance + /v1/models\nskipped: DEEPSEEK_API_KEY not set");
+  }
+
+  // 4. MiMo — models list with key (OpenAI-compatible)
+  if (MIMO_KEY) {
+    report(
+      "mimo GET /v1/models (api-key)",
+      await getJson("https://api.xiaomimimo.com/v1/models", {
+        headers: { "api-key": MIMO_KEY },
+      }),
+      { showShapePath: ["data", 0] }
+    );
+  } else {
+    console.log("\n## mimo GET /v1/models\nskipped: MIMO_API_KEY not set");
+  }
+
+  // 5. CommandCode — provider models list (probe auth requirement)
   report(
-    "deepseek GET /user/balance (Bearer)",
-    await getJson("https://api.deepseek.com/user/balance", { bearer: DEEPSEEK_KEY }),
-    { showShapePath: [] }
-  );
-  report(
-    "deepseek GET /v1/models (Bearer)",
-    await getJson("https://api.deepseek.com/v1/models", { bearer: DEEPSEEK_KEY }),
+    "commandcode GET /provider/v1/models (no key probe)",
+    await getJson("https://api.commandcode.ai/provider/v1/models"),
     { showShapePath: ["data", 0] }
   );
-} else {
-  console.log("\n## deepseek /user/balance + /v1/models\nskipped: DEEPSEEK_API_KEY not set");
+  if (CMD_KEY) {
+    report(
+      "commandcode GET /provider/v1/models (Bearer)",
+      await getJson("https://api.commandcode.ai/provider/v1/models", { bearer: CMD_KEY }),
+      { showShapePath: ["data", 0] }
+    );
+  }
 }
 
-// 4. MiMo — models list with key (OpenAI-compatible)
-if (MIMO_KEY) {
-  report(
-    "mimo GET /v1/models (api-key)",
-    await getJson("https://api.xiaomimimo.com/v1/models", {
-      headers: { "api-key": MIMO_KEY },
-    }),
-    { showShapePath: ["data", 0] }
-  );
-} else {
-  console.log("\n## mimo GET /v1/models\nskipped: MIMO_API_KEY not set");
-}
-
-// 5. CommandCode — provider models list (probe auth requirement)
-report(
-  "commandcode GET /provider/v1/models (no key probe)",
-  await getJson("https://api.commandcode.ai/provider/v1/models"),
-  { showShapePath: ["data", 0] }
-);
-if (CMD_KEY) {
-  report(
-    "commandcode GET /provider/v1/models (Bearer)",
-    await getJson("https://api.commandcode.ai/provider/v1/models", { bearer: CMD_KEY }),
-    { showShapePath: ["data", 0] }
-  );
-}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
