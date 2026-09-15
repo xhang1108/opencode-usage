@@ -3,6 +3,23 @@
 
 import { saveDefaultCrawl, saveWorkspaceLabels } from "./store.js";
 import { escHTML } from "../views/format.js";
+import { initCustomSelect } from "../views/filters.js";
+
+// Styled dropdown matching the filter bar; the hidden native <select> stays the
+// source of truth, so only the presentation changes.
+let crawlSelect = null;
+function ensureCrawlSelect() {
+  if (!crawlSelect) {
+    crawlSelect = initCustomSelect(
+      "generalDefaultCrawl",
+      "generalDefaultCrawlTrigger",
+      "generalDefaultCrawlLabel",
+      "generalDefaultCrawlPanel",
+      "generalDefaultCrawlOptions"
+    );
+  }
+  return crawlSelect;
+}
 
 export function renderGeneral(ctx) {
   const vendors = (ctx.settings.registry && ctx.settings.registry.vendors) || [];
@@ -20,6 +37,7 @@ export function renderGeneral(ctx) {
     })
     .join("");
   sel.value = ctx.settings.defaultCrawl || "";
+  ensureCrawlSelect().refresh();
   sel.onchange = async () => {
     ctx.settings.defaultCrawl = sel.value;
     await saveDefaultCrawl(sel.value);

@@ -14,6 +14,7 @@ import {
   saveTimeEnabled,
 } from "../../shared/time-reminder.js";
 import { renderTimeReminderCard } from "../../shared/time-reminder-view.js";
+import { initCustomSelect } from "./filters.js";
 
 // `getRateModels()` -> [{ model, rates }] derived from the live pricing config.
 export function createTimeReminder({ getRateModels }) {
@@ -24,6 +25,16 @@ export function createTimeReminder({ getRateModels }) {
   const timeTimelineEl = document.getElementById("time-timeline");
   const timeToggleEl = document.getElementById("time-toggle");
   const timeModelEl = document.getElementById("time-model");
+
+  // Styled dropdown shared with the filter bar; the hidden native <select> stays
+  // the source of truth so the change handling below is unchanged.
+  let timeSelect = null;
+  function ensureTimeSelect() {
+    if (!timeSelect) {
+      timeSelect = initCustomSelect("time-model", "time-model-trigger", "time-model-label", "time-model-panel", "time-model-options");
+    }
+    return timeSelect;
+  }
 
   let timeSelectedModel = "";
   let timePeakWindows = [];
@@ -56,7 +67,6 @@ export function createTimeReminder({ getRateModels }) {
     timeModelEl.innerHTML = '<option value="">Select model</option>' + models.map((m) => `<option value="${m}">${m}</option>`).join("");
     return models;
   }
-
   // (Re)build the model picker from the live rate config and reconcile the
   // stored selection. Called after settings load and whenever the config
   // changes; the dashboard calls it directly instead of relying on the
@@ -69,6 +79,7 @@ export function createTimeReminder({ getRateModels }) {
     const selected = storedValid ? stored || "" : names[0] || "";
     timeModelEl.value = selected;
     timeSelectedModel = selected;
+    ensureTimeSelect().refresh();
     if (stored !== selected) await saveTimeModel(selected).catch(() => {});
     refreshTimePeakWindows();
     renderTimeReminder();

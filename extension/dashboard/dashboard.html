@@ -6,6 +6,7 @@
   <title>Opencode Token Usage</title>
   <link rel="stylesheet" href="../theme.css">
   <script src="../lib/chart.umd.min.js"></script>
+  <script src="../lib/mermaid.min.js"></script>
   <style>
     body { padding: 32px 24px; }
 
@@ -185,7 +186,7 @@
     .settings-pane[hidden] { display: none !important; }
     .settings-field { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
     .settings-field label { color: var(--text-muted); font-size: 12.5px; white-space: nowrap; }
-    .settings-field select { max-width: 320px; }
+    .settings-field .select-custom { max-width: 320px; }
     .settings-summary { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; margin-bottom: 8px; }
     .settings-kv { display: contents; }
     .settings-kv span { color: var(--text-muted); font-size: 12.5px; }
@@ -234,10 +235,6 @@
     .settings-vendor-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
     .settings-price-choice { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
     .settings-inbox-key code { font-family: var(--font-mono); font-size: 12px; }
-    .settings-target-info { margin: 10px 0; padding: 10px 12px; background: var(--bg-content); border: 1px solid var(--border-muted); border-radius: var(--radius-md); display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; }
-    .settings-target-editor .rates-json { min-height: 180px; }
-    .settings-mapped { grid-column: 1 / -1; margin-top: 6px; color: var(--text-secondary); font-size: 11.5px; line-height: 1.5; }
-    .settings-mono { font-family: var(--font-mono); }
     /* Unified pricing board */
     .up-master { border-color: var(--primary); }
     .up-muted { opacity: 0.5; }
@@ -299,12 +296,18 @@
     .hw-sec { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 18px; }
     .hw-sec:first-of-type { border-top: none; margin-top: 0; }
     .hw-sec h4 { margin: 0 0 4px; font-size: 14px; }
-    .hw-tag {
-      display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .04em; color: var(--primary); background: rgba(106,143,192,0.12);
-      border-radius: 999px; padding: 2px 8px; margin-left: 8px; vertical-align: middle;
-    }
     .hw-src { color: var(--text-disabled); font-size: 11.5px; margin: 0 0 10px; }
+    .hw-diagram {
+      background: var(--bg-content); border: 1px solid var(--border-muted);
+      border-radius: var(--radius-md); padding: 10px; margin: 8px 0; overflow-x: auto;
+    }
+    .hw-diagram svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+    .hw-diagram--error { color: var(--text-disabled); font-family: var(--font-mono); font-size: 11.5px; white-space: pre-wrap; }
+    .hw-diagram-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--text-muted); margin: 12px 0 0;
+    }
+    .hw-cap { color: var(--text-muted); font-size: 11.5px; margin: 6px 0 0; }
     .hw-sec p { margin: 6px 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.6; }
     .hw-sec ul { margin: 6px 0; padding-left: 18px; color: var(--text-secondary); font-size: 12.5px; line-height: 1.6; }
     .hw-sec li { margin: 3px 0; }
@@ -329,10 +332,24 @@
       background: var(--bg-content); color: var(--text);
       border: 1px solid var(--border); border-radius: var(--radius-md);
       padding: 12px; font-family: var(--font-mono); font-size: 12px;
-      line-height: 1.6; outline: none; resize: vertical; tab-size: 2;
+      line-height: 1.6; outline: none; resize: none; tab-size: 2;
     }
     .rates-json:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(106,143,192,0.15); }
     .rates-json.invalid { border-color: #cc6f66; box-shadow: 0 0 0 3px rgba(204,111,102,0.2); }
+    /* Themed resize grip replaces the native (unstyleable) bottom-right corner.
+       It sits in a small gutter under the textarea so it never covers the
+       scrollbars, which own the field's real bottom-right corner. */
+    .resizable { position: relative; padding-bottom: 14px; }
+    .resizable > textarea { display: block; }
+    .resize-handle {
+      position: absolute; right: 0; bottom: 0; width: 16px; height: 14px;
+      cursor: ns-resize; touch-action: none; opacity: 0.5;
+      color: var(--text-disabled);
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+      background-image: repeating-linear-gradient(-45deg, transparent 0 2px, currentColor 2px 3px);
+    }
+    .resize-handle:hover, .resizable.resizing .resize-handle { opacity: 1; }
+    .resizable.resizing .rates-json { border-color: var(--primary); }
     .rates-error {
       background: rgba(204,111,102,0.12); border: 1px solid rgba(204,111,102,0.35);
       color: #e8a09a; border-radius: var(--radius-sm); padding: 8px 10px;
@@ -494,6 +511,8 @@
       white-space: nowrap;
     }
     .select-option:hover { background: var(--surface-hover); color: var(--text); }
+    .select-option.disabled { opacity: 0.45; cursor: not-allowed; }
+    .select-option.disabled:hover { background: none; color: var(--text-secondary); }
     .select-option.selected {
       background: rgba(106, 143, 192, 0.12);
       color: var(--primary);
@@ -553,6 +572,7 @@
       outline: none;
     }
     .time-model:focus { border-color: var(--primary); }
+    .time-model-custom { width: 240px; }
     .time-status { padding: 3px 10px; }
     .time-body {
       display: flex;
@@ -625,7 +645,16 @@
       <div class="time-head">
         <span class="time-title">Time Reminder <span class="time-status" id="time-status">—</span></span>
         <div style="display:flex; align-items:center; gap:12px;">
-          <select class="input time-model" id="time-model" title="Select model">
+          <div class="select-custom time-model-custom">
+            <button type="button" class="input select-trigger time-model" id="time-model-trigger" title="Select model">
+              <span class="select-label" id="time-model-label">Select model</span>
+              <span class="select-caret">▾</span>
+            </button>
+            <div class="select-panel" id="time-model-panel" hidden>
+              <div class="select-options" id="time-model-options"></div>
+            </div>
+          </div>
+          <select class="input time-model" id="time-model" hidden>
             <option value="">Select model</option>
           </select>
           <label class="switch" for="time-toggle">
@@ -846,7 +875,16 @@
         <section class="settings-pane" id="settings-general">
           <div class="settings-field">
             <label for="generalDefaultCrawl">Default crawl vendor</label>
-            <select class="input" id="generalDefaultCrawl"></select>
+            <div class="select-custom">
+              <button type="button" class="input select-trigger" id="generalDefaultCrawlTrigger" title="Default crawl vendor">
+                <span class="select-label" id="generalDefaultCrawlLabel"></span>
+                <span class="select-caret">▾</span>
+              </button>
+              <div class="select-panel" id="generalDefaultCrawlPanel" hidden>
+                <div class="select-options" id="generalDefaultCrawlOptions"></div>
+              </div>
+            </div>
+            <select class="input" id="generalDefaultCrawl" hidden></select>
           </div>
           <div class="settings-summary" id="generalSummary"></div>
           <div class="settings-section-title">Workspaces</div>

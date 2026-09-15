@@ -42,6 +42,13 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
   }
 
   function updateLabel() {
+    // Single mode mirrors the native <select> so it can be reused anywhere a
+    // plain select was used; multi mode summarizes the checkbox set.
+    if (!multi) {
+      const opt = Array.from(select.options).find((o) => o.value === select.value);
+      label.textContent = opt ? opt.textContent : allLabel;
+      return;
+    }
     if (all || selected.size === 0) {
       label.textContent = allLabel;
     } else if (selected.size === 1) {
@@ -92,12 +99,17 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
         item.className = "select-option" + (opt.selected ? " selected" : "");
         item.textContent = opt.textContent;
         item.title = opt.value;
-        item.addEventListener("click", () => {
-          select.value = opt.value;
-          label.textContent = opt.textContent;
-          close();
-          select.dispatchEvent(new Event("change", { bubbles: true }));
-        });
+        if (opt.disabled) {
+          item.classList.add("disabled");
+          item.disabled = true;
+        } else {
+          item.addEventListener("click", () => {
+            select.value = opt.value;
+            updateLabel();
+            close();
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+        }
         optionsEl.appendChild(item);
       }
     }

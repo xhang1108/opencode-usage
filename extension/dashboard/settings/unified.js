@@ -8,7 +8,7 @@ import { normalizeUnifiedPricing, validateUnifiedPricing, makeGroupId, FINGERPRI
 import { validateRates } from "../../shared/pricing.js";
 import { saveUnifiedPricing, loadUnifiedPreset } from "./store.js";
 import { escHTML } from "../views/format.js";
-import { flashButton } from "../../shared/dom-ui.js";
+import { flashButton, wireResizable } from "../../shared/dom-ui.js";
 
 const ZERO_RATES = [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }];
 
@@ -57,9 +57,12 @@ function groupCard(ctx, group, assignedKeys, structuralKeys) {
       <div class="up-group-models">
         ${assignedKeys.map((k) => chip(k, structuralKeys.has(k))).join("") || '<span class="up-empty">Drop models here — drag a chip back to Unassigned to remove it.</span>'}
       </div>
-      <details class="up-group-rates">
+        <details class="up-group-rates">
         <summary>Rates · ${versions} version${versions === 1 ? "" : "s"}</summary>
-        <textarea class="rates-json up-group-json" spellcheck="false" data-group="${escHTML(group.id)}">${escHTML(JSON.stringify(group.rates, null, 2))}</textarea>
+        <div class="resizable">
+          <textarea class="rates-json up-group-json" spellcheck="false" data-group="${escHTML(group.id)}">${escHTML(JSON.stringify(group.rates, null, 2))}</textarea>
+          <span class="resize-handle" title="Drag to resize"></span>
+        </div>
         <div class="rates-error" data-error="${escHTML(group.id)}" hidden></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-primary up-group-save" data-group="${escHTML(group.id)}">Save rates</button>
@@ -86,7 +89,10 @@ export function renderUnified(ctx) {
       <summary>Paste / copy the whole price list as JSON</summary>
       <p class="modal-hint" style="margin:8px 0;">Paste a <code>{ enabled, groups, assign }</code> object and press Apply — the board re-arranges to match.</p>
       <div class="rates-error" id="upJsonError" hidden></div>
-      <textarea id="upJson" class="rates-json" spellcheck="false" style="min-height:220px;"></textarea>
+      <div class="resizable">
+        <textarea id="upJson" class="rates-json" spellcheck="false" style="min-height:220px;"></textarea>
+        <span class="resize-handle" title="Drag to resize"></span>
+      </div>
       <div class="modal-actions" style="justify-content:flex-start;">
         <button type="button" class="btn btn-primary" id="upJsonApply">Apply JSON</button>
         <button type="button" class="btn btn-secondary" id="upJsonCopy">Copy JSON</button>
@@ -123,6 +129,7 @@ export function renderUnified(ctx) {
     wireGroupEditors(ctx, wrap);
     wireToolbar(ctx, wrap);
     wireJson(ctx, wrap);
+    wireResizable(wrap);
   } else {
     const btn = wrap.querySelector("#upEnable");
     if (btn) {

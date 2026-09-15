@@ -1,75 +1,106 @@
 // extension/dashboard/settings/how-it-works.js
 // Static, user-facing reference: shared concepts first, then one table per
-// vendor. Table-first on purpose (little prose). Hand-written copy — keep it
-// in sync with docs/vendors.md when an adapter changes. Renders once.
+// vendor. Diagram-first on purpose (little prose) — mermaid source is rendered
+// at load. Hand-written copy — keep it in sync with docs/vendors.md when an
+// adapter changes. Renders once.
 
-// Each section: { id, title, tag, head?, rows, extra? }.
+// Each section: { id, title, diagrams?, caption?, head?, rows?, notes?, extra? }.
+//   diagrams    -> [{ label?, src }] mermaid sources, each rendered into .hw-diagram.
+//   caption     -> optional line under the diagrams.
 //   head given  -> rows are cell arrays rendered against that header row.
 //   head absent -> rows are [label, value] key/value pairs.
-//   extra       -> optional HTML appended after the table (vendor-specific how-to).
+//   notes       -> extra [label, value] rows rendered as a second table (with head).
+//   extra       -> optional HTML appended after the tables (vendor-specific how-to).
 import { flashButton } from "../../shared/dom-ui.js";
+
+const FONT = '"Berkeley Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
 
 const SECTIONS = [
   {
-    id: "tokens",
-    title: "Tokens",
-    tag: "shared",
-    head: ["Field", "Meaning", "Reported by"],
-    rows: [
-      ["input", "Prompt tokens not served from cache (cache miss).", "all"],
-      ["output", "Completion tokens returned by the model.", "all"],
-      ["reasoning", "Model thinking tokens, stored separately and never double counted. Vendors that fold reasoning into their completion count (opencode console, OpenRouter) have it split out at import.", "opencode, OpenRouter"],
-      ["cacheRead", "Prompt tokens served from cache (cheap / often free).", "opencode, OpenRouter, CommandCode, DeepSeek, MiMo"],
-      ["cacheWrite5m", "Tokens written into the 5-minute cache.", "opencode, CommandCode"],
-      ["cacheWrite1h", "Tokens written into the 1-hour cache.", "opencode"],
-    ],
-  },
-  {
     id: "cost",
     title: "How cost is calculated",
-    tag: "shared",
+    diagrams: [
+      {
+        label: "Unified ON — re-price everything on your list",
+        src: `flowchart LR
+    T["every vendor's tokens"] --> G["match its rate group<br/>source:model + model fingerprint"]
+    G --> R["rate version effective at that time<br/>+ peak / off-peak window"]
+    R --> C["final price"]`,
+      },
+      {
+        label: "Unified OFF — the vendor's own price wins",
+        src: `flowchart LR
+    R["vendor record"] --> Q{"vendor reports<br/>an amount?"}
+    Q -->|"yes"| A["use that USD amount"]
+    Q -->|"no"| B["tokens x shipped rate table"]
+    A --> C["final price"]
+    B --> C`,
+      },
+    ],
     rows: [
-      ["Unified pricing", "When on, every vendor is billed from your own price list (Settings → Pricing): tokens × the rate table of the group the model is dragged into. Vendor-reported spend and fallback prices are paused."],
-      ["Vendor-reported", "When unified is off, the amount the vendor itself reports is used directly (USD) for vendors that expose it."],
-      ["Derived", "cost = tokens × price table, applying peak / off-peak windows where defined."],
-      ["Formula", "input·rate_input + (output + reasoning)·rate_output + cacheRead·rate_cacheRead + cacheWrite·rate_cacheWrite (÷ 1e6; rates are USD per 1M). `output` excludes reasoning, so it is added once at the output rate."],
+      ["Formula", "input·in + (output + reasoning)·out + cacheRead·read + cacheWrite·write, all divided by 1e6. Rates are USD per 1M."],
+      ["Reported amount", "opencode, OpenRouter and CommandCode report a USD amount. DeepSeek and MiMo never do — they are always derived from their shipped table."],
       ["Free models", "Priced like any other model — give the `-free` variant its own rate instead of forcing $0."],
-      ["Unassigned models", "Under unified pricing, a model in no group is $0 until you drag it into one."],
+      ["Unassigned models", "Under unified pricing a model in no group is $0 until you drag it into a group."],
     ],
   },
   {
     id: "time",
     title: "Time & dates",
-    tag: "shared",
-    rows: [
-      ["Storage", "Canonical timestamps are UTC."],
-      ["Display", "Charts, tables and filters render in your local timezone."],
-      ["Peak / off-peak", "Judged in UTC against each vendor's window definition."],
-      ["Imports", "Keep the vendor timestamp, converted to UTC (offset kept for audit)."],
+    diagrams: [
+      {
+        src: `flowchart LR
+    S["vendor timestamp"] --> U["stored as UTC"] --> L["shown in your timezone"]
+    U --> P{"inside the vendor's peak window?<br/>window judged in UTC"}
+    P -->|"yes"| H["peak rate"]
+    P -->|"no"| O["off-peak rate"]`,
+      },
     ],
   },
   {
     id: "sources",
     title: "Where the data comes from",
-    tag: "shared",
+    caption: "Only opencode uses OPFS. Every other vendor — CommandCode included — is stored in <code>chrome.storage.local</code>.",
+    diagrams: [
+      {
+        src: `flowchart LR
+    O["opencode crawl"] --> F[("OPFS<br/>opencode.ai origin")]
+    F --> E[("chrome.storage.local<br/>extension storage")]
+    R["OpenRouter / DeepSeek /<br/>CommandCode / MiMo"] --> E
+    L["opencode local DB import"] --> E
+    S["settings + pricing"] --> E
+    E --> D["dashboard"]`,
+      },
+    ],
+    head: ["Data", "Stored in", "Key"],
     rows: [
-      ["Crawl", "Reads the same private endpoint the vendor's own dashboard uses, with your session cookie. Stays in your browser."],
-      ["File import", "Vendor exports (XLSX / JSON) and your own backup (settings JSON + records CSV), parsed in-browser."],
-      ["Local DB", "opencode local database via tools/import-local.mjs."],
-      ["Backup", "Settings -> General -> Export Backup writes two non-overlapping files: settings (JSON, includes your pricing) and every record from every source (CSV, incl. raw). Import both to restore."],
-      ["Data count", "The Data column counts what each vendor reports: opencode = one per usage record (it has no request field); CommandCode / DeepSeek / OpenRouter / MiMo = the vendor's own request count (CommandCode aggregates into 5-minute buckets). Because the definitions differ, mixing vendors makes the total approximate."],
+      ["opencode crawl", "OPFS on the <code>opencode.ai</code> origin", "<code>opencode_token_cache_&lt;workspace&gt;.json</code>"],
+      ["opencode crawl snapshot", "extension", "<code>cachedData</code> / <code>cachedMeta</code>"],
+      ["opencode local DB import", "extension", "<code>localImportData</code>"],
+      ["OpenRouter", "extension", "<code>openrouterImportData</code>"],
+      ["DeepSeek", "extension", "<code>deepseek-officialImportData</code>"],
+      ["CommandCode", "extension", "<code>commandcodeImportData</code>"],
+      ["MiMo", "extension", "<code>mimoImportData</code>"],
+      ["settings + pricing", "extension", "<code>vendorSettings</code>, <code>unifiedPricing</code>, …"],
+    ],
+    notes: [
+      ["OPFS", "Only the opencode crawl raw cache. Owned by the page crawler and read-only for the dashboard. Survives an extension reinstall, a folder move and a settings reset."],
+      ["Extension storage", "Everything else. Tied to the extension ID — reinstalling with a different ID loses it (re-crawl or re-import to restore)."],
+      ["Backup", "Settings -> General -> Export Backup writes settings (JSON, includes your pricing) and every record (CSV). Import both to restore."],
+      ["Data count", "opencode counts one per usage record; the other vendors count their own requests. Because the definitions differ, mixing vendors makes the total approximate."],
     ],
   },
   {
     id: "opencode",
     title: "opencode",
-    tag: "crawl",
     head: ["Aspect", "Detail"],
     rows: [
-      ["Source", "Crawl of opencode.ai (per workspace) + local opencode.db import."],
-      ["Tokens", "Native input, output, reasoning, cacheRead, cacheWrite5m, cacheWrite1h. The console's output count already includes reasoning, so output is stored reasoning-excluded and reasoning kept separate."],
-      ["Cost", "Vendor-reported when the console reports an amount (USD×1e8, divided to USD). When it reports no amount (null), the cost is estimated from the price table."],
-      ["Limits", "Session id rotates each redeploy (auto re-captured). Full rescan stalls ~198 pages. Server may stop holding an old workspace (returns empty) — last synced data is kept. Crawl daily; keep the tab visible."],
+      ["Storage", "OPFS on the <code>opencode.ai</code> origin (<code>opencode_token_cache_&lt;workspace&gt;.json</code>), plus a snapshot in <code>chrome.storage.local</code>. A local DB import lands in <code>localImportData</code>."],
+      ["Granularity", "One record per usage record."],
+      ["Provides", "input, output, reasoning, cacheRead, cacheWrite5m, cacheWrite1h; a USD amount when the console reports one."],
+      ["Missing", "No request count. The console omits free-model usage — import the local DB for that. The reported amount is sometimes null."],
+      ["Cost", "The reported amount when present, otherwise estimated from the price table."],
+      ["Limits", "Session id rotates each redeploy (auto re-captured). Full rescan stalls ~198 pages. Crawl daily; keep the tab visible."],
     ],
     extra:
       `<div class="settings-section-title">Local usage import</div>
@@ -82,84 +113,125 @@ const SECTIONS = [
   {
     id: "openrouter",
     title: "OpenRouter",
-    tag: "vendor cost",
     head: ["Aspect", "Detail"],
     rows: [
-      ["Source", "Cookie crawl of the private analytics endpoint (no API key)."],
-      ["Tokens", "input = tokens_prompt − cached_tokens · cacheRead = cached_tokens · output = tokens_completion − reasoning_tokens · reasoning = reasoning_tokens (a subset of completion, split out so it is not counted twice) · cacheWrite = 0. BYOK cannot be split out."],
-      ["Cost", "Vendor-reported account spend (total_usage, USD, 6 decimals). Provider differences included."],
-      ["Limits", "365 days longest; 31 days when grouped by provider. Private endpoint can change."],
+      ["Storage", "extension · <code>openrouterImportData</code>"],
+      ["Granularity", "One row per day × model × provider."],
+      ["Provides", "tokens_prompt, cached_tokens, tokens_completion, reasoning_tokens, request_count; vendor-reported USD spend."],
+      ["Missing", "No cacheWrite. BYOK spend cannot be split out. No public API — the private endpoint can change."],
+      ["Cost", "Vendor-reported <code>total_usage</code> (USD, 6 decimals), provider differences included."],
+      ["Limits", "365 days longest; 31 days when grouped by provider."],
     ],
   },
   {
     id: "deepseek-official",
     title: "DeepSeek",
-    tag: "crawl",
     head: ["Aspect", "Detail"],
     rows: [
-      ["Source", "Cookie + Bearer-token crawl of the platform usage endpoint (hourly)."],
-      ["Tokens", "input = PROMPT_CACHE_MISS_TOKEN · cacheRead = PROMPT_CACHE_HIT_TOKEN · output = RESPONSE_TOKEN · data = REQUEST · cacheWrite = 0. Merged across API keys into one row per model+hour (per-key detail kept in raw)."],
-      ["Cost", "Derived from the official price table. The vendor's CNY cost is recorded in raw (not used). Hourly rows let peak / off-peak windows apply."],
-      ["Limits", "Requires a logged-in DeepSeek session (token read from the page). One day per request for hourly buckets; history scanned backwards in bounded windows."],
+      ["Storage", "extension · <code>deepseek-officialImportData</code>"],
+      ["Granularity", "Hourly buckets, merged across API keys into one row per model + hour."],
+      ["Provides", "PROMPT_CACHE_MISS_TOKEN, PROMPT_CACHE_HIT_TOKEN, RESPONSE_TOKEN, REQUEST."],
+      ["Missing", "Reasoning is not separated (already inside output). cacheWrite is always 0. Per-key detail is kept in raw only. No export import."],
+      ["Cost", "Derived from the official price table. The vendor's CNY cost is kept in raw only."],
+      ["Limits", "Requires a logged-in session. One day per request; history scanned backwards in bounded windows."],
     ],
   },
   {
     id: "commandcode",
     title: "CommandCode",
-    tag: "crawl",
     head: ["Aspect", "Detail"],
     rows: [
-      ["Source", "Crawl only (no export)."],
-      ["Tokens", "input = tokensIn − cacheReadInputTokens · cacheRead = cacheReadInputTokens · cacheWrite5m = cacheCreationInputTokens · output = tokensOut."],
-      ["Cost", "Vendor-reported (endpoint totalCost)."],
-      ["Limits", "Aggregated into 5-minute buckets (no per-record rows); data = the vendor's request count per bucket. ~35 days back; crawl about every 3 days."],
+      ["Storage", "extension · <code>commandcodeImportData</code> — it crawls, but it does not use OPFS."],
+      ["Granularity", "One row per <strong>5-minute bucket</strong> × model × provider (the endpoint's default; <code>day</code> is used only to find which days have usage). <code>requests</code> is the vendor's count for that bucket."],
+      ["Provides", "tokensIn, cacheReadInputTokens, cacheCreationInputTokens, tokensOut, requests, vendor-reported totalCost."],
+      ["Missing", "No export button. No per-request rows. The <code>/internal/usage</code> detail list is capped at 100 rows/window and has no cache split, so the charts path is used instead."],
+      ["Cost", "Vendor-reported <code>totalCost</code>."],
+      ["Limits", "~35 days back; crawl about every 3 days."],
     ],
   },
   {
     id: "mimo",
     title: "MiMo",
-    tag: "import",
     head: ["Aspect", "Detail"],
     rows: [
-      ["Source", "XLSX export import (Token Plan + Pay-as-you-go) + optional crawl (unverified)."],
-      ["Tokens", "input = Input Miss Tokens · cacheRead = Input Hit Tokens · output = Output Tokens · cacheWrite = 0. Date is a UTC day."],
-      ["Cost", "Derived from the official USD price table. Currency/amount columns ignored."],
-      ["Limits", "Non-token usage (audio seconds, plugin counts) not counted. Finalised daily 07:00 UTC; export by month."],
-    ],
-  },
-  {
-    id: "manual",
-    title: "Manual records",
-    tag: "manual",
-    head: ["Aspect", "Detail"],
-    rows: [
-      ["Source", "Added by hand in the dashboard."],
-      ["Pricing", "Priced like any other record (unified list when on, fallback prices when off). Deletable individually or all at once."],
+      ["Storage", "extension · <code>mimoImportData</code>"],
+      ["Granularity", "One row per model per UTC day; export by month."],
+      ["Provides", "Input Miss Tokens, Input Hit Tokens, Output Tokens, Request Count."],
+      ["Missing", "No reasoning, no cacheWrite. Non-token usage (audio seconds, plugin counts) ignored. The XLSX amount / currency columns are ignored."],
+      ["Cost", "Derived from the official USD price table."],
+      ["Limits", "Finalised daily 07:00 UTC. Import only — the crawl path is unverified."],
     ],
   },
 ];
+
+async function renderDiagrams(pane) {
+  const mermaid = window.mermaid;
+  if (!mermaid) return; // extension page ships lib/mermaid.min.js; skip if absent.
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: "base",
+    fontFamily: FONT,
+    flowchart: { curve: "basis", htmlLabels: true, padding: 10 },
+    themeVariables: {
+      background: "transparent",
+      fontFamily: FONT,
+      fontSize: "12px",
+      primaryColor: "#1c1c1f",
+      primaryTextColor: "#f2eded",
+      primaryBorderColor: "#38383a",
+      secondaryColor: "#161618",
+      tertiaryColor: "#131010",
+      lineColor: "#68686f",
+      textColor: "#b8b2b2",
+      edgeLabelBackground: "#131010",
+    },
+  });
+
+  let i = 0;
+  for (const s of SECTIONS) {
+    for (let j = 0; j < (s.diagrams || []).length; j++) {
+      const host = pane.querySelector(`#hw-${s.id} .hw-diagram[data-idx="${j}"]`);
+      if (!host) continue;
+      try {
+        const { svg } = await mermaid.render(`hw-mmd-${i++}`, s.diagrams[j].src);
+        host.innerHTML = svg;
+      } catch (e) {
+        host.classList.add("hw-diagram--error");
+        host.textContent = s.diagrams[j].src;
+      }
+    }
+  }
+}
 
 export function renderHowItWorks() {
   const pane = document.getElementById("settings-how");
   if (!pane || pane.dataset.rendered === "1") return;
 
-  const table = (s) => {
-    if (s.head) {
-      const head = s.head.map((h) => `<th>${h}</th>`).join("");
-      const body = s.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
-      return `<table class="hw-table"><tr>${head}</tr>${body}</table>`;
-    }
-    const body = s.rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("");
-    return `<table class="hw-table hw-kv-table">${body}</table>`;
+  const headTable = (s) => {
+    const head = s.head.map((h) => `<th>${h}</th>`).join("");
+    const body = s.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
+    return `<table class="hw-table"><tr>${head}</tr>${body}</table>`;
   };
+  const kvTable = (rows) =>
+    `<table class="hw-table hw-kv-table">${rows
+      .map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`)
+      .join("")}</table>`;
+  const table = (s, rows) => (s.head ? headTable({ ...s, rows }) : kvTable(rows));
 
   const jump = SECTIONS.map((s) =>
     `<button type="button" class="hw-jump" data-hw="${s.id}">${s.title}</button>`
   ).join("");
   const sections = SECTIONS.map((s) => `
     <section class="hw-sec" id="hw-${s.id}">
-      <h4>${s.title}${s.tag ? `<span class="hw-tag">${s.tag}</span>` : ""}</h4>
-      ${table(s)}
+      <h4>${s.title}</h4>
+      ${(s.diagrams || [])
+        .map((d, j) => `${d.label ? `<div class="hw-diagram-label">${d.label}</div>` : ""}
+      <div class="hw-diagram" data-idx="${j}"></div>`)
+        .join("")}
+      ${s.caption ? `<p class="hw-cap">${s.caption}</p>` : ""}
+      ${s.rows ? table(s, s.rows) : ""}
+      ${s.notes ? kvTable(s.notes) : ""}
       ${s.extra || ""}
     </section>`).join("");
 
@@ -189,4 +261,5 @@ export function renderHowItWorks() {
     });
   }
   pane.dataset.rendered = "1";
+  renderDiagrams(pane);
 }
