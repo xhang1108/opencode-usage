@@ -4,24 +4,12 @@
 // chips into a group to share that group's rate table. A model in no group is
 // unpriced. Groups hold the same rate-version schema as the fallback presets.
 
-import { normalizeUnifiedPricing, validateUnifiedPricing, makeGroupId, FINGERPRINT_PREFIX, groupIdForKey } from "../../shared/unified.js";
+import { normalizeUnifiedPricing, validateUnifiedPricing } from "../../shared/unified.js";
 import { validateRates } from "../../shared/pricing.js";
 import { saveUnifiedPricing, loadUnifiedPreset } from "./store.js";
 import { escHTML } from "../views/format.js";
 import { flashButton, wireResizable } from "../../shared/dom-ui.js";
-
-const ZERO_RATES = [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }];
-
-// All keys that should be pickable: every model that appears in the loaded
-// records, plus every fallback-preset model (so authors can pre-assign).
-function collectKeys(ctx) {
-  const keys = new Set();
-  for (const rec of ctx.allRecords || ctx.records || []) keys.add(`${rec.source || "opencode"}:${rec.model}`);
-  for (const key of Object.keys((ctx.pricing && ctx.pricing.modelMap) || {})) keys.add(key);
-  for (const key of Object.keys((ctx.settings.unifiedPricing && ctx.settings.unifiedPricing.assign) || {})) keys.add(key);
-  for (const key of [...keys]) if (key.startsWith(FINGERPRINT_PREFIX)) keys.delete(key);
-  return [...keys].sort();
-}
+import { collectKeys, boardModel, moveChip, setGroupRates, deleteGroup, addGroup, renameGroup } from "./unified-model.js";
 
 async function persist(ctx, unified) {
   ctx.settings.unifiedPricing = normalizeUnifiedPricing(unified);
@@ -29,14 +17,8 @@ async function persist(ctx, unified) {
   await ctx.reload();
 }
 
-// The group a chip actually prices against: an exact assign key, or - like
-// priceUnified - the fingerprint fallback (shared/unified.js). Without this the
-// board would list a structurally-priced model
-// (commandcode:poolside/laguna-s-2.1-free) as Unassigned while its records are
-// already billed at the group rate.
-function effectiveGroup(unified, key) {
-  return groupIdForKey(unified.assign, key);
-}
+// The group a chip actually prices against is resolved by unified-model.js
+// (groupIdForKey, with the fingerprint fallback) so the board agrees with pricing.
 
 function chip(key, byStructure) {
   const title = byStructure
@@ -75,13 +57,12 @@ export function renderUnified(ctx) {
   const wrap = document.getElementById("pricingBoard");
   if (!wrap) return;
   const unified = ctx.settings.unifiedPricing;
-  const keys = collectKeys(ctx);
-  const groupOf = new Map(keys.map((k) => [k, effectiveGroup(unified, k)]));
-  const known = new Set(unified.groups.map((g) => g.id));
-  const unassigned = keys.filter((k) => !known.has(groupOf.get(k)));
-  // Chips with no explicit assign key that still resolve by fingerprint; shown in
-  // the group but marked so the pin is visible.
-  const structural = new Set(keys.filter((k) => groupOf.get(k) && !unified.assign[k]));
+  const keys = collectKeys({
+    records: ctx.allRecords || ctx.records,
+    modelMap: ctx.pricing && ctx.pricing.modelMap,
+    assign: unified.assign,
+  });
+  const { groupOf, unassigned, structural } = boardModel(unified, keys);
 
   const board = `
     <p class="modal-hint">Unified pricing: one price list for every vendor, keyed by <code>source:model</code>. Drag models into a group; models in the same group share its rate table (same <code>from</code>-dated versions, peak/off-peak windows and tiers as the fallback prices). A model in no group is <strong>unpriced</strong>.</p>
@@ -206,10 +187,7 @@ function wireDrag(ctx, wrap) {
       const key = e.dataTransfer.getData("text/plain");
       if (!key) return;
       const target = zone.dataset.drop;
-      const unified = normalizeUnifiedPricing(ctx.settings.unifiedPricing);
-      if (target === "none") delete unified.assign[key];
-      else unified.assign[key] = target;
-      await persist(ctx, unified);
+      await persist(ctx, moveChip(ctx.settings.unifiedPricing, key, target));
     });
   }
 }
@@ -235,41 +213,27 @@ function wireGroupEditors(ctx, wrap) {
         return;
       }
       errEl.hidden = true;
-      const unified = normalizeUnifiedPricing(ctx.settings.unifiedPricing);
-      const group = unified.groups.find((g) => g.id === id);
-      if (group) group.rates = rates;
-      await persist(ctx, unified);
+      await persist(ctx, setGroupRates(ctx.settings.unifiedPricing, id, rates));
     });
   }
   for (const btn of wrap.querySelectorAll(".up-group-del")) {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.group;
       if (!confirm(`Delete group "${id}"? Its models become unpriced.`)) return;
-      const unified = normalizeUnifiedPricing(ctx.settings.unifiedPricing);
-      unified.groups = unified.groups.filter((g) => g.id !== id);
-      await persist(ctx, unified);
+      await persist(ctx, deleteGroup(ctx.settings.unifiedPricing, id));
     });
   }
   for (const input of wrap.querySelectorAll(".up-group-name")) {
     input.addEventListener("change", async () => {
       const oldId = input.dataset.group;
       const newId = input.value.trim();
-      if (!newId || newId === oldId) {
+      const res = renameGroup(ctx.settings.unifiedPricing, oldId, newId);
+      if (!res.ok) {
+        if (res.reason === "duplicate") alert(`A group named "${newId}" already exists.`);
         input.value = oldId;
         return;
       }
-      const unified = normalizeUnifiedPricing(ctx.settings.unifiedPricing);
-      if (unified.groups.some((g) => g.id === newId)) {
-        alert(`A group named "${newId}" already exists.`);
-        input.value = oldId;
-        return;
-      }
-      // Rename the group and re-point every assignment so nothing dangles.
-      unified.groups = unified.groups.map((g) => (g.id === oldId ? { ...g, id: newId } : g));
-      const assign = {};
-      for (const [key, groupId] of Object.entries(unified.assign)) assign[key] = groupId === oldId ? newId : groupId;
-      unified.assign = assign;
-      await persist(ctx, unified);
+      await persist(ctx, res.unified);
     });
   }
 }
@@ -278,10 +242,7 @@ function wireToolbar(ctx, wrap) {
   const add = wrap.querySelector("#upAddGroup");
   if (add) {
     add.addEventListener("click", async () => {
-      const unified = normalizeUnifiedPricing(ctx.settings.unifiedPricing);
-      const used = new Set(unified.groups.map((g) => g.id));
-      unified.groups.push({ id: makeGroupId(used), rates: ZERO_RATES });
-      await persist(ctx, unified);
+      await persist(ctx, addGroup(ctx.settings.unifiedPricing));
     });
   }
   const reset = wrap.querySelector("#upResetPreset");

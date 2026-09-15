@@ -20,8 +20,10 @@ export const STORAGE_KEYS = {
 const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const asObject = (v) => (isPlainObject(v) ? { ...v } : {});
 
-export async function readSettings() {
-  const stored = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
+// Coerce a raw storage blob into the settings shape, so callers never deal with
+// malformed values. Pure (takes the already-fetched `stored` object).
+export function normalizeSettings(stored) {
+  stored = stored || {};
   const rawUnified = stored[STORAGE_KEYS.unified];
   return {
     registry: isPlainObject(stored[STORAGE_KEYS.registry]) ? stored[STORAGE_KEYS.registry] : { vendors: [] },
@@ -34,6 +36,10 @@ export async function readSettings() {
     workspaceLabels: asObject(stored[STORAGE_KEYS.workspaceLabels]),
     unmappedFirstSeen: asObject(stored[STORAGE_KEYS.unmappedFirstSeen]),
   };
+}
+
+export async function readSettings() {
+  return normalizeSettings(await chrome.storage.local.get(Object.values(STORAGE_KEYS)));
 }
 
 export async function saveVendorSettings(vendorSettings) {
@@ -58,19 +64,9 @@ export async function saveUnmappedFirstSeen(map) {
 }
 
 // D9: vendors default off unless the registry seeds otherwise; unseeded legacy
-// installs keep opencode visible.
-export function isSourceEnabled(source, vendorSettings) {
-  const src = source || "opencode";
-  const explicit = (vendorSettings || {})[src];
-  if (explicit === false) return false;
-  if (explicit === true) return true;
-  return src === "opencode";
-}
-
-export function enabledSources(vendorSettings, registry) {
-  const list = (registry && registry.vendors) || [];
-  return list.filter((v) => v && v.source && isSourceEnabled(v.source, vendorSettings)).map((v) => v.source);
-}
+// installs keep opencode visible. The rule lives in shared/sources.js so the
+// popup's crawl picker uses the exact same one (re-exported for existing callers).
+export { isSourceEnabled, enabledSources } from "../../shared/sources.js";
 
 async function fetchJSON(url) {
   try {

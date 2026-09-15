@@ -7,6 +7,7 @@
 import { downloadText, escHTML } from "../views/format.js";
 import { clearMessageFor } from "../../shared/stores.js";
 import { buildSettingsPayload, recordsToCSV } from "../../shared/backup.js";
+import { exportFilenames, pagedRows } from "./database-model.js";
 
 const RENDER_LIMIT = 500;
 
@@ -14,9 +15,9 @@ const RENDER_LIMIT = 500;
 // the user's configuration + userPricing; records (CSV) carry every stored
 // record from EVERY source (not just enabled ones) with lossless `raw`.
 function exportBackup(ctx) {
-  const date = new Date().toISOString().slice(0, 10);
-  downloadText(`opencode-usage_settings_${date}.json`, JSON.stringify(buildSettingsPayload(ctx.settings), null, 2));
-  downloadText(`opencode-usage_records_${date}.csv`, "\uFEFF" + recordsToCSV(ctx.allRecords), "text/csv;charset=utf-8");
+  const names = exportFilenames(new Date().toISOString().slice(0, 10));
+  downloadText(names.settings, JSON.stringify(buildSettingsPayload(ctx.settings), null, 2));
+  downloadText(names.records, "\uFEFF" + recordsToCSV(ctx.allRecords), "text/csv;charset=utf-8");
 }
 
 export async function renderDatabase(ctx) {
@@ -122,7 +123,7 @@ function buildStoreBody(ctx, store, body) {
     return;
   }
 
-  const shown = store.rows.slice(0, RENDER_LIMIT);
+  const { shown, hasMore } = pagedRows(store.rows, store.count, RENDER_LIMIT);
   const table = document.createElement("table");
   table.className = "db-table";
   table.innerHTML =
@@ -146,7 +147,7 @@ function buildStoreBody(ctx, store, body) {
     "</tbody>";
   body.appendChild(table);
 
-  if (store.count > shown.length) {
+  if (hasMore) {
     const trunc = document.createElement("div");
     trunc.className = "db-note-block";
     trunc.textContent = `Showing ${shown.length} of ${store.count.toLocaleString()} records.`;

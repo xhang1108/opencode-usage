@@ -5,6 +5,7 @@
 
 import { saveVendorSettings, saveUnifiedPricing } from "./store.js";
 import { escHTML } from "../views/format.js";
+import { vendorMeta, hasOrigins } from "./vendors-model.js";
 
 export function renderVendors(ctx) {
   const wrap = document.getElementById("vendorsList");
@@ -24,14 +25,8 @@ export function renderVendors(ctx) {
   const unifiedOn = ctx.settings.unifiedPricing.enabled;
   for (const v of vendors) {
     const enabled = ctx.isEnabled(v.source);
-    const modes = [v.crawl ? "crawl" : null, v.import && v.import.length ? `import ${v.import.join("/")}` : null]
-      .filter(Boolean)
-      .join(" · ");
     const hasPreset = ctx.presetSources ? ctx.presetSources.has(v.source) : true;
-    const vendorCost = v.costSource === "vendor";
-    const basis = unifiedOn
-      ? "unified price"
-      : `cost ${vendorCost ? "vendor-reported" : "estimated"}${!vendorCost && !hasPreset ? " · no preset" : ""}`;
+    const { modes, basis } = vendorMeta(v, { unifiedOn, hasPreset });
 
     const row = document.createElement("div");
     row.className = "settings-vendor" + (enabled ? "" : " disabled");
@@ -101,7 +96,7 @@ export function renderVendors(ctx) {
       const wantEnabled = e.target.checked;
       // B1: a non-default vendor's origins are optional, so ask for access on the
       // enable gesture. Default vendors are already granted (request throws).
-      if (wantEnabled && v.origins && v.origins.length > 0) {
+      if (wantEnabled && hasOrigins(v)) {
         let granted = true;
         try {
           granted = await chrome.permissions.request({ origins: v.origins });
@@ -120,7 +115,7 @@ export function renderVendors(ctx) {
       await ctx.reload();
     });
 
-    if (enabled && v.origins && v.origins.length > 0) decorateOriginAccess(v, row, ctx);
+    if (enabled && hasOrigins(v)) decorateOriginAccess(v, row, ctx);
 
     wrap.appendChild(row);
   }

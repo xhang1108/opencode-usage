@@ -8,6 +8,15 @@ import {
   collectPeakWindowsForModel,
 } from "../shared/time-reminder.js";
 import { renderTimeReminderCard } from "../shared/time-reminder-view.js";
+import {
+  crawlButtonText,
+  crawlStatusText,
+  crawlableVendors,
+  defaultCrawlLabel as crawlLabelFor,
+  formatDateTime,
+  pickUsageWorkspace,
+  usageUrl,
+} from "./view-model.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -23,18 +32,13 @@ let shiftHeld = false;
 function updateCrawlButtonLabel() {
   const btn = $("#btn-sync");
   if (!btn) return;
-  btn.textContent = shiftHeld ? `Full Scan ${defaultCrawlLabel}` : `Crawl ${defaultCrawlLabel}`;
-  btn.title = shiftHeld
-    ? `Click to re-crawl ALL ${defaultCrawlLabel} data from scratch`
-    : `Click to crawl ${defaultCrawlLabel} now · hold Shift for a full scan`;
+  const { text, title } = crawlButtonText({ shiftHeld, label: defaultCrawlLabel });
+  btn.textContent = text;
+  btn.title = title;
 }
 
 async function loadDefaultCrawlLabel() {
-  const stored = await chrome.storage.local.get(["defaultCrawl", "vendorRegistry"]);
-  const src = stored.defaultCrawl || "opencode";
-  const vendors = (stored.vendorRegistry && stored.vendorRegistry.vendors) || [];
-  const v = vendors.find((x) => x.source === src);
-  defaultCrawlLabel = v && v.label ? v.label : src.charAt(0).toUpperCase() + src.slice(1);
+  defaultCrawlLabel = crawlLabelFor(await chrome.storage.local.get(["defaultCrawl", "vendorRegistry"]));
   updateCrawlButtonLabel();
 }
 
@@ -48,17 +52,6 @@ function setBusy(busy) {
     const el = $(sel);
     if (el) el.disabled = busy;
   });
-}
-
-function formatDateTime(rec) {
-  if (rec.time) {
-    const d = new Date(rec.time);
-    if (!isNaN(d.getTime())) {
-      const pad = (n) => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-  }
-  return rec.date || "-";
 }
 
 function renderLastRecord(lr) {
@@ -78,7 +71,7 @@ function renderUsageLink(workspaceID) {
   const empty = $("#usage-link-empty");
   if (!link || !empty) return;
   if (workspaceID && /^wrk_/.test(workspaceID)) {
-    const url = `https://opencode.ai/workspace/${workspaceID}/usage`;
+    const url = usageUrl(workspaceID);
     link.href = url;
     link.textContent = "Open Usage ↗";
     link.title = url;
@@ -145,14 +138,7 @@ async function loadStatus() {
   if (stored.totalRecords !== undefined) $("#total-records").textContent = stored.totalRecords;
   renderLastRecord(stored.cachedMeta && stored.cachedMeta.lastRecord);
   // Usage link: auto-build https://opencode.ai/workspace/<wrk_...>/usage
-  // Priority: last visited (user's most recent workspace) > last sync
-  const wsFromStored =
-    (stored.lastVisitedWorkspace && /^wrk_/.test(stored.lastVisitedWorkspace) && stored.lastVisitedWorkspace) ||
-    (stored.lastSyncWorkspace && /^wrk_/.test(stored.lastSyncWorkspace) && stored.lastSyncWorkspace) ||
-    (stored.cachedMeta && stored.cachedMeta.lastRecord && stored.cachedMeta.lastRecord.workspaceID) ||
-    (stored.crawlState && stored.crawlState.workspace) ||
-    "";
-  renderUsageLink(wsFromStored);
+  renderUsageLink(pickUsageWorkspace(stored));
 
   // While a crawl is running the progress ticks already arrive via storage;
   // skip the live query because it re-parses the whole OPFS cache on every tick.
@@ -180,25 +166,8 @@ async function send(msg) {
   setStatus("Processing...", true);
   try {
     const res = await chrome.runtime.sendMessage(msg);
-    if (res && res.ok) {
-      if (msg.type === "start-crawl") {
-        if (res.openedUsage) {
-          setStatus(res.started ? "Opened Usage page & sync started" : "Opened Usage page - syncing...", true);
-        } else {
-          const label = msg.rescan ? "Rescan" : "Sync";
-          if (res.started) setStatus(`${label} started - watch the icon badge`, true);
-          else if (res.reason === "busy") setStatus("Sync already in progress", true);
-          else setStatus("Sync requested (waiting for server ID)", true);
-        }
-      } else if (msg.type === "open-dashboard") {
-        setStatus(
-          `Dashboard opened (${res.fromCache ? "cached" : "latest"} data, ${res.count} records)`,
-          true
-        );
-      }
-    } else {
-      setStatus(`Error: ${(res && res.error) || "unknown error"}`, false);
-    }
+    const status = crawlStatusText(msg, res);
+    if (status) setStatus(status.text, status.ok);
   } catch (e) {
     setStatus(`Error: ${e.message}`, false);
   } finally {
@@ -241,13 +210,6 @@ $("#btn-sync").addEventListener("click", async (e) => {
 
 // Vendor picker: list enabled vendors; crawl-capable ones are clickable, the
 // rest are shown disabled (D10).
-function isVendorEnabled(src, vendorSettings) {
-  const v = (vendorSettings || {})[src];
-  if (v === false) return false;
-  if (v === true) return true;
-  return src === "opencode";
-}
-
 async function renderCrawlMenu() {
   const menu = $("#sync-menu");
   const caret = $("#btn-sync-menu");
@@ -255,7 +217,7 @@ async function renderCrawlMenu() {
   const stored = await chrome.storage.local.get(["vendorRegistry", "vendorSettings"]);
   const vendors = (stored.vendorRegistry && stored.vendorRegistry.vendors) || [];
   // Only vendors that are enabled AND have a crawler.
-  const crawlable = vendors.filter((v) => v.crawl && isVendorEnabled(v.source, stored.vendorSettings));
+  const crawlable = crawlableVendors(vendors, stored.vendorSettings);
   menu.innerHTML = "";
   if (crawlable.length <= 1) {
     // Nothing to choose (or only one) - hide the picker entirely.

@@ -1,6 +1,9 @@
 // extension/dashboard/views/decor.js
 // Decorative neural-network canvas background. Self-contained: reads only the
-// #neuralCanvas element and window size.
+// #neuralCanvas element and window size. The graph geometry is built by
+// neural-layout.js (pure); this file owns the canvas, clock and highlights.
+
+import { buildNeuralLayout } from "./neural-layout.js";
 
 let _neuralRAF = 0;
 let _neuralLayers = [];
@@ -12,42 +15,9 @@ let _neuralNextHL = 0;
 let _neuralRecentPaths = [];
 
 function buildNeuralGraph() {
-  const xs = [0.03, 0.16, 0.3, 0.44, 0.6, 0.78, 0.97];
-  const counts = [5, 7, 10, 13, 10, 7, 5];
-  _neuralLayers = xs.map((xf, li) => {
-    const n = counts[li];
-    const isCenter = li === 3;
-    const isEdge = li === 0 || li === 6;
-    return Array.from({ length: n }, (_, i) => ({
-      x: xf * _neuralW,
-      baseX: xf * _neuralW,
-      baseY: ((i + 1) / (n + 1)) * _neuralH,
-      y: 0,
-      phase: Math.random() * Math.PI * 2,
-      driftPhase: Math.random() * Math.PI * 2,
-      driftSpeed: 0.22 + Math.random() * 0.32,
-      driftAmpX: 18 + Math.random() * 16,
-      driftAmpY: 16 + Math.random() * 16,
-      r: isCenter ? 2.6 : isEdge ? 1.4 : 1.9,
-    }));
-  });
-  _neuralEdges = [];
-  for (let li = 0; li < _neuralLayers.length - 1; li++) {
-    const keepProb = li === 3 ? 0.78 : li === 2 || li === 4 ? 0.68 : 0.52;
-    for (let a = 0; a < _neuralLayers[li].length; a++) {
-      for (let b = 0; b < _neuralLayers[li + 1].length; b++) {
-        if (Math.random() > keepProb) continue;
-        _neuralEdges.push({ li, a, b, skip: false });
-      }
-    }
-  }
-  for (let li = 0; li < _neuralLayers.length - 2; li++) {
-    for (let k = 0; k < 2; k++) {
-      const a = Math.floor(Math.random() * _neuralLayers[li].length);
-      const b = Math.floor(Math.random() * _neuralLayers[li + 2].length);
-      _neuralEdges.push({ li, a, b, skip: true });
-    }
-  }
+  const { layers, edges } = buildNeuralLayout(_neuralW, _neuralH);
+  _neuralLayers = layers;
+  _neuralEdges = edges;
   _neuralHighlights = [];
   _neuralNextHL = performance.now() + 300;
 }

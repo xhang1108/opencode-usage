@@ -2,9 +2,9 @@
 // Filter bar: custom workspace/model dropdowns and the custom date-range
 // picker. State lives in the closure; callers supply records and a change hook.
 
-import { toISODate, todayISO } from "../core/time.js";
-
-const fmtISO = (dateStr) => (dateStr ? dateStr : "—");
+import { todayISO } from "../core/time.js";
+import { createSelectState } from "./select-state.js";
+import { presetRange, pickRangeDay, dateBounds, rangeLabel } from "../core/date-range.js";
 
 // Mirrors a hidden native <select> (source of truth for options) into a styled
 // popup. In single mode it behaves like a native select; in `multi` mode it
@@ -19,25 +19,15 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
   const optionsEl = document.getElementById(optionsId);
 
   // `all` true means "no filter"; `selected` holds explicit values otherwise.
-  let all = true;
-  let selected = new Set();
-
-  function optionValues() {
-    return Array.from(select.options).map((o) => o.value);
-  }
+  const optionValues = () => Array.from(select.options).map((o) => o.value);
+  const state = createSelectState({ optionValues, allLabel, labelFor });
 
   function getSelected() {
-    return all ? [] : Array.from(selected);
+    return state.getSelected();
   }
 
   function setSelected(values) {
-    if (!values || values.length === 0) {
-      all = true;
-      selected.clear();
-    } else {
-      all = false;
-      selected = new Set(values);
-    }
+    state.setSelected(values);
     updateLabel();
   }
 
@@ -49,27 +39,11 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
       label.textContent = opt ? opt.textContent : allLabel;
       return;
     }
-    if (all || selected.size === 0) {
-      label.textContent = allLabel;
-    } else if (selected.size === 1) {
-      label.textContent = labelFor(Array.from(selected)[0]);
-    } else {
-      label.textContent = `${selected.size} selected`;
-    }
+    label.textContent = state.multiLabel();
   }
 
   function toggleValue(value) {
-    const cur = all ? new Set(optionValues()) : new Set(selected);
-    if (cur.has(value)) cur.delete(value);
-    else cur.add(value);
-    const allVals = optionValues();
-    if (cur.size === allVals.length) {
-      all = true;
-      selected.clear();
-    } else {
-      all = false;
-      selected = cur;
-    }
+    state.toggle(value);
     updateLabel();
     refresh();
     select.dispatchEvent(new Event("multichange", { bubbles: true }));
@@ -79,7 +53,7 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
     optionsEl.innerHTML = "";
     for (const opt of select.options) {
       if (multi) {
-        const checked = all || selected.has(opt.value);
+        const checked = state.isChecked(opt.value);
         const row = document.createElement("label");
         row.className = "select-option select-option-check" + (checked ? " selected" : "");
         const cb = document.createElement("input");
@@ -122,8 +96,7 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
       allBtn.textContent = "Select All";
       allBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        all = true;
-        selected.clear();
+        state.selectAll();
         updateLabel();
         refresh();
         select.dispatchEvent(new Event("multichange", { bubbles: true }));
@@ -134,8 +107,7 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
       clearBtn.textContent = "Clear";
       clearBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        all = false;
-        selected.clear();
+        state.clear();
         updateLabel();
         refresh();
         select.dispatchEvent(new Event("multichange", { bubbles: true }));
@@ -237,14 +209,7 @@ export function createFilters({ getRecords, localDateOf, onChange, getWorkspaceL
   });
 
   function updateRangeTrigger() {
-    const label = document.getElementById("rangeLabel");
-    if (rangePicker.start && rangePicker.end) {
-      label.textContent = `${fmtISO(rangePicker.start)} → ${fmtISO(rangePicker.end)}`;
-    } else if (rangePicker.start || rangePicker.end) {
-      label.textContent = rangePicker.start ? fmtISO(rangePicker.start) : `Until ${fmtISO(rangePicker.end)}`;
-    } else {
-      label.textContent = "All Time";
-    }
+    document.getElementById("rangeLabel").textContent = rangeLabel(rangePicker);
   }
 
   function syncRangeInputs() {
@@ -277,20 +242,7 @@ export function createFilters({ getRecords, localDateOf, onChange, getWorkspaceL
   }
 
   function onRangeDayClick(iso) {
-    if (!rangePicker.start || (rangePicker.start && rangePicker.end)) {
-      rangePicker.start = iso;
-      rangePicker.end = "";
-    } else {
-      let s = rangePicker.start;
-      let e = iso;
-      if (e < s) {
-        const t = s;
-        s = e;
-        e = t;
-      }
-      rangePicker.start = s;
-      rangePicker.end = e;
-    }
+    Object.assign(rangePicker, pickRangeDay(rangePicker, iso));
     syncRangeInputs();
     renderCalendar();
   }
@@ -329,35 +281,9 @@ export function createFilters({ getRecords, localDateOf, onChange, getWorkspaceL
   }
 
   function applyPreset(name) {
-    const now = new Date();
-    switch (name) {
-      case "today":
-        rangePicker.start = todayISO();
-        rangePicker.end = todayISO();
-        break;
-      case "all":
-        rangePicker.start = "";
-        rangePicker.end = "";
-        break;
-      case "7d": {
-        const s = new Date();
-        s.setDate(s.getDate() - 6);
-        rangePicker.start = toISODate(s);
-        rangePicker.end = toISODate(now);
-        break;
-      }
-      case "30d": {
-        const s = new Date();
-        s.setDate(s.getDate() - 29);
-        rangePicker.start = toISODate(s);
-        rangePicker.end = toISODate(now);
-        break;
-      }
-      case "month":
-        rangePicker.start = toISODate(new Date(now.getFullYear(), now.getMonth(), 1));
-        rangePicker.end = toISODate(now);
-        break;
-    }
+    const { start, end } = presetRange(name);
+    rangePicker.start = start;
+    rangePicker.end = end;
     if (rangePicker.start) {
       rangePicker.viewYear = +rangePicker.start.slice(0, 4);
       rangePicker.viewMonth = +rangePicker.start.slice(5, 7) - 1;
@@ -377,17 +303,12 @@ export function createFilters({ getRecords, localDateOf, onChange, getWorkspaceL
   }
 
   function initDateRange() {
-    const dates = [];
-    for (const rec of getRecords()) {
-      const d = localDateOf(rec);
-      if (d && d !== "Unknown") dates.push(d);
-    }
-    if (dates.length > 0) {
-      dates.sort();
+    const { min, max } = dateBounds(getRecords(), localDateOf);
+    if (min !== null) {
       const startDateInput = document.getElementById("startDate");
       const endDateInput = document.getElementById("endDate");
-      if (!startDateInput.value) startDateInput.value = dates[0];
-      if (!endDateInput.value) endDateInput.value = dates[dates.length - 1];
+      if (!startDateInput.value) startDateInput.value = min;
+      if (!endDateInput.value) endDateInput.value = max;
       rangePicker.start = startDateInput.value;
       rangePicker.end = endDateInput.value;
       updateRangeTrigger();

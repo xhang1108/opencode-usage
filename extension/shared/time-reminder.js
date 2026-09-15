@@ -125,9 +125,8 @@ export async function saveTimeEnabled(enabled) {
 // Build a 24h timeline (one entry per local hour) marking each hour as
 // peak/off-peak, based on the union of peak windows. The timeline is laid out
 // in local time (00:00-24:00), matching how the user reads the clock.
-export function buildTimeline(peakWindows) {
+export function buildTimeline(peakWindows, now = new Date()) {
   const timeline = [];
-  const now = new Date();
   for (let hour = 0; hour < 24; hour++) {
     // Sample the middle of each local hour so boundary hours resolve deterministically.
     const d = new Date(now);

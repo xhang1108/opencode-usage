@@ -3,6 +3,7 @@
 
 import { sortBy } from "../core/sort.js";
 import { fmtMoney, escHTML } from "./format.js";
+import { workspaceRows, modelRows, dailyRows } from "./table-model.js";
 
 export function markSortHeader(tableId, col, dir) {
   document.querySelectorAll(`#${tableId} th[data-col]`).forEach((th) => {
@@ -16,13 +17,7 @@ export function markSortHeader(tableId, col, dir) {
 export function renderWorkspaceTable(wsMap, sortState, labelFor) {
   const wsTbody = document.getElementById("wsTableBody");
   wsTbody.innerHTML = "";
-  const wsRows = Object.entries(wsMap).map(([ws, stats]) => ({
-    ws,
-    req: stats.req,
-    tokens: stats.tokens,
-    hitRate: stats.prompt > 0 ? (stats.cacheRead / stats.prompt) * 100 : 0,
-    cost: stats.cost,
-  }));
+  const wsRows = workspaceRows(wsMap);
   for (const stats of sortBy(wsRows, sortState.col, sortState.dir)) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -62,20 +57,8 @@ export function renderModelTable({ modelMap, singleModelDailyMap, selectedModel,
         <th data-col="cost">Estimated Cost</th>
       </tr>
     `;
-    const modelRows = Object.entries(modelMap).map(([key, stats]) => ({
-      model: stats.model || key,
-      source: stats.source || "",
-      req: stats.req,
-      input: stats.input,
-      output: stats.output,
-      cacheRead: stats.cacheRead,
-      hitRate: stats.input + stats.cacheRead > 0 ? (stats.cacheRead / (stats.input + stats.cacheRead)) * 100 : 0,
-      peakCost: stats.peakCost,
-      offpeakCost: stats.offpeakCost,
-      flatCost: stats.flatCost,
-      cost: stats.cost,
-    }));
-    for (const stats of sortBy(modelRows, sortState.col, sortState.dir)) {
+    const modelRowsData = modelRows(modelMap);
+    for (const stats of sortBy(modelRowsData, sortState.col, sortState.dir)) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td><strong>${escHTML(stats.model)}</strong></td>
@@ -103,16 +86,7 @@ export function renderModelTable({ modelMap, singleModelDailyMap, selectedModel,
         <th data-col="cost">Estimated Cost</th>
       </tr>
     `;
-    const dateRows = Object.entries(singleModelDailyMap).map(([date, stats]) => ({
-      date,
-      req: stats.req,
-      input: stats.input,
-      output: stats.output,
-      cacheRead: stats.cacheRead,
-      hitRate: stats.input + stats.cacheRead > 0 ? (stats.cacheRead / (stats.input + stats.cacheRead)) * 100 : 0,
-      cost: stats.cost,
-    }));
-    for (const stats of sortBy(dateRows, sortState.col, sortState.dir)) {
+    for (const stats of sortBy(dailyRows(singleModelDailyMap), sortState.col, sortState.dir)) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td><strong>${escHTML(stats.date)}</strong></td>

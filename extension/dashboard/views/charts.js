@@ -4,6 +4,7 @@
 
 import { localDateOf } from "../core/time.js";
 import { compactTick } from "./format.js";
+import { heatOpacity, isoDate, yearlyGrid, hourlyBuckets, modelChartSeries } from "./chart-model.js";
 
 // Single desaturated brand blue (#6a8fc0) with opacity variants.
 const CHART_COLORS = {
@@ -73,9 +74,7 @@ function chartOptions(overrides = {}) {
   );
 }
 
-// Heatmap cell shading: sqrt ramp so low values stay visible; `min` keeps each
-// heatmap's own floor, `cost == null` means "no data".
-const heatOpacity = (cost, max, min) => (cost == null ? 0.03 : Math.max(min, Math.sqrt(cost / max)));
+// Heatmap cell shading lives in chart-model.js (heatOpacity).
 
 // Grid label cell shared by both heatmaps.
 function axisLabel(text, align) {
@@ -207,22 +206,7 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
   // 24 hourly points styled like the Daily Cost chart (dual axes).
   function renderHourlyHybrid(hourlyMap, date) {
     const dayData = hourlyMap[date] || {};
-    const labels = [];
-    const costs = [];
-    const tokens = [];
-    for (let h = 0; h < 24; h++) {
-      let c = 0;
-      let t = 0;
-      for (let m = h * 60; m < h * 60 + 60; m++) {
-        if (dayData[m]) {
-          c += dayData[m].cost;
-          t += dayData[m].tokens;
-        }
-      }
-      labels.push(`${String(h).padStart(2, "0")}:00`);
-      costs.push(c);
-      tokens.push(t);
-    }
+    const { labels, costs, tokens } = hourlyBuckets(dayData);
     hourlyChartInst = new Chart(document.getElementById("hourlyChart"), {
       type: "line",
       data: {
@@ -335,38 +319,13 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
       return;
     }
 
-    const lastDate = new Date(dates[dates.length - 1] + "T00:00:00");
-    const firstDate = new Date(lastDate);
-    firstDate.setDate(firstDate.getDate() - 364);
-
-    const start = new Date(firstDate);
-    start.setDate(firstDate.getDate() - ((firstDate.getDay() + 6) % 7));
-    const end = new Date(lastDate);
-    end.setDate(end.getDate() + (6 - ((end.getDay() + 6) % 7)));
-
-    const weeks = [];
-    const cursor = new Date(start);
-    while (cursor <= end) {
-      weeks.push(new Date(cursor));
-      cursor.setDate(cursor.getDate() + 7);
-    }
-
-    const monthGroups = [];
-    for (const w of weeks) {
-      const key = w.getFullYear() + "-" + w.getMonth();
-      const lastGroup = monthGroups[monthGroups.length - 1];
-      if (!lastGroup || lastGroup.key !== key) {
-        monthGroups.push({ key, year: w.getFullYear(), month: w.getMonth(), count: 1 });
-      } else {
-        lastGroup.count++;
-      }
-    }
+    const { weeks, monthGroups, firstDate, lastDate } = yearlyGrid(dates);
 
     let maxCost = 0;
     for (const d of dates) if (daily[d].cost > maxCost) maxCost = daily[d].cost;
 
     const GAP = 2;
-    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const iso = isoDate;
 
     const grid = document.createElement("div");
     grid.style.cssText =
@@ -431,13 +390,9 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
   }
 
   function renderModelCharts(modelMap) {
-    const entries = Object.values(modelMap);
     // Same-named models from different sources are separate entries; label the
     // source only when the name is ambiguous.
-    const nameCount = {};
-    for (const s of entries) nameCount[s.model] = (nameCount[s.model] || 0) + 1;
-    const labels = entries.map((s) => (nameCount[s.model] > 1 ? `${s.model} (${s.source})` : s.model));
-    const modelCosts = entries.map((s) => s.cost);
+    const { labels, costs: modelCosts, inputs, cacheReads, hitRates } = modelChartSeries(modelMap);
     if (modelChartInst) modelChartInst.destroy();
     modelChartInst = new Chart(document.getElementById("modelChart"), {
       type: "doughnut",
@@ -448,8 +403,6 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
       options: chartOptions({ plugins: { legend: { position: "bottom" } } }),
     });
 
-    const inputs = entries.map((s) => s.input);
-    const cacheReads = entries.map((s) => s.cacheRead);
     if (tokenTypeChartInst) tokenTypeChartInst.destroy();
     tokenTypeChartInst = new Chart(document.getElementById("tokenTypeChart"), {
       type: "bar",
@@ -463,10 +416,6 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
       options: chartOptions({ scales: { x: axis({ stacked: true }), y: axis({ stacked: true }) } }),
     });
 
-    const hitRates = entries.map((s) => {
-      const prompt = s.input + s.cacheRead;
-      return prompt > 0 ? parseFloat(((s.cacheRead / prompt) * 100).toFixed(2)) : 0;
-    });
     if (hitRateChartInst) hitRateChartInst.destroy();
     hitRateChartInst = new Chart(document.getElementById("hitRateChart"), {
       type: "bar",

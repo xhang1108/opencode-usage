@@ -21,9 +21,15 @@ import { renderDatabase } from "./settings/database.js";
 import { renderHowItWorks } from "./settings/how-it-works.js";
 import { parseXlsx } from "../shared/xlsx.js";
 import { parseMimoSheets } from "../vendors/mimo/import-usage.js";
-import { SETTINGS_FORMAT, csvToRecords, groupBySource, parseSettingsPayload } from "../shared/backup.js";
-import { isLocalLooking } from "../shared/merge.js";
+import { csvToRecords, parseSettingsPayload } from "../shared/backup.js";
 import { normalizeRecord } from "../shared/canonical.js";
+import {
+  classifyImport,
+  isSettingsPayload,
+  planRecordsImport,
+  describeSettingsRestore,
+  mergeFirstSeen,
+} from "./core/import-plan.js";
 
 const globalCache = {};
 let settings = null;
@@ -73,15 +79,7 @@ function globalUnpricedModels() {
 // Record first-seen timestamps for the current unpriced set (pruning the ones
 // that got priced), returning the map used to show age. Persisted async.
 function syncUnmappedFirstSeen(models) {
-  const prev = (settings && settings.unmappedFirstSeen) || {};
-  const now = Date.now();
-  const next = {};
-  let changed = false;
-  for (const m of models) {
-    next[m] = prev[m] != null ? prev[m] : now;
-    if (prev[m] == null) changed = true;
-  }
-  for (const k of Object.keys(prev)) if (!(k in next)) changed = true;
+  const { next, changed } = mergeFirstSeen(settings && settings.unmappedFirstSeen, models);
   if (changed && settings) {
     settings.unmappedFirstSeen = next;
     saveUnmappedFirstSeen(next).catch(() => {});
@@ -354,10 +352,10 @@ async function importVendorExports(files) {
 // opencode-usage-settings .json is our own backup (D24) and is restored;
 // any other .json is an opencode local DB export; .xlsx is a MiMo export.
 async function importVendorExport(file) {
-  const name = file && file.name ? file.name : "";
-  if (/\.xlsx$/i.test(name)) return await importMimoXlsx(file);
-  if (/\.csv$/i.test(name)) return await importRecordsCSV(file);
-  if (/\.json$/i.test(name)) return await importJSONFile(file);
+  const kind = classifyImport(file && file.name);
+  if (kind === "xlsx") return await importMimoXlsx(file);
+  if (kind === "csv") return await importRecordsCSV(file);
+  if (kind === "json") return await importJSONFile(file);
   throw new Error("unsupported type (expected .csv, .json or .xlsx)");
 }
 
@@ -369,7 +367,7 @@ async function importJSONFile(file) {
   } catch (e) {
     throw new Error("invalid JSON");
   }
-  if (parsed && parsed.format === SETTINGS_FORMAT) return await restoreSettings(parsed);
+  if (isSettingsPayload(parsed)) return await restoreSettings(parsed);
   return await importOpencodeJSON(text);
 }
 
@@ -386,7 +384,7 @@ async function restoreSettings(payload) {
   if (patch.vendorSettings) {
     await chrome.runtime.sendMessage({ type: "sync-vendor-scripts" }).catch(() => {});
   }
-  return `settings restored (${Object.keys(patch).length} section${Object.keys(patch).length === 1 ? "" : "s"})`;
+  return describeSettingsRestore(patch);
 }
 
 // Restore the records half of a backup: group by source and stash each group
@@ -399,34 +397,20 @@ async function importRecordsCSV(file) {
       .map((v) => v && v.source)
       .filter((s) => s && s !== "opencode")
   );
+  const plan = planRecordsImport(records, vendorSources);
   const parts = [];
-  let unknown = 0;
-  for (const [source, recs] of groupBySource(records)) {
-    if (source === "opencode") {
-      // Only the local-DB track is restorable into extension storage. Crawl-track
-      // records are rebuilt from the opencode.ai cache (OPFS) by Crawl Now;
-      // restoring them here would pollute the local-import store, double-list
-      // them in Settings -> Database, and let "Clear local" wipe them.
-      const map = {};
-      let skippedCrawl = 0;
-      for (const rec of recs) {
-        if (!isLocalLooking(rec.id, rec)) { skippedCrawl++; continue; }
-        map[rec.id] = rec;
-      }
-      if (Object.keys(map).length > 0) {
-        const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(map) });
-        if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
-      }
-      parts.push(`opencode: ${Object.keys(map).length} local restored${skippedCrawl ? `, ${skippedCrawl} crawl skipped (open the Usage page and Crawl Now)` : ""}`);
-    } else if (vendorSources.has(source)) {
-      const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source, records: recs });
-      if (!res || !res.ok) throw new Error((res && res.error) || `${source} restore failed`);
-      parts.push(`${source}: ${res.added} new (${res.count} stored)`);
-    } else {
-      unknown += recs.length;
-    }
+  const localCount = Object.keys(plan.localMap).length;
+  if (localCount > 0) {
+    const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(plan.localMap) });
+    if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
   }
-  if (unknown > 0) parts.push(`${unknown} skipped (unknown source)`);
+  parts.push(`opencode: ${localCount} local restored${plan.skippedCrawl ? `, ${plan.skippedCrawl} crawl skipped (open the Usage page and Crawl Now)` : ""}`);
+  for (const { source, records: recs } of plan.vendors) {
+    const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source, records: recs });
+    if (!res || !res.ok) throw new Error((res && res.error) || `${source} restore failed`);
+    parts.push(`${source}: ${res.added} new (${res.count} stored)`);
+  }
+  if (plan.unknownCount > 0) parts.push(`${plan.unknownCount} skipped (unknown source)`);
   return `records restored — ${parts.join(", ")}`;
 }
 

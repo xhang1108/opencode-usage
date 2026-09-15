@@ -4,6 +4,7 @@
 import { saveDefaultCrawl, saveWorkspaceLabels } from "./store.js";
 import { escHTML } from "../views/format.js";
 import { initCustomSelect } from "../views/filters.js";
+import { workspaceList, summaryModel } from "./general-model.js";
 
 // Styled dropdown matching the filter bar; the hidden native <select> stays the
 // source of truth, so only the presentation changes.
@@ -43,14 +44,12 @@ export function renderGeneral(ctx) {
     await saveDefaultCrawl(sel.value);
   };
 
-  const enabledCount = vendors.filter((v) => ctx.isEnabled(v.source)).length;
-  const targetCount = Object.keys(ctx.pricing.targets || {}).length;
-  const mappedCount = Object.keys(ctx.pricing.modelMap || {}).length;
+  const summary = summaryModel({ vendors, isEnabled: ctx.isEnabled, pricing: ctx.pricing, records: ctx.records });
   document.getElementById("generalSummary").innerHTML =
-    `<div class="settings-kv"><span>Vendors enabled</span><b>${enabledCount} / ${vendors.length}</b></div>` +
-    `<div class="settings-kv"><span>Priced models (mapped)</span><b>${mappedCount}</b></div>` +
-    `<div class="settings-kv"><span>Price targets</span><b>${targetCount}</b></div>` +
-    `<div class="settings-kv"><span>Records loaded</span><b>${ctx.records.length.toLocaleString()}</b></div>`;
+    `<div class="settings-kv"><span>Vendors enabled</span><b>${summary.enabledCount} / ${summary.vendorCount}</b></div>` +
+    `<div class="settings-kv"><span>Priced models (mapped)</span><b>${summary.mappedCount}</b></div>` +
+    `<div class="settings-kv"><span>Price targets</span><b>${summary.targetCount}</b></div>` +
+    `<div class="settings-kv"><span>Records loaded</span><b>${summary.recordsCount.toLocaleString()}</b></div>`;
 
   // Storage footprint: a full re-crawl can move a lot of data, so surface it.
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local.getBytesInUse) {
@@ -71,15 +70,7 @@ export function renderGeneral(ctx) {
 function renderWorkspaces(ctx) {
   const wrap = document.getElementById("generalWorkspaces");
   if (!wrap) return;
-  const byWs = new Map();
-  for (const rec of ctx.records || []) {
-    const source = rec.source || "opencode";
-    const id = `${source}:${rec.workspaceID || "wrk_unknown"}`;
-    const entry = byWs.get(id) || { id, source, count: 0 };
-    entry.count++;
-    byWs.set(id, entry);
-  }
-  const list = [...byWs.values()].sort((a, b) => String(a.source).localeCompare(String(b.source)) || String(a.id).localeCompare(String(b.id)));
+  const list = workspaceList(ctx.records);
   if (list.length === 0) {
     wrap.innerHTML = '<div class="notice">No workspaces yet.</div>';
     return;

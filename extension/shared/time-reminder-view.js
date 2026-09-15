@@ -11,7 +11,7 @@ import { isPeakAt, buildTimeline, nextPeakBoundary, formatCountdownClock } from 
 // One <div class="seg"> per local hour; the current hour is outlined.
 export function timelineSegmentsHTML(peakWindows, now = new Date()) {
   const nowHour = now.getHours();
-  return buildTimeline(peakWindows)
+  return buildTimeline(peakWindows, now)
     .map(
       (seg) =>
         `<div class="seg ${seg.peak ? "peak" : ""} ${seg.hour === nowHour ? "now" : ""}" title="${String(seg.hour).padStart(2, "0")}:00"></div>`
