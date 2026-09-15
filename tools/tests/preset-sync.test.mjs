@@ -23,13 +23,14 @@ test("unified preset is in sync with its builder", () => {
 });
 
 // The builder reports groups that fold different series/versions/variants so a
-// risky merge is visible instead of silent. The two known ones are the authored
-// stealth fold and the deepseek flash version fold.
+// risky merge is visible instead of silent. The known ones are the authored
+// stealth fold, the deepseek flash version fold, and the muse contributor fold.
 test("unified builder reports cross-boundary merges for review", () => {
   const out = runCheck("tools/build-unified-preset.mjs");
   assert.match(out, /merge across a structural boundary/);
   assert.match(out, /glm-5\.3-flash {2}\[series\]/);
   assert.match(out, /deepseek-4-flash {2}\[version\]/);
+  assert.match(out, /muse-1\.2-spark-contributor {2}\[version\]/);
 });
 
 // `until` only retires a model from the peak/off-peak picker. A unified group

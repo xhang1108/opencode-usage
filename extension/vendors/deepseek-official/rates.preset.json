@@ -13,7 +13,9 @@
     "deepseek-official:deepseek-v4.1-flash-free": "deepseek-official:deepseek-v4-flash",
     "deepseek-official:deepseek-v4-flash-vision-exp": "deepseek-official:deepseek-v4-flash",
     "deepseek-official:deepseek-v4-flash-0731": "deepseek-official:deepseek-v4-flash",
-    "deepseek-official:deepseek-v4-pro-free": "deepseek-official:deepseek-v4-pro"
+    "deepseek-official:deepseek-v4.1-flash-expires-on-0910": "deepseek-official:deepseek-v4-flash",
+    "deepseek-official:deepseek-v4-pro-free": "deepseek-official:deepseek-v4-pro",
+    "deepseek-official:deepseek-chat & deepseek-reasoner": "deepseek-official:deepseek-chat"
   },
   "targets": {
     "deepseek-official:deepseek-chat": {

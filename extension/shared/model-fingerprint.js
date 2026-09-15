@@ -22,6 +22,11 @@ export function parse(key) {
   const colon = raw0.indexOf(":");
   let raw = colon === -1 ? raw0 : raw0.slice(colon + 1);
 
+  // the first colon was the source separator; a model id may carry its own
+  // qualifier ("longcat-2.0:free", "tencent/hy3:paid"), so fold the rest to "-"
+  // or it leaks into the model segment and breaks the fingerprint
+  raw = raw.replace(/:/g, "-");
+
   // drop a routing prefix ("google/gemini-3.5-flash" -> "gemini-3.5-flash")
   if (raw.includes("/")) raw = raw.slice(raw.lastIndexOf("/") + 1);
 

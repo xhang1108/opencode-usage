@@ -165,6 +165,13 @@ const AUTHORED_FOLDS = {
   "openrouter:stealth/ox-alpha": "glm-5.3-flash",
   "opencode:ox-alpha-free": "glm-5.3-flash",
   "opencode:x-preview-f-free": "glm-5.3-flash",
+  // Muse Spark contributor generations are one model (the 1.3 paid listing
+  // supersedes 1.2; the parser would split them on the version). Carried over
+  // from the pre-fingerprint ALIAS table.
+  "opencode:muse-spark-1.2-contributor": "muse-spark-contributor",
+  "opencode:muse-spark-1.2-contributor-free": "muse-spark-contributor",
+  "opencode:muse-spark-1.3-contributor": "muse-spark-contributor",
+  "opencode:muse-spark-1.3-contributor-free": "muse-spark-contributor",
 };
 
 // Models whose shipped fallback price must be suppressed regardless of what the

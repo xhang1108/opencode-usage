@@ -63,6 +63,22 @@ export function modelsInGroup(unified, groupId) {
     .sort();
 }
 
+// The assign key a "<source>:<model>" resolves to: the exact key, else the
+// fingerprint fallback. Returns null when neither is present. Shared by the
+// pricing path and the dashboard board so both agree on what is assigned.
+export function resolveAssignKey(assign, key) {
+  if (!assign) return null;
+  if (assign[key]) return key;
+  const fp = FINGERPRINT_PREFIX + parse(key).fingerprint;
+  return assign[fp] ? fp : null;
+}
+
+// The group id a "<source>:<model>" prices against, or null when unassigned.
+export function groupIdForKey(assign, key) {
+  const k = resolveAssignKey(assign, key);
+  return k ? assign[k] : null;
+}
+
 // Structural validation; rate lists share the rules with presets.
 export function validateUnifiedPricing(value) {
   const errors = [];

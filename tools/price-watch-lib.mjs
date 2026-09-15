@@ -14,8 +14,10 @@ export const VENDORS = {
     parser: "extension/vendors/deepseek-official/pricing-page.js",
     // legacy / alias API model ids folded into the canonical target.
     aliasTo: {
-      "deepseek-v4-flash": ["deepseek-flash", "deepseek-v4.1-flash", "deepseek-v4-flash-free", "deepseek-v4.1-flash-free", "deepseek-v4-flash-vision-exp", "deepseek-v4-flash-0731"],
+      "deepseek-v4-flash": ["deepseek-flash", "deepseek-v4.1-flash", "deepseek-v4-flash-free", "deepseek-v4.1-flash-free", "deepseek-v4-flash-vision-exp", "deepseek-v4-flash-0731", "deepseek-v4.1-flash-expires-on-0910"],
       "deepseek-v4-pro": ["deepseek-v4-pro-free"],
+      // Usage-page display label for the merged chat+reasoner model (V3.1+).
+      "deepseek-chat": ["deepseek-chat & deepseek-reasoner"],
     },
   },
   mimo: {

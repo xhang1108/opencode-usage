@@ -1309,22 +1309,6 @@
       ]
     },
     {
-      "id": "muse-1.3-spark-contributor",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.1,
-              "output": 0.2,
-              "cacheRead": 0.002,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": "nemotron-3-ultra",
       "rates": [
         {
@@ -1580,7 +1564,7 @@
     "opencode:hy4-preview": "hy-4-preview",
     "opencode:qwen3.8-flash": "qwen-3.8-flash",
     "opencode:omen-alpha": "omen-alpha",
-    "opencode:muse-spark-1.3-contributor": "muse-1.3-spark-contributor",
+    "opencode:muse-spark-1.3-contributor": "muse-1.2-spark-contributor",
     "opencode:deepseek-v4.1-flash": "deepseek-4-flash",
     "opencode:hy3-free": "hy-3",
     "opencode:laguna-s-2.1-free": "laguna-2.1-s",
@@ -1592,7 +1576,7 @@
     "opencode:qwen-3.7-plus": "qwen-3.7-plus",
     "opencode:qwen-3.6-plus": "qwen-3.6-plus",
     "opencode:muse-spark-1.2-contributor-free": "muse-1.2-spark-contributor",
-    "opencode:muse-spark-1.3-contributor-free": "muse-1.3-spark-contributor",
+    "opencode:muse-spark-1.3-contributor-free": "muse-1.2-spark-contributor",
     "opencode:gemini-3.8-flash": "gemini-3.8-flash",
     "opencode:ox-alpha-free": "glm-5.3-flash",
     "opencode:x-preview-f-free": "glm-5.3-flash",
@@ -1607,7 +1591,9 @@
     "deepseek-official:deepseek-v4.1-flash-free": "deepseek-4-flash",
     "deepseek-official:deepseek-v4-flash-vision-exp": "deepseek-4-flash",
     "deepseek-official:deepseek-v4-flash-0731": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4.1-flash-expires-on-0910": "deepseek-4-flash",
     "deepseek-official:deepseek-v4-pro-free": "deepseek-4-pro",
+    "deepseek-official:deepseek-chat & deepseek-reasoner": "deepseek-chat",
     "mimo:mimo-v2.5": "mimo-2.5",
     "mimo:mimo-v2.5-pro": "mimo-2.5-pro",
     "mimo:MiMo-V2.5-Pro": "mimo-2.5-pro",
@@ -1647,7 +1633,7 @@
     "fp:hy:4:preview:": "hy-4-preview",
     "fp:qwen:3.8:flash:": "qwen-3.8-flash",
     "fp:omen:0:base:alpha": "omen-alpha",
-    "fp:muse:1.3:base:spark-contributor": "muse-1.3-spark-contributor",
+    "fp:muse:1.3:base:spark-contributor": "muse-1.2-spark-contributor",
     "fp:deepseek:4.1:flash:": "deepseek-4-flash",
     "fp:laguna:2.1:base:s": "laguna-2.1-s",
     "fp:nemotron:3:base:ultra": "nemotron-3-ultra",
@@ -1659,6 +1645,9 @@
     "fp:deepseek:0:base:reasoner": "deepseek-reasoner",
     "fp:deepseek:0:flash:": "deepseek-4-flash",
     "fp:deepseek:4:base:flash-0731": "deepseek-4-flash",
+    "fp:deepseek:4.1:base:flash-expires-on-0910": "deepseek-4-flash",
+    "fp:deepseek:0:base:chat-&-deepseek-reasoner": "deepseek-chat",
+    "fp:muse:0:base:spark-contributor": "muse-1.2-spark-contributor",
     "fp:gpt:5:base:nano": "gpt-5-nano",
     "fp:gpt:20:base:ossb": "gpt-20-ossb",
     "fp:gpt:4:base:": "gpt-4",

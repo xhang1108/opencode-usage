@@ -9,7 +9,11 @@ import {
   priceUnified,
   unifiedRateModels,
   modelsInGroup,
+  resolveAssignKey,
+  groupIdForKey,
 } from "../../extension/shared/unified.js";
+import { buildPricing } from "../../extension/shared/preset.js";
+import { priceRecord } from "../../extension/shared/pricing.js";
 
 const RATE_A = { from: null, pricing: { flat: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0 } } };
 const RATE_B = {
@@ -128,4 +132,75 @@ test("unifiedRateModels skips groups no model points at", () => {
     assign: { "opencode:m": "g" },
   });
   assert.deepEqual(unifiedRateModels(unified).map((r) => r.model), ["g"]);
+});
+
+test("resolveAssignKey prefers the exact key, then the fingerprint fallback", () => {
+  const assign = { "opencode:deepseek-v4-flash": "g", "fp:hy:3:base:": "h" };
+  assert.equal(resolveAssignKey(assign, "opencode:deepseek-v4-flash"), "opencode:deepseek-v4-flash");
+  assert.equal(resolveAssignKey(assign, "commandcode:tencent/hy3-paid"), "fp:hy:3:base:");
+  assert.equal(resolveAssignKey(assign, "mystery:nope"), null);
+  assert.equal(groupIdForKey(assign, "commandcode:tencent/hy3-paid"), "h");
+  assert.equal(groupIdForKey(assign, "mystery:nope"), null);
+});
+
+test("the board agrees with pricing: structurally-priced vendor ids are assigned", () => {
+  const preset = JSON.parse(fs.readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
+  const unified = normalizeUnifiedPricing(preset);
+  const index = buildUnifiedIndex(unified);
+  const rec = { input: 1000000, output: 0, cacheRead: 0, cacheWrite: 0, time: "2026-09-15T12:00:00Z" };
+  // Never enumerated in any preset table, yet structurally known.
+  const ids = [
+    ["commandcode", "poolside/laguna-s-2.1-free"],
+    ["commandcode", "meituan/LongCat-2.0:free"],
+    ["openrouter", "google/gemini-2.5-flash-lite"],
+    ["openrouter", "openai/gpt-5-nano-2025-08-07"],
+    ["commandcode", "tencent/hy3-paid"],
+    ["commandcode", "deepseek/deepseek-v4.1-flash"],
+  ];
+  for (const [source, model] of ids) {
+    const key = `${source}:${model}`;
+    const groupId = groupIdForKey(unified.assign, key);
+    assert.ok(groupId, `${key} should resolve to a group`);
+    const priced = priceUnified({ ...rec, source, model }, index);
+    assert.equal(priced.unpriced, false, `${key} should be priced`);
+  }
+});
+
+test("vendor alias folds cover display labels the parser cannot resolve", () => {
+  // These DeepSeek labels were in the pre-fingerprint ALIAS table and cannot be
+  // re-derived structurally, so they live in rates.preset.json modelMap (kept
+  // reproducible by price-watch-lib aliasTo). They must stay priced in both the
+  // unified and the legacy vendor table.
+  const preset = JSON.parse(fs.readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
+  const unified = normalizeUnifiedPricing(preset);
+  const chat = groupIdForKey(unified.assign, "deepseek-official:deepseek-chat");
+  // DeepSeek's merged chat+reasoner label lands on the chat group.
+  assert.equal(groupIdForKey(unified.assign, "deepseek-official:deepseek-chat & deepseek-reasoner"), chat);
+  const flash = groupIdForKey(unified.assign, "deepseek-official:deepseek-v4-flash");
+  assert.equal(groupIdForKey(unified.assign, "deepseek-official:deepseek-v4.1-flash-expires-on-0910"), flash);
+
+  // Muse Spark contributor generations (and their free variant) are one group.
+  const contributor = groupIdForKey(unified.assign, "opencode:muse-spark-1.3-contributor");
+  assert.ok(contributor);
+  for (const key of [
+    "opencode:muse-spark-1.2-contributor",
+    "opencode:muse-spark-1.2-contributor-free",
+    "opencode:muse-spark-1.3-contributor-free",
+  ]) {
+    assert.equal(groupIdForKey(unified.assign, key), contributor, key);
+  }
+  // The non-contributor model stays a distinct group.
+  assert.notEqual(groupIdForKey(unified.assign, "opencode:muse-spark-1.2"), contributor);
+
+  // The legacy (unified-off) vendor table maps them too.
+  const vendor = JSON.parse(fs.readFileSync(new URL("../../extension/vendors/deepseek-official/rates.preset.json", import.meta.url)));
+  const legacy = buildPricing({ presets: [vendor] });
+  for (const [model, target] of [
+    ["deepseek-chat & deepseek-reasoner", "deepseek-official:deepseek-chat"],
+    ["deepseek-v4.1-flash-expires-on-0910", "deepseek-official:deepseek-v4-flash"],
+  ]) {
+    const r = priceRecord({ source: "deepseek-official", model, input: 1000000, time: "2026-09-15T12:00:00Z" }, legacy);
+    assert.equal(r.unpriced, false, model);
+    assert.equal(r.targetId, target, model);
+  }
 });

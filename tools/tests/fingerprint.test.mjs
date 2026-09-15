@@ -11,6 +11,9 @@ const GOLDEN = {
   // CommandCode routing ids must land on the vendors' groups.
   "commandcode:tencent/hy3-paid": "hy:3:base:",
   "commandcode:deepseek/deepseek-v4.1-flash": "deepseek:4.1:flash:",
+  // A qualifier colon inside the model segment folds to the base model.
+  "commandcode:meituan/LongCat-2.0:free": "longcat:2.0:base:",
+  "commandcode:meituan/LongCat-2.0: free": "longcat:2.0:base:",
   // Variants never collapse into each other.
   "openrouter:google/gemini-3.5-flash": "gemini:3.5:flash:",
   "openrouter:google/gemini-3.5-pro": "gemini:3.5:pro:",

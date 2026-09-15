@@ -4,7 +4,7 @@
 // chips into a group to share that group's rate table. A model in no group is
 // unpriced. Groups hold the same rate-version schema as the fallback presets.
 
-import { normalizeUnifiedPricing, validateUnifiedPricing, makeGroupId, FINGERPRINT_PREFIX } from "../../shared/unified.js";
+import { normalizeUnifiedPricing, validateUnifiedPricing, makeGroupId, FINGERPRINT_PREFIX, groupIdForKey } from "../../shared/unified.js";
 import { validateRates } from "../../shared/pricing.js";
 import { saveUnifiedPricing, loadUnifiedPreset } from "./store.js";
 import { escHTML } from "../views/format.js";
@@ -28,21 +28,33 @@ async function persist(ctx, unified) {
   await ctx.reload();
 }
 
-function chip(key) {
-  return `<span class="up-chip" draggable="true" data-key="${escHTML(key)}" title="${escHTML(key)}">${escHTML(key)}</span>`;
+// The group a chip actually prices against: an exact assign key, or - like
+// priceUnified - the fingerprint fallback (shared/unified.js). Without this the
+// board would list a structurally-priced model
+// (commandcode:poolside/laguna-s-2.1-free) as Unassigned while its records are
+// already billed at the group rate.
+function effectiveGroup(unified, key) {
+  return groupIdForKey(unified.assign, key);
 }
 
-function groupCard(ctx, group, assigned) {
+function chip(key, byStructure) {
+  const title = byStructure
+    ? `${key} — priced by structure (fingerprint); delete the group to unpin it`
+    : key;
+  return `<span class="up-chip${byStructure ? " up-chip-struct" : ""}" draggable="true" data-key="${escHTML(key)}" title="${escHTML(title)}">${escHTML(key)}</span>`;
+}
+
+function groupCard(ctx, group, assignedKeys, structuralKeys) {
   const versions = Array.isArray(group.rates) ? group.rates.length : 0;
   return `
     <div class="up-group" data-drop="${escHTML(group.id)}">
       <div class="up-group-head">
         <input type="text" class="input up-group-name" data-group="${escHTML(group.id)}" value="${escHTML(group.id)}" title="Group name (rename to merge/edit)" spellcheck="false">
-        <span class="up-group-count">${assigned.length} model${assigned.length === 1 ? "" : "s"}</span>
+        <span class="up-group-count">${assignedKeys.length} model${assignedKeys.length === 1 ? "" : "s"}</span>
         <button type="button" class="btn btn-danger up-group-del" data-group="${escHTML(group.id)}" title="Delete this group (its models become unpriced)">Delete</button>
       </div>
       <div class="up-group-models">
-        ${assigned.map(chip).join("") || '<span class="up-empty">Drop models here — drag a chip back to Unassigned to remove it.</span>'}
+        ${assignedKeys.map((k) => chip(k, structuralKeys.has(k))).join("") || '<span class="up-empty">Drop models here — drag a chip back to Unassigned to remove it.</span>'}
       </div>
       <details class="up-group-rates">
         <summary>Rates · ${versions} version${versions === 1 ? "" : "s"}</summary>
@@ -60,8 +72,12 @@ export function renderUnified(ctx) {
   if (!wrap) return;
   const unified = ctx.settings.unifiedPricing;
   const keys = collectKeys(ctx);
-  const assignedKeys = new Set(Object.keys(unified.assign));
-  const unassigned = keys.filter((k) => !assignedKeys.has(k));
+  const groupOf = new Map(keys.map((k) => [k, effectiveGroup(unified, k)]));
+  const known = new Set(unified.groups.map((g) => g.id));
+  const unassigned = keys.filter((k) => !known.has(groupOf.get(k)));
+  // Chips with no explicit assign key that still resolve by fingerprint; shown in
+  // the group but marked so the pin is visible.
+  const structural = new Set(keys.filter((k) => groupOf.get(k) && !unified.assign[k]));
 
   const board = `
     <p class="modal-hint">Unified pricing: one price list for every vendor, keyed by <code>source:model</code>. Drag models into a group; models in the same group share its rate table (same <code>from</code>-dated versions, peak/off-peak windows and tiers as the fallback prices). A model in no group is <strong>unpriced</strong>.</p>
@@ -78,7 +94,7 @@ export function renderUnified(ctx) {
     <div class="up-sticky">
       <div class="settings-section-title" style="margin-top:0;">Unassigned <span class="up-group-count">${unassigned.length}</span></div>
       <div class="up-unassigned" data-drop="none">
-        ${unassigned.map(chip).join("") || '<span class="up-empty">Every known model is assigned.</span>'}
+        ${unassigned.map((k) => chip(k, false)).join("") || '<span class="up-empty">Every known model is assigned.</span>'}
       </div>
       <div class="modal-actions" style="justify-content:flex-start; margin-top:8px;">
         <button type="button" class="btn btn-secondary" id="upAddGroup">+ Add group</button>
@@ -87,7 +103,7 @@ export function renderUnified(ctx) {
     </div>
     <div class="settings-section-title">Groups</div>
     <div id="upGroups">
-      ${unified.groups.map((g) => groupCard(ctx, g, keys.filter((k) => unified.assign[k] === g.id))).join("") || '<div class="notice">No groups yet. Add one, paste its rates, then drag models in.</div>'}
+      ${unified.groups.map((g) => groupCard(ctx, g, keys.filter((k) => groupOf.get(k) === g.id), structural)).join("") || '<div class="notice">No groups yet. Add one, paste its rates, then drag models in.</div>'}
     </div>`;
 
   // When unified pricing is off the whole board is inert (greyed, not clickable)
