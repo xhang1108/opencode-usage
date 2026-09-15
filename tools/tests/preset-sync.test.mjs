@@ -1,10 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
+
+// The opencode builder replays the GitHub price crawl, which lives in the
+// gitignored tools/opencode/clean_diffs.txt. On a clean checkout (CI) that
+// artifact is absent, so the sync check is skipped instead of failing on a
+// missing input; run `npm run price-sync` locally to regenerate it.
+const CRAWL = new URL("../opencode/clean_diffs.txt", import.meta.url);
+const crawlSkip = existsSync(CRAWL) ? false : "needs tools/opencode/clean_diffs.txt (run npm run price-sync)";
 
 function runCheck(script) {
   return execFileSync("node", [script, "--check"], { cwd: root, encoding: "utf8" });
@@ -12,7 +19,7 @@ function runCheck(script) {
 
 // The shipped presets are generated artifacts. If a source table changes without
 // re-running the builder, these checks fail loudly instead of drifting silently.
-test("opencode preset is in sync with its builder", () => {
+test("opencode preset is in sync with its builder", { skip: crawlSkip }, () => {
   const out = runCheck("tools/opencode/build-opencode-preset.mjs");
   assert.match(out, /in sync/);
 });
