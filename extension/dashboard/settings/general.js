@@ -1,18 +1,8 @@
 // extension/dashboard/settings/general.js
-// General tab: default crawl vendor (D10), backup export (D24), summary.
+// General tab: default crawl vendor (D10), summary, workspaces.
 
 import { saveDefaultCrawl, saveWorkspaceLabels } from "./store.js";
-import { downloadText, escHTML } from "../views/format.js";
-import { buildSettingsPayload, recordsToCSV } from "../../shared/backup.js";
-
-// D24: split the backup into two non-overlapping files. Settings (JSON) carry
-// the user's configuration + userPricing; records (CSV) carry every stored
-// record from EVERY source (not just enabled ones) with lossless `raw`.
-function exportBackup(ctx) {
-  const date = new Date().toISOString().slice(0, 10);
-  downloadText(`opencode-usage_settings_${date}.json`, JSON.stringify(buildSettingsPayload(ctx.settings), null, 2));
-  downloadText(`opencode-usage_records_${date}.csv`, "\uFEFF" + recordsToCSV(ctx.allRecords), "text/csv;charset=utf-8");
-}
+import { escHTML } from "../views/format.js";
 
 export function renderGeneral(ctx) {
   const vendors = (ctx.settings.registry && ctx.settings.registry.vendors) || [];
@@ -55,7 +45,6 @@ export function renderGeneral(ctx) {
       .catch(() => {});
   }
 
-  document.getElementById("generalExportFull").onclick = () => exportBackup(ctx);
   renderWorkspaces(ctx);
 }
 

@@ -919,17 +919,6 @@
           <div class="settings-summary" id="generalSummary"></div>
           <div class="settings-section-title">Workspaces</div>
           <div id="generalWorkspaces"></div>
-          <div class="settings-section-title">Local usage import</div>
-          <p class="modal-hint">Export your local opencode database, then add the JSON via <strong>Import Usage</strong>. Serves models the server no longer reports (e.g. free models).</p>
-          <div class="cmd-box">
-            <code id="generalLocalCmd">node tools/import-local.mjs --out opencode_local_records.json</code>
-            <button class="btn btn-secondary" id="generalLocalCopy">Copy</button>
-          </div>
-          <div class="notice" id="generalLocalStatus" style="margin:10px 0;">No local records imported yet.</div>
-          <div class="modal-actions">
-            <button class="btn btn-danger" id="generalLocalClear" title="Remove all locally imported records">Clear local records</button>
-            <button class="btn btn-secondary" id="generalExportFull" title="Download a backup: opencode-usage_settings_*.json (settings + pricing) and opencode-usage_records_*.csv (every record, every source).">Export Backup</button>
-          </div>
         </section>
 
         <section class="settings-pane" id="settings-vendors" hidden>
@@ -942,6 +931,9 @@
         </section>
 
         <section class="settings-pane" id="settings-database" hidden>
+          <div class="modal-actions" style="justify-content:flex-start; margin:0 0 12px;">
+            <button class="btn btn-secondary" id="databaseExportBackup" title="Download a backup: opencode-usage_settings_*.json (settings + pricing) and opencode-usage_records_*.csv (every record, every source).">Export Backup</button>
+          </div>
           <div id="databaseStores"></div>
         </section>
 

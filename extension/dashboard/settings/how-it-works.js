@@ -3,9 +3,10 @@
 // vendor. Table-first on purpose (little prose). Hand-written copy — keep it
 // in sync with docs/vendors.md when an adapter changes. Renders once.
 
-// Each section: { id, title, tag, head?, rows }.
+// Each section: { id, title, tag, head?, rows, extra? }.
 //   head given  -> rows are cell arrays rendered against that header row.
 //   head absent -> rows are [label, value] key/value pairs.
+//   extra       -> optional HTML appended after the table (vendor-specific how-to).
 const SECTIONS = [
   {
     id: "tokens",
@@ -68,6 +69,13 @@ const SECTIONS = [
       ["Cost", "Vendor-reported when the console reports an amount (USD×1e8, divided to USD). When it reports no amount (null), the cost is estimated from the price table."],
       ["Limits", "Session id rotates each redeploy (auto re-captured). Full rescan stalls ~198 pages. Server may stop holding an old workspace (returns empty) — last synced data is kept. Crawl daily; keep the tab visible."],
     ],
+    extra:
+      `<div class="settings-section-title">Local usage import</div>
+       <p>Export your local opencode database, then add the JSON via <strong>Import Usage</strong>. Serves models the server no longer reports (e.g. free models).</p>
+       <div class="cmd-box">
+         <code id="hwLocalCmd">node tools/import-local.mjs --out opencode_local_records.json</code>
+         <button class="btn btn-secondary" id="hwLocalCopy">Copy</button>
+       </div>`,
   },
   {
     id: "openrouter",
@@ -150,6 +158,7 @@ export function renderHowItWorks() {
     <section class="hw-sec" id="hw-${s.id}">
       <h4>${s.title}${s.tag ? `<span class="hw-tag">${s.tag}</span>` : ""}</h4>
       ${table(s)}
+      ${s.extra || ""}
     </section>`).join("");
 
   pane.innerHTML =
@@ -164,5 +173,23 @@ export function renderHowItWorks() {
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     })
   );
+
+  const copyBtn = document.getElementById("hwLocalCopy");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const cmd = document.getElementById("hwLocalCmd").textContent;
+      const orig = copyBtn.textContent;
+      const flash = (msg) => {
+        copyBtn.textContent = msg;
+        setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+      };
+      try {
+        await navigator.clipboard.writeText(cmd);
+        flash("Copied!");
+      } catch (e) {
+        flash("Copy failed");
+      }
+    });
+  }
   pane.dataset.rendered = "1";
 }

@@ -142,7 +142,7 @@ const settingsModal = createSettingsModal({ renderPage: renderSettingsPage });
 
 function renderSettingsPage(tab) {
   if (!settings) return;
-  if (tab === "general") { renderGeneral(settingsCtx); refreshLocalImportStatus(); }
+  if (tab === "general") renderGeneral(settingsCtx);
   else if (tab === "vendors") renderVendors(settingsCtx);
   else if (tab === "pricing") renderUnified(settingsCtx);
   else if (tab === "database") renderDatabase(settingsCtx);
@@ -314,24 +314,6 @@ async function loadFromExtension() {
   }
 }
 
-// ===== Local records (Settings -> General) =====
-// The JSON itself is imported through the one Import Usage entry; this only
-// reports how many local records are stored and lets the user clear them.
-async function refreshLocalImportStatus() {
-  const el = document.getElementById("generalLocalStatus");
-  if (!el) return;
-  try {
-    const res = await chrome.runtime.sendMessage({ type: "get-local-status" });
-    if (res && res.ok && res.totalLocal > 0) {
-      const when = res.updatedAt ? new Date(res.updatedAt).toLocaleString() : "unknown time";
-      el.innerHTML = `Local records: <strong>${res.totalLocal.toLocaleString()}</strong> (imported ${when}). Re-import the latest export to update.`;
-    } else {
-      el.textContent = "No local records imported yet.";
-    }
-  } catch (e) {
-    el.textContent = "No local records imported yet.";
-  }
-}
 async function reloadAfterImportClear() {
   for (const k of Object.keys(globalCache)) delete globalCache[k];
   charts.resetSelectedDate();
@@ -463,39 +445,10 @@ async function importOpencodeJSON(text) {
   if (!res || !res.ok) throw new Error((res && res.error) || "unknown error");
   return `opencode: ${res.imported} imported (${res.newRecords} new)`;
 }
-// Local records live in Settings -> General (status + clear); the JSON itself
-// goes through the one Import Usage entry (see importOpencodeJSON above).
-document.getElementById("generalLocalCopy").addEventListener("click", async () => {
-  const cmd = document.getElementById("generalLocalCmd").textContent;
-  const btn = document.getElementById("generalLocalCopy");
-  const flash = (msg) => {
-    if (!btn) return;
-    const orig = btn.textContent;
-    btn.textContent = msg;
-    setTimeout(() => { btn.textContent = orig; }, 1500);
-  };
-  try {
-    await navigator.clipboard.writeText(cmd);
-    flash("Copied!");
-  } catch (e) {
-    flash("Copy failed");
-  }
-});
-document.getElementById("generalLocalClear").addEventListener("click", async () => {
-  if (!confirm("Remove all locally imported records? Crawled data is kept.")) return;
-  try {
-    const res = await chrome.runtime.sendMessage({ type: "clear-local-data" });
-    if (res && res.ok) {
-      alert(`Cleared ${res.cleared} local records (${res.total} records remain).`);
-      await reloadAfterImportClear();
-      refreshLocalImportStatus();
-    } else {
-      alert("Clear failed: " + ((res && res.error) || "unknown error"));
-    }
-  } catch (err) {
-    alert("Clear failed: " + (err && err.message ? err.message : String(err)));
-  }
-});
+// Per-store deletion (incl. local records) lives in Settings -> Database; the
+// local import how-to and export command live in Settings -> How it works
+// (opencode); the JSON itself goes through the one Import Usage entry (see
+// importOpencodeJSON above).
 
 wireTableSort({ sortState, onChange: () => renderDashboard(true) });
 charts.wire();

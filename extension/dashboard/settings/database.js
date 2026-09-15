@@ -4,14 +4,28 @@
 // on expand). OPFS crawl data is owned by the opencode content script and shown
 // read-only; chrome.storage.local stores support per-record and full delete.
 
-import { escHTML } from "../views/format.js";
+import { downloadText, escHTML } from "../views/format.js";
 import { clearMessageFor } from "../../shared/stores.js";
+import { buildSettingsPayload, recordsToCSV } from "../../shared/backup.js";
 
 const RENDER_LIMIT = 500;
+
+// D24: split the backup into two non-overlapping files. Settings (JSON) carry
+// the user's configuration + userPricing; records (CSV) carry every stored
+// record from EVERY source (not just enabled ones) with lossless `raw`.
+function exportBackup(ctx) {
+  const date = new Date().toISOString().slice(0, 10);
+  downloadText(`opencode-usage_settings_${date}.json`, JSON.stringify(buildSettingsPayload(ctx.settings), null, 2));
+  downloadText(`opencode-usage_records_${date}.csv`, "\uFEFF" + recordsToCSV(ctx.allRecords), "text/csv;charset=utf-8");
+}
 
 export async function renderDatabase(ctx) {
   const wrap = document.getElementById("databaseStores");
   if (!wrap) return;
+
+  const backupBtn = document.getElementById("databaseExportBackup");
+  if (backupBtn) backupBtn.onclick = () => exportBackup(ctx);
+
   wrap.innerHTML = '<div class="notice">Loading data stores…</div>';
 
   let res = null;
