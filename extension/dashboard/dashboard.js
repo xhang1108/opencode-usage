@@ -23,6 +23,7 @@ import { parseXlsx } from "../shared/xlsx.js";
 import { parseMimoSheets } from "../vendors/mimo/import-usage.js";
 import { SETTINGS_FORMAT, csvToRecords, groupBySource, parseSettingsPayload } from "../shared/backup.js";
 import { isLocalLooking } from "../shared/merge.js";
+import { normalizeRecord } from "../shared/canonical.js";
 
 const globalCache = {};
 let settings = null;
@@ -296,8 +297,11 @@ async function loadFromExtension() {
       return;
     }
     const data = JSON.parse(res.data);
+    // Normalize on ingest so every record carries `time` (derived from `date`
+    // when missing) and numeric tokens before it reaches pricing/aggregation.
     for (const [id, rec] of Object.entries(data)) {
-      globalCache[id] = rec.source ? rec : { ...rec, source: "opencode" };
+      const src = rec.source ? rec : { ...rec, source: "opencode" };
+      globalCache[id] = normalizeRecord(src) || src;
     }
     filters.initDateRange();
     filters.updateDropdowns();
@@ -447,7 +451,7 @@ async function importRecordsCSV(file) {
 async function importMimoXlsx(file) {
   const { sheets } = await parseXlsx(await file.arrayBuffer());
   const records = parseMimoSheets(sheets);
-  if (records.length === 0) throw new Error("no MiMo usage rows found in the XLSX");
+  if (records.length === 0) throw new Error("no MiMo usage rows found in the XLSX; ensure the file contains daily data (YYYY-MM-DD), not monthly summaries (YYYY-MM)");
   const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source: "mimo", records });
   if (!res || !res.ok) throw new Error((res && res.error) || "unknown error");
   await chrome.runtime.sendMessage({ type: "vendor-crawl-done", source: "mimo" });

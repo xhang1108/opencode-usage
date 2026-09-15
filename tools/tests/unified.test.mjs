@@ -96,14 +96,36 @@ test("shipped unified preset is valid and folds vendors together", () => {
   assert.deepEqual(index.get("opencode:hy3-free"), index.get("opencode:hy3"));
 });
 
-test("unifiedRateModels and modelsInGroup expose assignments", () => {
+test("unifiedRateModels emits one rule per group, not per alias", () => {
   const unified = normalizeUnifiedPricing({
-    groups: [{ id: "g", rates: [RATE_A] }],
-    assign: { "opencode:m": "g", "deepseek-official:m": "g" },
+    groups: [{ id: "g", rates: [RATE_A] }, { id: "other", rates: [RATE_B] }],
+    assign: {
+      "opencode:m": "g",
+      "deepseek-official:m": "g",
+      "deepseek-official:m-flash-free": "g",
+      "mimo:other": "other",
+    },
   });
-  assert.deepEqual(modelsInGroup(unified, "g"), ["deepseek-official:m", "opencode:m"]);
+  assert.deepEqual(modelsInGroup(unified, "g"), ["deepseek-official:m", "deepseek-official:m-flash-free", "opencode:m"]);
   const rules = unifiedRateModels(unified);
-  assert.equal(rules.length, 1); // deduped by model name
-  assert.equal(rules[0].model, "m");
-  assert.deepEqual(rules[0].rates, [RATE_A]);
+  assert.equal(rules.length, 2); // the three aliases of "g" collapse into one
+  const g = rules.find((r) => r.model === "g");
+  assert.deepEqual(g.rates, [RATE_A]);
+  assert.equal(rules.find((r) => r.model === "other").rates[0], RATE_B);
+});
+
+test("unifiedRateModels names an auto-generated group after its first model", () => {
+  const unified = normalizeUnifiedPricing({
+    groups: [{ id: "group-1", rates: [RATE_A] }],
+    assign: { "opencode:zeta": "group-1", "opencode:alpha": "group-1" },
+  });
+  assert.deepEqual(unifiedRateModels(unified).map((r) => r.model), ["alpha"]);
+});
+
+test("unifiedRateModels skips groups no model points at", () => {
+  const unified = normalizeUnifiedPricing({
+    groups: [{ id: "g", rates: [RATE_A] }, { id: "orphan", rates: [RATE_A] }],
+    assign: { "opencode:m": "g" },
+  });
+  assert.deepEqual(unifiedRateModels(unified).map((r) => r.model), ["g"]);
 });

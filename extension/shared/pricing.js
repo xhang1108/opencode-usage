@@ -14,6 +14,31 @@ export function parseBound(bound) {
   return isNaN(t) ? NaN : t;
 }
 
+// Exclusive end of a version's validity. Versions are open-ended unless they
+// carry `until`, which is how a delivered-but-since-withdrawn model (or a promo
+// that is scheduled to stop) is modelled.
+export function versionUntilMs(entry) {
+  return parseBound(entry && entry.until);
+}
+
+// Peak windows of one rate version; [] means the version bills flat.
+export function peakWindowsOf(entry) {
+  const peak = entry && entry.windows && entry.windows.peak;
+  return Array.isArray(peak) ? peak : [];
+}
+
+// A model counts as retired once its LAST rate version has an `until` in the
+// past and no successor version follows it. `until` is lifecycle metadata only:
+// historical records still price against the last version, so past cost figures
+// never move when a model is retired.
+export function isRetired(rule, at = Date.now()) {
+  const versions = sortedVersions(rule && rule.rates);
+  if (versions.length === 0) return false;
+  const until = versionUntilMs(versions[versions.length - 1]);
+  if (until === null || isNaN(until)) return false;
+  return at >= until;
+}
+
 function compareVersions(a, b) {
   const aFrom = parseBound(a.from);
   const bFrom = parseBound(b.from);
@@ -41,13 +66,33 @@ function sortedVersions(rates) {
   return cached;
 }
 
-// Pick the rate version by record time: last version whose `from` <= time wins;
-// unparseable time falls back to the earliest/base version (never peak).
+// Effective UTC instant (ms) used for pricing. Records normally carry an ISO
+// `time`; day-granular sources may only carry `date`, so fall back to that
+// day's UTC midnight — the same fallback the dashboard uses for display
+// (core/time.localDateOf). Without this, a record missing `time` silently
+// selected the OLDEST rate version, which priced usage at a years-old promo
+// rate (e.g. DeepSeek flash cache-hit $0.028 instead of $0.0028).
+export function effectiveTimeMs(record) {
+  if (record && record.time != null) {
+    const t = new Date(record.time).getTime();
+    if (!isNaN(t)) return t;
+  }
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String((record && record.date) || "").trim());
+  if (m) {
+    const d = new Date(`${m[1]}T00:00:00.000Z`).getTime();
+    if (!isNaN(d)) return d;
+  }
+  return NaN;
+}
+
+// Pick the rate version by record time: last version whose `from` <= time wins.
+// A record with no usable time is NOT priced against the oldest version (that
+// silently applied stale promos) — callers report it as unpriced instead.
 export function getRateEntryFromRates(rates, recordTime) {
   const versions = sortedVersions(rates);
   if (versions.length === 0) return null;
   const ts = new Date(recordTime).getTime();
-  if (isNaN(ts)) return versions[0];
+  if (isNaN(ts)) return null;
   let selected = versions[0];
   for (const v of versions) {
     const fromTs = parseBound(v.from);
@@ -71,8 +116,9 @@ export function toMinutes(hhmm) {
 export function getWindow(record, entry) {
   const peakWindows = entry && entry.windows && entry.windows.peak;
   if (!peakWindows || peakWindows.length === 0) return "flat";
-  const t = new Date(record.time);
-  if (isNaN(t.getTime())) return "flat";
+  const ms = effectiveTimeMs(record);
+  if (isNaN(ms)) return "flat";
+  const t = new Date(ms);
   const weekday = t.getUTCDay();
   const minutes = t.getUTCHours() * 60 + t.getUTCMinutes();
   for (const w of peakWindows) {
@@ -126,7 +172,7 @@ export function computeCost(record, table) {
 // Price one record against an explicit rate list. Returns the dashboard price
 // shape; `basis` labels where the rates came from (e.g. "vendor" / "unified").
 export function priceFromRates(record, rates, basis) {
-  const entry = getRateEntryFromRates(rates, record.time);
+  const entry = getRateEntryFromRates(rates, effectiveTimeMs(record));
   if (!entry) return { cost: 0, savings: 0, window: null, unpriced: true, targetId: null, priceBasis: "unpriced" };
   const window = getWindow(record, entry);
   const table = resolveTable(entry, window, record.input, record.cacheRead);
@@ -153,7 +199,7 @@ export function priceRecord(record, { modelMap = {}, targets = {} } = {}) {
     return { cost: 0, savings: 0, window: null, unpriced: true, targetId: null, priceBasis: "unmapped" };
   }
   const target = targets[targetId];
-  const entry = getRateEntry({ rates: target.rates }, record.time);
+  const entry = getRateEntry({ rates: target.rates }, effectiveTimeMs(record));
   if (!entry) return { cost: 0, savings: 0, window: null, unpriced: true, targetId, priceBasis: "unpriced" };
   const window = getWindow(record, entry);
   const table = resolveTable(entry, window, record.input, record.cacheRead);
@@ -219,6 +265,17 @@ export function validateRates(models) {
     for (let vi = 0; vi < rule.rates.length; vi++) {
       const entry = rule.rates[vi];
       const pricing = entry.pricing || {};
+      if (entry.until !== undefined) {
+        const untilTs = parseBound(entry.until);
+        if (typeof untilTs === "number" && isNaN(untilTs)) {
+          errors.push(`${rule.model} version ${vi + 1} has invalid until "${entry.until}"`);
+        } else if (untilTs !== null) {
+          const fromTs = parseBound(entry.from);
+          if (typeof fromTs === "number" && !isNaN(fromTs) && untilTs <= fromTs) {
+            errors.push(`${rule.model} version ${vi + 1} until "${entry.until}" must be after its from`);
+          }
+        }
+      }
       const hasPeak = entry.windows && entry.windows.peak && entry.windows.peak.length > 0;
       if (!hasPeak) {
         if (!pricing.flat) errors.push(`${rule.model} version ${vi + 1} is missing the flat price table`);

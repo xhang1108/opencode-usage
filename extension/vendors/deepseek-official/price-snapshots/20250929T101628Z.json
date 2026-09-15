@@ -4,7 +4,24 @@
   "models": {
     "deepseek-chat": {
       "label": "deepseek-chat",
+      "effectiveAt": "2025-09-29T00:00:00.000Z",
       "entry": {
+        "until": "2026-04-24T00:00:00.000Z",
+        "pricing": {
+          "flat": {
+            "input": 0.28,
+            "output": 0.42,
+            "cacheRead": 0.028,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "deepseek-reasoner": {
+      "label": "deepseek-reasoner",
+      "effectiveAt": "2025-09-29T00:00:00.000Z",
+      "entry": {
+        "until": "2026-04-24T00:00:00.000Z",
         "pricing": {
           "flat": {
             "input": 0.28,

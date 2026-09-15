@@ -4,7 +4,7 @@
 // chips into a group to share that group's rate table. A model in no group is
 // unpriced. Groups hold the same rate-version schema as the fallback presets.
 
-import { normalizeUnifiedPricing, validateUnifiedPricing, makeGroupId } from "../../shared/unified.js";
+import { normalizeUnifiedPricing, validateUnifiedPricing, makeGroupId, FINGERPRINT_PREFIX } from "../../shared/unified.js";
 import { validateRates } from "../../shared/pricing.js";
 import { saveUnifiedPricing, loadUnifiedPreset } from "./store.js";
 import { escHTML } from "../views/format.js";
@@ -18,6 +18,7 @@ function collectKeys(ctx) {
   for (const rec of ctx.allRecords || ctx.records || []) keys.add(`${rec.source || "opencode"}:${rec.model}`);
   for (const key of Object.keys((ctx.pricing && ctx.pricing.modelMap) || {})) keys.add(key);
   for (const key of Object.keys((ctx.settings.unifiedPricing && ctx.settings.unifiedPricing.assign) || {})) keys.add(key);
+  for (const key of [...keys]) if (key.startsWith(FINGERPRINT_PREFIX)) keys.delete(key);
   return [...keys].sort();
 }
 

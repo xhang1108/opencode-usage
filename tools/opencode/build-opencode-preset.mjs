@@ -28,43 +28,9 @@ const FIXED_PEAK = {
   ],
 };
 
-const MANUAL = {
-  "DeepSeek V4 Flash": "deepseek-v4-flash",
-  "DeepSeek V4 Pro": "deepseek-v4-pro",
-  "DeepSeek V4.1 Flash": "deepseek-v4.1-flash",
-  "DeepSeek V4 Flash Vision Exp": "deepseek-v4-flash-vision-exp",
-  "GLM 5": "glm-5",
-  "GLM-5": "glm-5",
-  "GLM-5.1": "glm-5.1",
-  "GLM-5.2": "glm-5.2",
-  "GLM-5.3": "glm-5.3",
-  "GLM-5.3-Flash": "glm-5.3-flash",
-  "Grok 4.5": "grok-4.5",
-  "Grok 4.6": "grok-4.6",
-  "Gemini 3.7 Flash": "gemini-3.7-flash",
-  "Kimi K2.5": "kimi-k2.5",
-  "Kimi K2.6": "kimi-k2.6",
-  "Kimi K2.7 Code": "kimi-k2.7-code",
-  "Kimi K3": "kimi-k3",
-  "MiMo V2.5": "mimo-v2.5",
-  "MiMo V2.5 Pro": "mimo-v2.5-pro",
-  "MiniMax M2.5": "minimax-m2.5",
-  "MiniMax M2.7": "minimax-m2.7",
-  "MiniMax M3": "minimax-m3",
-  "Muse Spark 1.2": "muse-spark-1.2",
-  "Muse Spark 1.2 Contributor": "muse-spark-1.2-contributor",
-  "Muse Spark 1.3 Contributor": "muse-spark-1.3-contributor",
-  "Omen Alpha": "omen-alpha",
-  "Qwen3.6 Plus": "qwen3.6-plus",
-  "Qwen3.7 Plus": "qwen3.7-plus",
-  "Qwen3.7 Max": "qwen3.7-max",
-  "Qwen3.8 Max": "qwen3.8-max",
-  "Qwen3.8 Flash": "qwen3.8-flash",
-  "LongCat-2.0": "longcat-2.0",
-  "Hy3": "hy3",
-  "Hy4 preview": "hy4-preview",
-  "GPT 5.6 Luna": "gpt-5.6-luna",
-};
+// Display name -> canonical id is derived automatically by `slug()` (verified
+// byte-identical to the previous hand-maintained table for every known row), so
+// there is no manual name map to keep in sync.
 
 function slug(s) {
   return s
@@ -89,7 +55,7 @@ function normalize(rawName) {
       // Token-tier variant: fold into the base model as a `tier` pricing block
       // (single group), do NOT create a separate `-over-N` id.
       n = n.replace(/\s*\([^)]*\)\s*$/, "").trim();
-      const baseId = MANUAL[n] || slug(n);
+      const baseId = slug(n);
       const k = parseFloat(tier[2]) * 1000;
       const isHigh = />|≥|>=/.test(tier[1]);
       return { id: baseId, baseName: n, variant: isHigh ? "tier-high" : "tier-low", tierK: k };
@@ -99,7 +65,7 @@ function normalize(rawName) {
     }
   }
 
-  const baseId = MANUAL[n] || slug(n);
+  const baseId = slug(n);
   return { id: baseId, baseName: n, variant };
 }
 
@@ -117,12 +83,26 @@ function toISO(mmddyyyy, hhmmss) {
 }
 
 const lines = readFileSync(CLEAN, "utf8").split("\n");
-const obs = {}; // id -> [{ date, variant, flat:{input,output,cacheRead} }]
+const obs = {}; // id -> [{ date, variant, prices:{input,output,cacheRead,cacheWrite}, k }]
+const removals = {}; // id -> [date] the model was withdrawn (a "-" row with no "+" that day)
 let curDate = null;
+let curPlus = new Set();
+let curMinus = new Set();
+
+// A "-" row is the OLD value: when the same model also has a "+" row that day
+// it is a price change, not a withdrawal.
+function flushCommit() {
+  if (curDate) {
+    for (const id of curMinus) if (!curPlus.has(id)) (removals[id] ||= []).push(curDate);
+  }
+  curPlus = new Set();
+  curMinus = new Set();
+}
 
 for (const l of lines) {
   const h = l.match(/^=== \S+\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}:\d{2}:\d{2}) /);
   if (h) {
+    flushCommit();
     curDate = toISO(h[1], h[2]);
     continue;
   }
@@ -134,16 +114,24 @@ for (const l of lines) {
   if (!name) continue;
   const norm = normalize(name);
   if (!norm) continue;
+  const sign = l[0];
+  if (sign === "-") {
+    curMinus.add(norm.id);
+    continue;
+  }
+  curPlus.add(norm.id);
   const prices = {
     input: parsePrice(parts[2]),
     output: parsePrice(parts[3]),
     cacheRead: parsePrice(parts[4]),
+    cacheWrite: parsePrice(parts[5]), // published cache-write column
   };
   (obs[norm.id] ||= []).push({ date: curDate, variant: norm.variant, prices, k: norm.tierK });
 }
+flushCommit();
 
 // Build a rates timeline per id.
-function buildRates(list) {
+function buildRates(list, withdrawnDates = []) {
   const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
   const byDate = new Map();
   for (const o of sorted) {
@@ -166,8 +154,8 @@ function buildRates(list) {
           flat: {
             tier: {
               limit,
-              low: { ...variants.tierLow.prices, cacheWrite: 0 },
-              high: { ...variants.tierHigh.prices, cacheWrite: 0 },
+              low: { ...variants.tierLow.prices },
+              high: { ...variants.tierHigh.prices },
             },
           },
         },
@@ -176,11 +164,11 @@ function buildRates(list) {
       rates.push({
         from,
         windows: FIXED_PEAK,
-        pricing: { peak: { ...variants.peak, cacheWrite: 0 }, offpeak: { ...variants.offpeak, cacheWrite: 0 } },
+        pricing: { peak: { ...variants.peak }, offpeak: { ...variants.offpeak } },
       });
     } else {
       const p = variants.flat || variants.peak || variants.offpeak;
-      rates.push({ from, pricing: { flat: { ...p, cacheWrite: 0 } } });
+      rates.push({ from, pricing: { flat: { ...p } } });
     }
   }
   // Drop consecutive entries whose price structure is identical (a model
@@ -192,6 +180,18 @@ function buildRates(list) {
     if (prev && sig(prev) === sig(r)) continue;
     deduped.push(r);
   }
+  // Close the version in force when the listing was withdrawn, so a delisted
+  // model stops being priced at the withdrawal date instead of forever.
+  for (const R of withdrawnDates) {
+    for (let i = 0; i < deduped.length; i++) {
+      const start = deduped[i].from;
+      const nextStart = i + 1 < deduped.length ? deduped[i + 1].from : null;
+      if ((start == null || start <= R) && (nextStart == null || R < nextStart)) {
+        if (!deduped[i].until) deduped[i].until = R;
+        break;
+      }
+    }
+  }
   return deduped;
 }
 
@@ -199,7 +199,12 @@ const targets = {};
 const modelMap = {};
 const labels = {};
 for (const [id, list] of Object.entries(obs)) {
-  const rates = buildRates(list);
+  // Only a withdrawal that follows the model's last listing is terminal (the
+  // model was delisted for good). A "-" that precedes a later "+" is a
+  // temporary gap / rename and must not truncate the live timeline.
+  const lastSeen = list.reduce((m, o) => (o.date > m ? o.date : m), "");
+  const terminal = (removals[id] || []).filter((R) => R > lastSeen);
+  const rates = buildRates(list, terminal);
   if (rates.length === 0) continue;
   const key = `opencode:${id}`;
   targets[key] = { label: id, scope: "opencode", rates };
@@ -233,8 +238,15 @@ if (!check.ok) {
 }
 
 console.log(`models=${Object.keys(targets).length} (crawl-derived=${Object.keys(obs).length}) valid=${check.ok}`);
-const write = process.argv.includes("--write");
-if (write) {
+if (process.argv.includes("--check")) {
+  const current = existsSync(PRESET) ? readFileSync(PRESET, "utf8") : "";
+  if (current !== out) {
+    console.error("ERR: extension/vendors/opencode/rates.preset.json is out of date — re-run the builder.");
+    process.exitCode = 1;
+  } else {
+    console.log("opencode preset in sync");
+  }
+} else if (process.argv.includes("--write")) {
   writeFileSync(PRESET, out);
   console.log(`wrote ${PRESET}`);
 } else {

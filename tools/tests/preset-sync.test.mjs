@@ -1,0 +1,50 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("../../", import.meta.url));
+
+function runCheck(script) {
+  return execFileSync("node", [script, "--check"], { cwd: root, encoding: "utf8" });
+}
+
+// The shipped presets are generated artifacts. If a source table changes without
+// re-running the builder, these checks fail loudly instead of drifting silently.
+test("opencode preset is in sync with its builder", () => {
+  const out = runCheck("tools/opencode/build-opencode-preset.mjs");
+  assert.match(out, /in sync/);
+});
+
+test("unified preset is in sync with its builder", () => {
+  const out = runCheck("tools/build-unified-preset.mjs");
+  assert.match(out, /in sync/);
+});
+
+// The builder reports groups that fold different series/versions/variants so a
+// risky merge is visible instead of silent. The two known ones are the authored
+// stealth fold and the deepseek flash version fold.
+test("unified builder reports cross-boundary merges for review", () => {
+  const out = runCheck("tools/build-unified-preset.mjs");
+  assert.match(out, /merge across a structural boundary/);
+  assert.match(out, /glm-5\.3-flash {2}\[series\]/);
+  assert.match(out, /deepseek-4-flash {2}\[version\]/);
+});
+
+// `until` only retires a model from the peak/off-peak picker. A unified group
+// merges vendors, so one vendor delisting must not retire a model another vendor
+// still serves.
+test("unified preset retires a group only when every source has ended", () => {
+  const preset = JSON.parse(readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
+  const ratesOf = (id) => (preset.groups.find((g) => g.id === id) || {}).rates || [];
+  const hasUntil = (id) => JSON.stringify(ratesOf(id)).includes('"until"');
+
+  // opencode delisted it 2026-08-13, but the Google list price is still live.
+  assert.equal(hasUntil("gemini-3.7-flash"), false);
+  // Delisted by its only vendor -> stays retired.
+  assert.equal(hasUntil("glm-5"), true);
+  assert.equal(hasUntil("grok-4.5"), true);
+  // deepseek-official discontinued chat/coder/reasoner -> stays retired.
+  assert.equal(hasUntil("deepseek-chat"), true);
+});

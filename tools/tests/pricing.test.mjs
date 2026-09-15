@@ -9,6 +9,9 @@ import {
   resolveTargetId,
   priceRecord,
   priceFromRates,
+  effectiveTimeMs,
+  isRetired,
+  validateRates,
 } from "../../extension/shared/pricing.js";
 
 const FLASH_TARGET = {
@@ -115,3 +118,69 @@ test("priceRecord marks unmapped models unpriced (P5, in box)", () => {
   assert.equal(res.priceBasis, "unmapped");
   assert.equal(res.cost, 0);
 });
+
+test("effectiveTimeMs falls back to the record date's UTC midnight", () => {
+  assert.equal(effectiveTimeMs({ time: "2026-08-10T05:00:00Z" }), Date.parse("2026-08-10T05:00:00Z"));
+  assert.equal(effectiveTimeMs({ date: "2026-07-14" }), Date.parse("2026-07-14T00:00:00.000Z"));
+  assert.equal(effectiveTimeMs({ time: "", date: "2026-07-14" }), Date.parse("2026-07-14T00:00:00.000Z"));
+  assert.ok(Number.isNaN(effectiveTimeMs({})));
+});
+
+// Regression: day-granular records without `time` used to fall back to the
+// OLDEST rate version, pricing a years-old promo (DeepSeek flash cache-hit
+// $0.028) instead of the current one ($0.0028) — a 10x overcharge.
+test("a record with only `date` prices from that date's version, not the oldest", () => {
+  const rates = [
+    { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.028, cacheWrite: 0 } } },
+    { from: "2026-04-26T00:00:00.000Z", pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 } } },
+  ];
+  const record = { date: "2026-07-14", input: 0, output: 0, cacheRead: 1000000 };
+  const res = priceFromRates(record, rates, "unified");
+  assert.equal(res.unpriced, false);
+  assert.equal(Number(res.cost.toFixed(6)), 0.0028);
+});
+
+test("a record with no usable time is unpriced, never billed at the oldest rate", () => {
+  const rates = [{ from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.028, cacheWrite: 0 } } }];
+  const res = priceFromRates({ input: 1000 }, rates, "unified");
+  assert.equal(res.unpriced, true);
+  assert.equal(res.cost, 0);
+});
+
+// `until` is lifecycle metadata (a withdrawn model / a scheduled promo end). It
+// must NOT change what historical records cost.
+const RETIRED_RATES = [
+  { from: null, pricing: { flat: { input: 0.14, output: 0.28, cacheRead: 0.014, cacheWrite: 0 } } },
+  { from: "2025-09-29T00:00:00.000Z", until: "2026-04-24T00:00:00.000Z", pricing: { flat: { input: 0.28, output: 0.42, cacheRead: 0.028, cacheWrite: 0 } } },
+];
+
+test("isRetired is true only after the last version's until", () => {
+  const rule = { model: "deepseek-chat", rates: RETIRED_RATES };
+  assert.equal(isRetired(rule, Date.parse("2026-01-01T00:00:00Z")), false);
+  assert.equal(isRetired(rule, Date.parse("2026-04-24T00:00:00Z")), true);
+  assert.equal(isRetired(rule, Date.parse("2026-09-15T00:00:00Z")), true);
+  // No `until` anywhere -> never retired (a flat model is not a retired model).
+  assert.equal(isRetired({ model: "x", rates: [RETIRED_RATES[0]] }, Date.now()), false);
+  assert.equal(isRetired({ model: "x", rates: [] }, Date.now()), false);
+});
+
+test("until does not move historical prices", () => {
+  const rule = { rates: RETIRED_RATES };
+  const rec = { date: "2026-02-01", output: 1000000 };
+  const res = priceFromRates(rec, rule.rates, "unified");
+  assert.equal(res.unpriced, false);
+  assert.equal(res.cost, 0.42); // still the 2025-09-29 version, not unpriced
+});
+
+test("validateRates rejects a malformed or non-monotonic until", () => {
+  assert.deepEqual(validateRates([{ model: "m", rates: RETIRED_RATES }]), []);
+  assert.ok(
+    validateRates([{ model: "m", rates: [{ from: null, until: "not-a-date", pricing: { flat: { input: 1, output: 1 } } }] }])
+      .some((e) => /invalid until/.test(e))
+  );
+  assert.ok(
+    validateRates([{ model: "m", rates: [{ from: "2026-01-01T00:00:00Z", until: "2025-01-01T00:00:00Z", pricing: { flat: { input: 1, output: 1 } } }] }])
+      .some((e) => /must be after its from/.test(e))
+  );
+});
+

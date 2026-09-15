@@ -4,6 +4,7 @@
   "models": {
     "deepseek-v4-flash": {
       "label": "deepseek-v4-flash",
+      "effectiveAt": "2026-04-24T00:00:00.000Z",
       "entry": {
         "pricing": {
           "flat": {
@@ -17,6 +18,7 @@
     },
     "deepseek-v4-pro": {
       "label": "deepseek-v4-pro",
+      "effectiveAt": "2026-04-24T00:00:00.000Z",
       "entry": {
         "pricing": {
           "flat": {

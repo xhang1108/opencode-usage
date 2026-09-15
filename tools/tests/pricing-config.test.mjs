@@ -13,7 +13,7 @@ import { buildPricing } from "../../extension/shared/preset.js";
 const VENDOR_RATE = { from: null, pricing: { flat: { input: 0.1, output: 0.2, cacheRead: 0, cacheWrite: 0 } } };
 
 const PRICING = {
-  modelMap: { "opencode:m1": "t1" },
+  modelMap: { "opencode:m1": "t1", "opencode:m1-alias": "t1" },
   targets: { t1: { label: "M1", rates: [VENDOR_RATE] } },
 };
 
@@ -51,11 +51,18 @@ test("priceWithConfig marks unmapped models unpriced with zero cost", () => {
   assert.equal(priced.priceBasis, "unmapped");
 });
 
-test("legacyModelsFromPricing emits one rule per mapped model", () => {
+test("legacyModelsFromPricing emits one rule per price target, named by label", () => {
   const rules = legacyModelsFromPricing(PRICING);
-  assert.equal(rules.length, 1);
-  assert.equal(rules[0].model, "m1");
+  assert.equal(rules.length, 1); // m1 and m1-alias share target t1
+  assert.equal(rules[0].model, "M1");
   assert.deepEqual(rules[0].rates, [VENDOR_RATE]);
+});
+
+test("legacyModelsFromPricing falls back to the target id when there is no label", () => {
+  const rules = legacyModelsFromPricing({ modelMap: { "opencode:m": "opencode:m" }, targets: { "opencode:m": { rates: [VENDOR_RATE] } } });
+  assert.deepEqual(rules.map((r) => r.model), ["m"]);
+  // A target with no rates is not a picker entry.
+  assert.deepEqual(legacyModelsFromPricing({ modelMap: { "opencode:m": "opencode:m" }, targets: { "opencode:m": { rates: [] } } }), []);
 });
 
 test("makeTargetId slugifies and avoids collisions", () => {

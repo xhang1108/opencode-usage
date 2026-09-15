@@ -1,68 +1,39 @@
 #!/usr/bin/env node
 // tools/build-unified-preset.mjs — seed the shipped unified pricelist
 // (extension/shared/unified.preset.json) from the author-maintained fallback
-// presets. Merges the same underlying model across vendors into one group so it
-// shares a single rate table (free variants fold into their paid sibling).
+// presets.
 //
-// This is a starting point authors can hand-edit; re-running overwrites it.
+// Grouping is fully automatic. Every model id is reduced to a structural
+// fingerprint (extension/shared/model-fingerprint.js); each preset mapping
+// fp(raw id) ~ fp(canonical target) is a declared equivalence, and the
+// connected components become the groups. This inherits every fold the vendored
+// data already records ("deepseek-flash" -> "deepseek-v4-flash",
+// "deepseek-v4-flash-vision-exp" -> "deepseek-v4-flash") with NO hand-written
+// alias table, and still unifies across vendors because the fingerprint is
+// vendor-independent. A model the parser cannot map to any known price stays
+// unpriced (Fail-Closed), never misfiled.
+//
 // Usage: node tools/build-unified-preset.mjs
 //
-// Rate source per canonical model: the vendor that owns it
-// (deepseek-* -> deepseek-official, mimo-* -> mimo, otherwise opencode).
+// Rate source per component: the vendor that owns it
+// (deepseek-* -> deepseek-official, mimo-* -> mimo, otherwise opencode);
+// OVERRIDE_RATES win over any vendor table.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { parse } from "../extension/shared/model-fingerprint.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 
 const SOURCES = ["opencode", "deepseek-official", "mimo"];
+const FINGERPRINT_PREFIX = "fp:";
+
 const PRESETS = {};
 for (const source of SOURCES) {
   PRESETS[source] = JSON.parse(readFileSync(resolve(root, `extension/vendors/${source}/rates.preset.json`), "utf8"));
 }
-
-const slug = (s) =>
-  String(s)
-    .toLowerCase()
-    .replace(/[^a-z0-9.+-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-// Explicit cross-vendor folds (vendor-specific resale / display names).
-const ALIAS = {
-  "opencode:deepseek-v4-flash": "deepseek-v4-flash",
-  "opencode:deepseek-v4-flash-free": "deepseek-v4-flash",
-  "opencode:deepseek-v4-flash-vision-exp": "deepseek-v4-flash",
-  "opencode:deepseek-v4.1-flash": "deepseek-v4-flash",
-  "opencode:deepseek-v4.1-flash-free": "deepseek-v4-flash",
-  "opencode:deepseek-v4-pro": "deepseek-v4-pro",
-  "opencode:mimo-v2.5": "mimo-v2.5",
-  "opencode:mimo-v2.5-free": "mimo-v2.5",
-  "opencode:mimo-v2.5-pro": "mimo-v2.5-pro",
-  "mimo:MiMo-V2.5": "mimo-v2.5",
-  "mimo:MiMo-V2.5-Pro": "mimo-v2.5-pro",
-  "mimo:MiMo-V2.5 Pro": "mimo-v2.5-pro",
-  "deepseek-official:deepseek-flash": "deepseek-v4-flash",
-  "deepseek-official:deepseek-v4.1-flash": "deepseek-v4-flash",
-  "deepseek-official:deepseek-v4-flash-free": "deepseek-v4-flash",
-  "deepseek-official:deepseek-v4.1-flash-free": "deepseek-v4-flash",
-  "deepseek-official:deepseek-v4-flash-vision-exp": "deepseek-v4-flash",
-  "deepseek-official:deepseek-v4-flash-0731": "deepseek-v4-flash",
-  "deepseek-official:deepseek-v4.1-flash-expires-on-0910": "deepseek-v4-flash",
-  "deepseek-official:deepseek-v4-pro-free": "deepseek-v4-pro",
-  "deepseek-official:deepseek-chat & deepseek-reasoner": "deepseek-chat",
-  // Deprecated id; folds into chat so the id can disappear from the list.
-  "deepseek-official:deepseek-coder": "deepseek-chat",
-  "opencode:muse-spark-1.2-contributor": "muse-spark-contributor",
-  "opencode:muse-spark-1.2-contributor-free": "muse-spark-contributor",
-  "opencode:muse-spark-1.3-contributor": "muse-spark-contributor",
-  "opencode:muse-spark-1.3-contributor-free": "muse-spark-contributor",
-};
-
-// Unannounced / not-yet-published models: leave unpriced (no group) instead of
-// shipping a fallback number that isn't real. Zero-rate models are dropped too.
-const UNPRICED = new Set(["omen-alpha"]);
 
 const allZero = (o) => {
   if (o == null) return true;
@@ -72,60 +43,59 @@ const allZero = (o) => {
 };
 const isZeroRates = (rates) => !Array.isArray(rates) || rates.length === 0 || rates.every((r) => allZero(r && r.pricing));
 
-const opencodeKeys = new Set(Object.keys(PRESETS.opencode.modelMap || {}));
-
-// Raw models that no fallback preset ships but that we know belong to a group.
-// These are added as assignments only when the canonical group has rates, so a
-// miss leaves the model unassigned (editable in the UI) instead of dangling.
-// Only ids we actually know: the CommandCode ones seen in the repo/user data and
-// the OpenRouter "owner/slug" convention the user asked for. No invented ids.
-const EXTRA_KEYS = [
-  "openrouter:stealth/ox-alpha", // OpenRouter stealth deployment of GLM 5.3 Flash
-  "commandcode:deepseek/deepseek-v4.1-flash", // CommandCode routing id
-  "commandcode:tencent/hy3-paid", // CommandCode routing id for Tencent hy3
-  "openrouter:openai/gpt-5-nano",
-  "openrouter:openai/gpt-oss-20b",
-  ...["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"].map((m) => `openrouter:google/${m}`),
-];
-
-// Stealth/anonymous deployments that are really a known model underneath.
-function foldAlias(rawLower) {
-  if (rawLower.includes("ox-alpha") || rawLower.includes("x-preview")) return "glm-5.3-flash";
-  // CommandCode names the Tencent model "tencent hy3 paid"; fold on the model.
-  if (rawLower.includes("hy3")) return "hy3";
-  return null;
-}
-
-// Bare-slug folds (after dropping a provider prefix), so e.g. CommandCode's
-// "deepseek/deepseek-v4.1-flash" lands on the same group as the vendors.
-const SLUG_ALIAS = {
-  "deepseek-v4.1-flash": "deepseek-v4-flash",
-  "deepseek-v4-flash-vision-exp": "deepseek-v4-flash",
-  "deepseek-flash": "deepseek-v4-flash",
-  "deepseek-v4-flash-0731": "deepseek-v4-flash",
-  "deepseek-v4.1-flash-expires-on-0910": "deepseek-v4-flash",
-  "deepseek-v4-pro-free": "deepseek-v4-pro",
-  "mimo-v2.5-free": "mimo-v2.5",
+// Does any rate row carry a non-zero cacheWrite? Used to drop a duplicate
+// no-cache row when the same model is listed twice.
+const hasCacheWrite = (rates) => {
+  const scan = (o) => {
+    if (!o || typeof o !== "object") return false;
+    if (typeof o.cacheWrite === "number") return o.cacheWrite > 0;
+    return Object.values(o).some(scan);
+  };
+  return Array.isArray(rates) && rates.some((r) => scan(r && r.pricing));
 };
 
-function canonical(key) {
-  if (ALIAS[key]) return ALIAS[key];
-  const colon = key.indexOf(":");
-  const source = key.slice(0, colon);
-  let raw = key.slice(colon + 1);
-  const folded = foldAlias(raw.toLowerCase());
-  if (folded) return folded;
-  // Provider-prefixed models (e.g. "deepseek/deepseek-v4.1-flash"): keep the
-  // model part, drop the routing prefix.
-  if (raw.includes("/")) raw = raw.slice(raw.lastIndexOf("/") + 1);
-  // A "-free" variant bills at its base model's price, so fold it always.
-  if (/-free$/.test(raw)) raw = raw.replace(/-free$/, "");
-  const s = slug(raw);
-  return SLUG_ALIAS[s] || s;
+// Semantic equality for two rate tables: ISO timestamps are normalized so
+// "…:46.000Z" and "…:46Z" compare equal (same instant, different spelling).
+const rateSignature = (rates) => JSON.stringify(rates).replace(/(\d{2}:\d{2}:\d{2})\.000Z/g, "$1Z");
+
+// A readable group id derived from a fingerprint; collisions get a numeric
+// suffix so two genuinely different fingerprints never share an id.
+const usedIds = new Set();
+const groupIdByFp = new Map();
+function groupIdFor(fp) {
+  if (groupIdByFp.has(fp)) return groupIdByFp.get(fp);
+  const [series, version, variant, model] = String(fp).split(":");
+  const parts = [series || "unknown"];
+  if (version && version !== "0") parts.push(version);
+  if (variant && variant !== "base") parts.push(variant);
+  if (model) parts.push(model);
+  const base = parts.join("-");
+  let id = base || "group";
+  let n = 2;
+  while (usedIds.has(id)) id = `${base}-${n++}`;
+  usedIds.add(id);
+  groupIdByFp.set(fp, id);
+  return id;
+}
+
+// Rate source preference: a zero-rate table (free trial) never wins over a real
+// one; the owning vendor beats opencode, and authored overrides beat everyone.
+function preferredSource(fp) {
+  const series = String(fp).split(":")[0];
+  if (series === "deepseek") return "deepseek-official";
+  if (series === "mimo") return "mimo";
+  return "opencode";
+}
+function rank(fp, source, rates) {
+  if (isZeroRates(rates)) return -1;
+  if (source === "override") return 3;
+  if (source === preferredSource(fp)) return 2;
+  return source === "opencode" ? 1 : 0;
 }
 
 // Official list prices for models the fallback tables ship as 0 (free-trial
-// models) or don't carry at all. Single flat entry, USD per 1M tokens.
+// models) or don't carry at all. Single flat entry, USD per 1M tokens. These are
+// PRICES, not classifications — the group id is still derived automatically.
 const OVERRIDE_RATES = {
   // Poolside Laguna-S-2.1 official API.
   "laguna-s-2.1": [{ from: null, pricing: { flat: { input: 0.09, output: 0.18, cacheRead: 0.009, cacheWrite: 0 } } }],
@@ -135,6 +105,23 @@ const OVERRIDE_RATES = {
   "gpt-5-nano": [{ from: null, pricing: { flat: { input: 0.05, output: 0.4, cacheRead: 0.005, cacheWrite: 0 } } }],
   // GPT-OSS 20B (user-supplied; no first-party OpenAI list price).
   "gpt-oss-20b": [{ from: null, pricing: { flat: { input: 0.02, output: 0.1, cacheRead: 0, cacheWrite: 0 } } }],
+  // OpenAI GPT family (GPT-4 to latest o3-mini).
+  "gpt-4": [{ from: null, pricing: { flat: { input: 30, output: 60, cacheRead: 0, cacheWrite: 0 } } }],
+  "gpt-4-turbo": [{ from: null, pricing: { flat: { input: 10, output: 30, cacheRead: 0, cacheWrite: 0 } } }],
+  "gpt-4o": [
+    { from: null, pricing: { flat: { input: 5, output: 15, cacheRead: 2.5, cacheWrite: 0 } } },
+    { from: "2024-08-06T00:00:00Z", pricing: { flat: { input: 2.5, output: 10, cacheRead: 1.25, cacheWrite: 0 } } },
+  ],
+  "gpt-4o-mini": [{ from: null, pricing: { flat: { input: 0.15, output: 0.6, cacheRead: 0.075, cacheWrite: 0 } } }],
+  "o1-preview": [{ from: null, pricing: { flat: { input: 15, output: 60, cacheRead: 7.5, cacheWrite: 0 } } }],
+  "o1": [{ from: null, pricing: { flat: { input: 15, output: 60, cacheRead: 7.5, cacheWrite: 0 } } }],
+  "o1-mini": [{ from: null, pricing: { flat: { input: 3, output: 12, cacheRead: 1.5, cacheWrite: 0 } } }],
+  "o3-mini": [{ from: null, pricing: { flat: { input: 1.1, output: 4.4, cacheRead: 0.55, cacheWrite: 0 } } }],
+  "gpt-5": [{ from: null, pricing: { flat: { input: 5, output: 15, cacheRead: 1.25, cacheWrite: 0 } } }],
+  "gpt-5-pro": [{ from: null, pricing: { flat: { input: 15, output: 60, cacheRead: 3.75, cacheWrite: 0 } } }],
+  "gpt-6-astra": [{ from: null, pricing: { flat: { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 } } }],
+  "gpt-5.6-sol": [{ from: null, pricing: { flat: { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5 } } }],
+  "gpt-5.6-terra": [{ from: null, pricing: { flat: { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5 } } }],
   // Google Gemini Standard tier (Vertex / Gemini API). Flash models carry the
   // promo price through 2026-12-31, then the list price.
   "gemini-3.8-flash": geminiFlash(0.75, 3.75),
@@ -143,13 +130,12 @@ const OVERRIDE_RATES = {
   "gemini-3.5-flash": [{ from: null, pricing: { flat: { input: 1.5, output: 9, cacheRead: 0.15, cacheWrite: 0 } } }],
   "gemini-3.5-flash-lite": [{ from: null, pricing: { flat: { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 } } }],
   "gemini-3.1-flash-lite": [{ from: null, pricing: { flat: { input: 0.25, output: 1.5, cacheRead: 0.025, cacheWrite: 0 } } }],
-  "gemini-3.1-pro-preview": [
-    { from: null, pricing: { flat: { tier: { limit: 200000, low: { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 0 }, high: { input: 4, output: 18, cacheRead: 0.4, cacheWrite: 0 } } } } },
-  ],
+  "gemini-3.1-pro-preview": geminiPro(),
   "gemini-2.5-pro": [
     { from: null, pricing: { flat: { tier: { limit: 200000, low: { input: 1.25, output: 10, cacheRead: 0.125, cacheWrite: 0 }, high: { input: 2.5, output: 15, cacheRead: 0.25, cacheWrite: 0 } } } } },
   ],
   "gemini-2.5-flash": [{ from: null, pricing: { flat: { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 } } }],
+  "gemini-2.5-flash-8b": [{ from: null, pricing: { flat: { input: 0.075, output: 0.3, cacheRead: 0.0075, cacheWrite: 0 } } }],
   "gemini-2.5-flash-lite": [{ from: null, pricing: { flat: { input: 0.1, output: 0.4, cacheRead: 0.01, cacheWrite: 0 } } }],
   "gemini-2.0-flash": [{ from: null, pricing: { flat: { input: 0.15, output: 0.6, cacheRead: 0, cacheWrite: 0 } } }],
   "gemini-2.0-flash-lite": [{ from: null, pricing: { flat: { input: 0.075, output: 0.3, cacheRead: 0, cacheWrite: 0 } } }],
@@ -164,54 +150,238 @@ function geminiFlash(promoIn, promoOut) {
   ];
 }
 
-function preferredSource(canon) {
-  if (canon.startsWith("deepseek")) return "deepseek-official";
-  if (canon.startsWith("mimo")) return "mimo";
-  return "opencode";
+function geminiPro() {
+  return [
+    { from: null, pricing: { flat: { tier: { limit: 200000, low: { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 0 }, high: { input: 4, output: 18, cacheRead: 0.4, cacheWrite: 0 } } } } },
+  ];
 }
 
-// Higher rank wins when two vendors provide the same canonical model.
-function rank(canon, source) {
-  if (source === preferredSource(canon)) return 2;
-  return source === "opencode" ? 1 : 0;
+// --- Authored exceptions (the ONLY manual table) -----------------------------
+// Pure parsing cannot know these, so they are declared here, together, and
+// audited in one place. Everything else is derived automatically.
+//
+// Stealth / anonymous deployments that are really a known model underneath:
+const AUTHORED_FOLDS = {
+  "openrouter:stealth/ox-alpha": "glm-5.3-flash",
+  "opencode:ox-alpha-free": "glm-5.3-flash",
+  "opencode:x-preview-f-free": "glm-5.3-flash",
+};
+
+// Models whose shipped fallback price must be suppressed regardless of what the
+// vendor table carries (e.g. a withdrawn listing). Empty for now: Omen Alpha's
+// price is GitHub-fetched (added 2026-09-04) so it is kept.
+const AUTHORED_UNPRICED = new Set();
+
+// --- Union-find over fingerprints --------------------------------------------
+const parent = new Map();
+function find(x) {
+  if (!parent.has(x)) parent.set(x, x);
+  let r = x;
+  while (parent.get(r) !== r) r = parent.get(r);
+  while (parent.get(x) !== r) {
+    const next = parent.get(x);
+    parent.set(x, r);
+    x = next;
+  }
+  return r;
+}
+function union(a, b) {
+  const ra = find(a);
+  const rb = find(b);
+  if (ra !== rb) parent.set(ra, rb);
 }
 
-const assign = {};
-const ratesByCanon = {};
-const sourceByCanon = {};
+// --- Pass 1: fingerprint every id, link raw ~ target, collect rate tables ----
+const keyFp = new Map(); // "<source>:<model>" -> raw fingerprint
+const targetCount = new Map(); // fingerprint -> how often it is a canonical target
+const candidates = []; // { key, fp, rates, source }
+const modelName = (key) => String(key).split(":").pop();
 
 for (const source of SOURCES) {
   const preset = PRESETS[source];
   for (const [key, targetId] of Object.entries(preset.modelMap || {})) {
-    const canon = canonical(key);
-    assign[key] = canon;
-    const target = preset.targets[targetId];
-    if (!target || !Array.isArray(target.rates) || target.rates.length === 0) continue;
-    if (ratesByCanon[canon] && rank(canon, source) <= rank(canon, sourceByCanon[canon])) continue;
-    ratesByCanon[canon] = target.rates;
-    sourceByCanon[canon] = source;
+    const kf = parse(key).fingerprint;
+    const tf = parse(targetId).fingerprint;
+    keyFp.set(key, kf);
+    targetCount.set(tf, (targetCount.get(tf) || 0) + 1);
+    find(kf);
+    find(tf);
+    union(kf, tf);
+    const target = (preset.targets || {})[targetId];
+    const rates = target && Array.isArray(target.rates) && target.rates.length ? target.rates : null;
+    if (rates && !AUTHORED_UNPRICED.has(modelName(key))) candidates.push({ key, fp: kf, rates, source });
   }
 }
 
-// Official prices for models the fallback tables list as free trials.
-for (const [canon, rates] of Object.entries(OVERRIDE_RATES)) ratesByCanon[canon] = rates;
+// Authored folds: link a stealth / unidentifiable id to its real model so it
+// shares that model's group and price.
+for (const [rawId, canonId] of Object.entries(AUTHORED_FOLDS)) {
+  const a = parse(rawId).fingerprint;
+  const b = parse(canonId).fingerprint;
+  find(a);
+  find(b);
+  union(a, b);
+  keyFp.set(rawId, a);
+}
 
-// Known extras that no preset ships.
-for (const key of EXTRA_KEYS) assign[key] = canonical(key);
+for (const [id, rates] of Object.entries(OVERRIDE_RATES)) {
+  const fp = parse(id).fingerprint;
+  find(fp);
+  targetCount.set(fp, (targetCount.get(fp) || 0) + 1);
+  candidates.push({ key: FINGERPRINT_PREFIX + fp, fp, rates, source: "override" });
+}
 
-// Only ship groups that carry a real price; zero/unannounced models stay
-// unpriced (their keys are dropped from assign, so the UI shows them in
-// Unassigned).
-const priced = Object.keys(ratesByCanon).filter((id) => !UNPRICED.has(id) && !isZeroRates(ratesByCanon[id]));
-const groups = priced.sort().map((id) => ({ id, rates: ratesByCanon[id] }));
+// --- Pass 2: pick one rate table per component -------------------------------
+const byRoot = new Map();
+for (const c of candidates) {
+  const root = find(c.fp);
+  const list = byRoot.get(root);
+  if (list) list.push(c);
+  else byRoot.set(root, [c]);
+}
 
-// Never emit a dangling assignment (validateUnifiedPricing rejects those).
+const bestByRoot = new Map();
+const disagreements = [];
+for (const [root, list] of byRoot) {
+  let best = null;
+  let bestRank = -Infinity;
+  for (const c of list) {
+    const r = rank(c.fp, c.source, c.rates);
+    if (r > bestRank) {
+      bestRank = r;
+      best = c;
+    }
+  }
+  let top = list.filter((c) => rank(c.fp, c.source, c.rates) === bestRank);
+  // Among ties, a table that carries cache pricing beats a duplicate that does
+  // not: the no-cache entry is dropped. (Same model listed twice, one row
+  // missing cacheWrite.)
+  if (top.some((c) => hasCacheWrite(c.rates))) top = top.filter((c) => hasCacheWrite(c.rates));
+  const tables = new Map();
+  for (const c of top) tables.set(rateSignature(c.rates), c);
+  if (tables.size > 1) {
+    disagreements.push({ keys: [...tables.values()].map((c) => c.key), sources: [...new Set(list.map((c) => c.source))] });
+  }
+  bestByRoot.set(root, tables.values().next().value || best);
+}
+
+// Representative fingerprint per component: the one most often used as a
+// canonical target (falls back to the lexicographically smallest).
+const fpsByRoot = new Map();
+for (const fp of parent.keys()) {
+  const root = find(fp);
+  const list = fpsByRoot.get(root);
+  if (list) list.push(fp);
+  else fpsByRoot.set(root, [fp]);
+}
+function representativeFp(root) {
+  const fps = (fpsByRoot.get(root) || []).slice().sort();
+  let best = fps[0] || root;
+  let bestCount = -1;
+  for (const fp of fps) {
+    const c = targetCount.get(fp) || 0;
+    if (c > bestCount) {
+      bestCount = c;
+      best = fp;
+    }
+  }
+  return best;
+}
+
+// --- Pass 3: emit groups + assignments ---------------------------------------
+// `until` retires a model from the peak/off-peak picker. A unified group merges
+// vendors, so one vendor dropping a model must not retire it for a vendor that
+// still serves it: keep `until` only when EVERY source that provides the model
+// has ended; otherwise strip it.
+const lastUntil = (rates) => {
+  if (!Array.isArray(rates) || rates.length === 0) return null;
+  const u = rates[rates.length - 1].until;
+  return typeof u === "string" && u ? u : null;
+};
+const stripUntil = (rates) => rates.map((r) => { if (!("until" in r)) return r; const { until, ...rest } = r; return rest; });
+const setLastUntil = (rates, until) =>
+  rates.map((r, i) => (i === rates.length - 1 ? { ...r, until } : r));
+
+const groups = [];
+const rootToGroupId = new Map();
+for (const [root, c] of bestByRoot) {
+  if (isZeroRates(c.rates)) continue;
+  const list = byRoot.get(root) || [];
+  const untils = list.map((x) => lastUntil(x.rates));
+  const allEnded = list.length > 0 && untils.every((u) => u != null);
+  let rates = c.rates;
+  if (allEnded) rates = setLastUntil(rates, untils.slice().sort().pop());
+  else if (untils.some((u) => u != null)) rates = stripUntil(rates);
+  const id = groupIdFor(representativeFp(root));
+  rootToGroupId.set(root, id);
+  groups.push({ id, rates });
+}
+
 const finalAssign = {};
-for (const [key, groupId] of Object.entries(assign)) {
-  if (priced.includes(groupId)) finalAssign[key] = groupId;
+for (const [key, kf] of keyFp) {
+  const id = rootToGroupId.get(find(kf));
+  if (id) finalAssign[key] = id;
+}
+// Runtime fallback: any fingerprint in a priced component resolves to it, so a
+// model we never enumerated still finds its price by structure alone.
+for (const fp of parent.keys()) {
+  const id = rootToGroupId.get(find(fp));
+  if (id) finalAssign[FINGERPRINT_PREFIX + fp] = id;
+}
+
+groups.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+// --- Guardrail: flag merges that cross a structural boundary -----------------
+// A group that folds models of different series, major versions or real
+// variants can be an intended author fold or a bad alias. Surface it for review
+// rather than deciding silently. `base` is the "no variant" default, so folding
+// a base-named model into a variant is not reported.
+const mergeNotes = [];
+for (const [root, id] of rootToGroupId) {
+  const fps = fpsByRoot.get(root) || [];
+  if (fps.length < 2) continue;
+  const series = new Set();
+  const versions = new Set();
+  const variants = new Set();
+  for (const fp of fps) {
+    const [s, v, va] = fp.split(":");
+    series.add(s);
+    if (v !== "0") versions.add(v);
+    if (va !== "base") variants.add(va);
+  }
+  const flags = [];
+  if (series.size > 1) flags.push("series");
+  if (versions.size > 1) flags.push("version");
+  if (variants.size > 1) flags.push("variant");
+  if (flags.length) mergeNotes.push({ id, flags, fps: fps.slice().sort() });
 }
 
 const preset = { enabled: false, groups, assign: finalAssign };
-writeFileSync(resolve(root, "extension/shared/unified.preset.json"), JSON.stringify(preset, null, 2) + "\n");
-console.log(`wrote extension/shared/unified.preset.json`);
-console.log(`groups=${groups.length} assign=${Object.keys(finalAssign).length}`);
+const serialized = JSON.stringify(preset, null, 2) + "\n";
+const outPath = resolve(root, "extension/shared/unified.preset.json");
+const stats = `groups=${groups.length} assign=${Object.keys(finalAssign).length} fingerprints=${parent.size}`;
+
+if (process.argv.includes("--check")) {
+  const current = existsSync(outPath) ? readFileSync(outPath, "utf8") : "";
+  if (current !== serialized) {
+    console.error("ERR: extension/shared/unified.preset.json is out of date — re-run the builder.");
+    console.error(stats);
+    process.exitCode = 1;
+  } else {
+    console.log(`unified preset in sync (${stats})`);
+  }
+} else {
+  writeFileSync(outPath, serialized);
+  console.log("wrote extension/shared/unified.preset.json");
+  console.log(stats);
+}
+if (disagreements.length) {
+  console.error(`\nERR: ${disagreements.length} model(s) resolve to the same group with conflicting rate tables.`);
+  console.error("Fix the source preset, or the group price is ambiguous (Fail-Closed):");
+  for (const d of disagreements) console.error(`  ${d.keys.join("  vs  ")}  <- ${d.sources.join(", ")}`);
+  process.exitCode = 1;
+}
+if (mergeNotes.length) {
+  console.log(`\nnote: ${mergeNotes.length} group(s) merge across a structural boundary — review:`);
+  for (const m of mergeNotes) console.log(`  ${m.id}  [${m.flags.join("+")}]  ${m.fps.join(" | ")}`);
+}

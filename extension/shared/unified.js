@@ -13,8 +13,16 @@
 // Rate version entries use the same schema as shared/pricing.js.
 
 import { priceFromRates, validateRates } from "./pricing.js";
+import { parse } from "./model-fingerprint.js";
 
 const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+
+// Assign keys with this prefix are fingerprint fallbacks (see build-unified-
+// preset.mjs): "<prefix><series>:<version>:<variant>:<model>" -> groupId. They
+// let a model we never enumerated resolve to its group by structure. They are
+// never shown as model chips.
+export const FINGERPRINT_PREFIX = "fp:";
+const isFingerprintKey = (key) => key.startsWith(FINGERPRINT_PREFIX);
 
 export function normalizeUnifiedPricing(value) {
   const src = isPlainObject(value) ? value : {};
@@ -46,10 +54,11 @@ export function makeGroupId(existing = new Set()) {
   return id;
 }
 
-// Referenced model keys for one group, sorted.
+// Referenced model keys for one group, sorted. Fingerprint fallback keys are
+// internal and never listed as models.
 export function modelsInGroup(unified, groupId) {
   return Object.entries((unified && unified.assign) || {})
-    .filter(([, g]) => g === groupId)
+    .filter(([key, g]) => g === groupId && !isFingerprintKey(key))
     .map(([key]) => key)
     .sort();
 }
@@ -99,30 +108,54 @@ export function buildUnifiedIndex(unified) {
 }
 
 // Price one record against the unified index. `priceBasis` is "unified"; a model
-// with no group is unpriced with zero cost (no fallback).
+// with no group is unpriced with zero cost (no fallback). Lookup is by exact
+// "<source>:<model>" first, then by structural fingerprint so the same model
+// reported under a new spelling or vendor still finds its group.
 export function priceUnified(record, index) {
   const source = (record && record.source) || "opencode";
   const key = `${source}:${record && record.model}`;
-  const rates = index && index.get(key);
+  let targetId = key;
+  let rates = index && index.get(key);
+  if (!rates) {
+    targetId = FINGERPRINT_PREFIX + parse(key).fingerprint;
+    rates = index && index.get(targetId);
+  }
   if (!rates) return { cost: 0, savings: 0, window: null, unpriced: true, targetId: null, priceBasis: "unmapped" };
   const out = priceFromRates(record, rates, "unified");
-  return { ...out, targetId: key };
+  return { ...out, targetId };
 }
 
-// [{ model, rates }] for the peak/off-peak reminder card. Deduped by model name
-// (the reminder keys off the model only), matching legacyModelsFromPricing.
+// [{ model, rates }] for the peak/off-peak reminder card: ONE rule per group, so
+// the picker never repeats the same rate table under every alias that points at
+// it (the DeepSeek flash group is reachable through eight spellings). Auto-named
+// "group-N" ids fall back to the first assigned model name so the option stays
+// readable.
+const AUTO_GROUP_ID = /^group-\d+$/;
+
 export function unifiedRateModels(unified) {
-  const groups = new Map(((unified && unified.groups) || []).map((g) => [g.id, g.rates || []]));
-  const rules = [];
-  const seen = new Set();
+  const ratesByGroup = new Map(((unified && unified.groups) || []).map((g) => [g.id, g.rates || []]));
+  const namesByGroup = new Map();
+  const pointed = new Set();
   for (const [key, groupId] of Object.entries((unified && unified.assign) || {})) {
-    const rates = groups.get(groupId);
-    if (!rates || rates.length === 0) continue;
+    pointed.add(groupId);
+    if (isFingerprintKey(key)) continue; // internal, not a display name
     const colon = key.indexOf(":");
-    const model = colon === -1 ? key : key.slice(colon + 1);
-    if (seen.has(model)) continue;
-    seen.add(model);
-    rules.push({ model, rates });
+    const name = colon === -1 ? key : key.slice(colon + 1);
+    const list = namesByGroup.get(groupId);
+    if (list) list.push(name);
+    else namesByGroup.set(groupId, [name]);
+  }
+  const rules = [];
+  for (const [groupId, rates] of ratesByGroup) {
+    if (rates.length === 0) continue;
+    if (!pointed.has(groupId)) continue; // nothing points at this group
+    const names = namesByGroup.get(groupId);
+    if (AUTO_GROUP_ID.test(groupId)) {
+      if (!names || names.length === 0) continue; // auto id with no readable name
+      rules.push({ model: names.slice().sort()[0], rates });
+    } else {
+      rules.push({ model: groupId, rates });
+    }
   }
   return rules;
 }

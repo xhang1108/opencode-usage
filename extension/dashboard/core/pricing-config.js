@@ -33,19 +33,20 @@ export function priceWithConfig(record, pricing, costSource = {}) {
 }
 
 // The time-reminder consumes a flat [{ model, rates }] list (peak windows per
-// model). Derive it from the fallback pricing config: one rule per mapped raw
-// model.
+// model). Derive it from the fallback pricing config: one rule per price target,
+// named by the target's label, so several raw model ids that share a rate table
+// show up as a single picker entry (matching unifiedRateModels).
 export function legacyModelsFromPricing(pricing = {}) {
   const rules = [];
   const seen = new Set();
-  for (const [key, targetId] of Object.entries(pricing.modelMap || {})) {
+  for (const targetId of Object.values(pricing.modelMap || {})) {
     const target = (pricing.targets || {})[targetId];
-    if (!target) continue;
-    const colon = key.indexOf(":");
-    const model = colon === -1 ? key : key.slice(colon + 1);
-    if (seen.has(model)) continue; // the reminder keys off the model name only
+    if (!target || !Array.isArray(target.rates) || target.rates.length === 0) continue;
+    const colon = targetId.indexOf(":");
+    const model = target.label || (colon === -1 ? targetId : targetId.slice(colon + 1));
+    if (seen.has(model)) continue; // one option per display name
     seen.add(model);
-    rules.push({ model, rates: target.rates || [] });
+    rules.push({ model, rates: target.rates });
   }
   return rules;
 }

@@ -15,6 +15,8 @@
 // "off-peak". This keeps the reminder in sync with the rate settings without
 // hard-coding any times.
 
+import { getRateEntryFromRates, isRetired, peakWindowsOf } from "./pricing.js";
+
 export const TIME_RATES_KEY = "opencode_time_rates";
 export const TIME_ENABLED_KEY = "opencode_time_reminder_enabled";
 export const TIME_MODEL_KEY = "opencode_time_model";
@@ -26,47 +28,49 @@ export function timeToMinutes(hhmm) {
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
-// Extract the union of all peak windows from a rate config (array of rules).
-// Each window: { days: number[], start: "HH:MM", end: "HH:MM" }.
-export function collectPeakWindows(models) {
+const asMs = (at) => (at instanceof Date ? at.getTime() : Number(at));
+
+// The peak windows in force at `at`: only the rate version effective then, never
+// the union of every version the model has ever had. Peak/off-peak is therefore
+// period-limited by construction — once a vendor drops off-peak billing (or the
+// promo window is superseded), the model stops reporting peak/off-peak even
+// though its history still carries the old window.
+export function collectPeakWindows(models, at = new Date()) {
   const windows = [];
   if (!Array.isArray(models)) return windows;
+  const ts = asMs(at);
   for (const rule of models) {
-    const rates = rule && rule.rates;
-    if (!Array.isArray(rates)) continue;
-    for (const version of rates) {
-      const peak = version && version.windows && version.windows.peak;
-      if (!Array.isArray(peak)) continue;
-      for (const w of peak) {
-        if (w && w.start && w.end) windows.push({ days: w.days || [], start: w.start, end: w.end });
-      }
+    if (!rule || !Array.isArray(rule.rates)) continue;
+    const entry = getRateEntryFromRates(rule.rates, ts);
+    for (const w of peakWindowsOf(entry)) {
+      if (w && w.start && w.end) windows.push({ days: w.days || [], start: w.start, end: w.end });
     }
   }
   return windows;
 }
 
-// List the model names that have at least one peak window (candidates for the
-// time-reminder model selector).
-export function listPeakModels(models) {
+// List the model names that charge peak/off-peak right now — the candidates for
+// the time-reminder model selector. Retired models and models whose current
+// version bills flat are excluded, so a withdrawn model can't linger in the
+// picker and keep announcing a window that no longer exists.
+export function listPeakModels(models, at = new Date()) {
   const names = [];
   if (!Array.isArray(models)) return names;
+  const ts = asMs(at);
   for (const rule of models) {
-    const rates = rule && rule.rates;
-    if (!Array.isArray(rates) || !rule.model) continue;
-    const hasPeak = rates.some(
-      (v) => v && v.windows && Array.isArray(v.windows.peak) && v.windows.peak.length > 0
-    );
-    if (hasPeak) names.push(rule.model);
+    if (!rule || !rule.model || !Array.isArray(rule.rates)) continue;
+    if (isRetired(rule, ts)) continue;
+    if (peakWindowsOf(getRateEntryFromRates(rule.rates, ts)).length > 0) names.push(rule.model);
   }
   return names;
 }
 
 // Collect the peak windows for a single model.
-export function collectPeakWindowsForModel(models, modelName) {
+export function collectPeakWindowsForModel(models, modelName, at = new Date()) {
   if (!Array.isArray(models)) return [];
   const rule = models.find((r) => r && r.model === modelName);
   if (!rule) return [];
-  return collectPeakWindows([rule]);
+  return collectPeakWindows([rule], at);
 }
 
 // Load the selected model name from chrome.storage.local.

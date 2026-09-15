@@ -4,6 +4,21 @@
   "models": {
     "deepseek-chat": {
       "label": "deepseek-chat",
+      "effectiveAt": "2025-09-05T16:00:00.000Z",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.56,
+            "output": 1.68,
+            "cacheRead": 0.07,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "deepseek-reasoner": {
+      "label": "deepseek-reasoner",
+      "effectiveAt": "2025-09-05T16:00:00.000Z",
       "entry": {
         "pricing": {
           "flat": {

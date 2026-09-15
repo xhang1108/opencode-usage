@@ -1057,7 +1057,7 @@ async function sendDashboardData() {
       deduped: dropped,
     };
   }
-  const fallback = { ...localMap, ...vendorRecords };
+  const { merged: fallback } = mergeRecords({ ...localMap, ...vendorRecords });
   const fallbackIds = Object.keys(fallback);
   if (fallbackIds.length > 0) {
     return {
@@ -1092,8 +1092,10 @@ async function getTimeReminderContext() {
     loadTimeModel(),
     loadTimeEnabled(),
   ]);
-  // Heal a stale stored model that no longer exists (e.g. removed from defaults).
-  if (model && Array.isArray(rates) && !listPeakModels(rates).includes(model) && !rates.some((r) => r && r.model === model)) {
+  // Heal a stale stored model that the picker no longer offers (retired, or its
+  // current rate version bills flat) so notifications can't announce a window
+  // the model stopped having.
+  if (model && Array.isArray(rates) && !listPeakModels(rates).includes(model)) {
     const fallback = listPeakModels(rates)[0] || "";
     try { await saveTimeModel(fallback); } catch (e) {}
     model = fallback;

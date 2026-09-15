@@ -17,6 +17,7 @@
     },
     "deepseek-v4-pro": {
       "label": "deepseek-v4-pro",
+      "effectiveAt": "2026-04-25T00:00:00.000Z",
       "entry": {
         "pricing": {
           "flat": {
