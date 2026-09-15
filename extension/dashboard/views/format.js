@@ -52,12 +52,3 @@ export function downloadText(filename, text, type = "application/json") {
   URL.revokeObjectURL(url);
 }
 
-// Briefly swap a button label to confirm a clipboard action.
-export function flashButton(btn, msg) {
-  if (!btn) return;
-  const orig = btn.textContent;
-  btn.textContent = msg;
-  setTimeout(() => {
-    btn.textContent = orig;
-  }, 1500);
-}

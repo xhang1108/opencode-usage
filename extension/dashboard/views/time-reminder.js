@@ -7,16 +7,13 @@ import {
   collectPeakWindowsForModel,
   formatLocalTime,
   formatUtcTime,
-  isPeakAt,
-  buildTimeline,
-  nextPeakBoundary,
-  formatCountdownClock,
   listPeakModels,
   loadTimeModel,
   saveTimeModel,
   loadTimeEnabled,
   saveTimeEnabled,
 } from "../../shared/time-reminder.js";
+import { renderTimeReminderCard } from "../../shared/time-reminder-view.js";
 
 // `getRateModels()` -> [{ model, rates }] derived from the live pricing config.
 export function createTimeReminder({ getRateModels }) {
@@ -47,30 +44,11 @@ export function createTimeReminder({ getRateModels }) {
     const now = new Date();
     timeLocalEl.textContent = formatLocalTime(now);
     timeUtcEl.textContent = formatUtcTime(now);
-
-    const peak = isPeakAt(now, timePeakWindows);
-    const hasWindows = timePeakWindows.length > 0;
-
-    timeStatusEl.className = "time-status " + (hasWindows ? (peak ? "peak" : "offpeak") : "flat");
-    timeStatusEl.textContent = hasWindows ? (peak ? "PEAK" : "OFF-PEAK") : "NO RATES";
-
-    const timeline = buildTimeline(timePeakWindows);
-    const nowHour = now.getHours();
-    timeTimelineEl.innerHTML = timeline
-      .map(
-        (seg) =>
-          `<div class="seg ${seg.peak ? "peak" : ""} ${seg.hour === nowHour ? "now" : ""}" title="${String(seg.hour).padStart(2, "0")}:00"></div>`
-      )
-      .join("");
-
-    if (hasWindows) {
-      timeCountdownEl.className = "time-countdown " + (peak ? "peak" : "offpeak");
-      const boundary = nextPeakBoundary(now, timePeakWindows);
-      timeCountdownEl.textContent = boundary ? formatCountdownClock(boundary.time - now) : "--:--:--";
-    } else {
-      timeCountdownEl.className = "time-countdown flat";
-      timeCountdownEl.textContent = "NO RATES";
-    }
+    renderTimeReminderCard(
+      { statusEl: timeStatusEl, countdownEl: timeCountdownEl, timelineEl: timeTimelineEl },
+      timePeakWindows,
+      now
+    );
   }
 
   function populateTimeModels() {

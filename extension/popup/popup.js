@@ -1,16 +1,13 @@
 // popup.js - Shows sync status and triggers background actions.
 import {
   TIME_MODEL_KEY,
-  isPeakAt,
-  buildTimeline,
-  nextPeakBoundary,
-  formatCountdownClock,
   loadTimeEnabled,
   saveTimeEnabled,
   loadTimeRates,
   loadTimeModel,
   collectPeakWindowsForModel,
 } from "../shared/time-reminder.js";
+import { renderTimeReminderCard } from "../shared/time-reminder-view.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -329,31 +326,10 @@ let timePeakWindows = [];
 let timeRates = null;
 
 function renderTimeReminder() {
-  const now = new Date();
-
-  const peak = isPeakAt(now, timePeakWindows);
-  const hasWindows = timePeakWindows.length > 0;
-
-  // Status badge
-  timeStatusEl.className = "time-status " + (hasWindows ? (peak ? "peak" : "offpeak") : "flat");
-  timeStatusEl.textContent = hasWindows ? (peak ? "PEAK" : "OFF-PEAK") : "NO RATES";
-
-  // 24h timeline (laid out in local time)
-  const timeline = buildTimeline(timePeakWindows);
-  const nowHour = now.getHours();
-  timeTimelineEl.innerHTML = timeline
-    .map((seg) => `<div class="seg ${seg.peak ? "peak" : ""} ${seg.hour === nowHour ? "now" : ""}" title="${String(seg.hour).padStart(2, "0")}:00"></div>`)
-    .join("");
-
-  // Countdown to the next peak boundary (start or end), ticking every second
-  if (hasWindows) {
-    timeCountdownEl.className = "time-countdown " + (peak ? "peak" : "offpeak");
-    const boundary = nextPeakBoundary(now, timePeakWindows);
-    timeCountdownEl.textContent = boundary ? formatCountdownClock(boundary.time - now) : "--:--:--";
-  } else {
-    timeCountdownEl.className = "time-countdown flat";
-    timeCountdownEl.textContent = "NO RATES";
-  }
+  renderTimeReminderCard(
+    { statusEl: timeStatusEl, countdownEl: timeCountdownEl, timelineEl: timeTimelineEl },
+    timePeakWindows
+  );
 }
 
 async function initTimeReminder() {

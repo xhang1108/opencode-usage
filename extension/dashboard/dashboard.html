@@ -80,52 +80,6 @@
       width: 100%;
     }
 
-    /* Switch toggle */
-    .switch {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .switch input {
-      position: absolute;
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    .switch .track {
-      position: relative;
-      width: 36px;
-      height: 20px;
-      background: var(--border);
-      border-radius: var(--radius-sm);
-      transition: background 0.2s ease;
-      flex-shrink: 0;
-    }
-    .switch .track::after {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: #fff;
-      border-radius: var(--radius-sm);
-      transition: transform 0.2s ease;
-    }
-    .switch input:checked + .track {
-      background: var(--primary);
-    }
-    .switch input:checked + .track::after {
-      transform: translateX(16px);
-    }
-    .switch input:focus-visible + .track {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
-    }
-
     /* KPI cards */
     .stats-grid {
       display: grid;
@@ -583,9 +537,9 @@
     }
     .select-footer .btn-link:hover { text-decoration: underline; }
 
-    /* Time reminder */
+    /* Time reminder (shared base lives in theme.css) */
     .time-card { padding: 16px 20px; }
-    .time-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .time-head { margin-bottom: 12px; }
     .time-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
     .time-model {
       min-width: 220px;
@@ -599,33 +553,15 @@
       outline: none;
     }
     .time-model:focus { border-color: var(--primary); }
-    .time-status { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-sm); }
-    .time-status.peak { background: rgba(176, 74, 74, 0.15); color: var(--peak); border: 1px solid rgba(176, 74, 74, 0.4); }
-    .time-status.offpeak { background: rgba(106, 143, 192, 0.15); color: var(--primary); border: 1px solid rgba(106, 143, 192, 0.4); }
-    .time-status.flat { background: rgba(161, 161, 166, 0.15); color: var(--text-muted); border: 1px solid var(--border); }
+    .time-status { padding: 3px 10px; }
     .time-body {
       display: flex;
       align-items: stretch;
       gap: 20px;
       margin-bottom: 14px;
     }
-    .time-hero {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 4px 0;
-    }
-    .time-countdown {
-      font-size: 36px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-    .time-countdown.peak { color: var(--peak); }
-    .time-countdown.offpeak { color: var(--primary); }
-    .time-countdown.flat { color: var(--text-muted); }
+    .time-hero { flex: 1; justify-content: flex-start; padding: 4px 0; }
+    .time-countdown { font-size: 36px; letter-spacing: 2px; }
     .time-clocks {
       display: flex;
       flex-direction: column;
@@ -638,16 +574,12 @@
     }
     .time-clocks .clock { display: flex; justify-content: space-between; gap: 12px; }
     .time-clocks .clock b { color: var(--text); font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
-    .timeline { display: flex; gap: 3px; height: 22px; margin-bottom: 6px; }
-    .timeline .seg { flex: 1; border-radius: 3px; background: var(--border-muted); position: relative; }
-    .timeline .seg.peak { background: var(--peak); }
-    .timeline .seg.now { outline: 2px solid var(--text); outline-offset: -1px; }
+    .timeline { gap: 3px; height: 22px; margin-bottom: 6px; }
+    .timeline .seg { border-radius: 3px; position: relative; }
     .timeline-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-disabled); margin-bottom: 12px; }
-    .time-legend { display: flex; gap: 16px; font-size: 11px; color: var(--text-muted); margin-bottom: 12px; }
-    .time-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
-    .time-legend .dot.peak { background: var(--peak); }
-    .time-legend .dot.offpeak { background: var(--primary); }
-    .time-empty { font-size: 12px; color: var(--text-muted); }
+    .time-legend { gap: 16px; font-size: 11px; margin-bottom: 12px; }
+    .time-legend .dot { width: 9px; height: 9px; margin-right: 5px; }
+    .time-empty { font-size: 12px; }
 
     /* Neural network decorative background */
     .decor-bg {

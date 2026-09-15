@@ -7,6 +7,8 @@
 //   head given  -> rows are cell arrays rendered against that header row.
 //   head absent -> rows are [label, value] key/value pairs.
 //   extra       -> optional HTML appended after the table (vendor-specific how-to).
+import { flashButton } from "../../shared/dom-ui.js";
+
 const SECTIONS = [
   {
     id: "tokens",
@@ -178,16 +180,11 @@ export function renderHowItWorks() {
   if (copyBtn) {
     copyBtn.addEventListener("click", async () => {
       const cmd = document.getElementById("hwLocalCmd").textContent;
-      const orig = copyBtn.textContent;
-      const flash = (msg) => {
-        copyBtn.textContent = msg;
-        setTimeout(() => { copyBtn.textContent = orig; }, 1500);
-      };
       try {
         await navigator.clipboard.writeText(cmd);
-        flash("Copied!");
+        flashButton(copyBtn, "Copied!");
       } catch (e) {
-        flash("Copy failed");
+        flashButton(copyBtn, "Copy failed");
       }
     });
   }

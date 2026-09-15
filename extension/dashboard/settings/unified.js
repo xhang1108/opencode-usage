@@ -8,6 +8,7 @@ import { normalizeUnifiedPricing, validateUnifiedPricing, makeGroupId, FINGERPRI
 import { validateRates } from "../../shared/pricing.js";
 import { saveUnifiedPricing, loadUnifiedPreset } from "./store.js";
 import { escHTML } from "../views/format.js";
+import { flashButton } from "../../shared/dom-ui.js";
 
 const ZERO_RATES = [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }];
 
@@ -169,8 +170,7 @@ function wireJson(ctx, wrap) {
     copy.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(ta.value);
-        copy.textContent = "Copied!";
-        setTimeout(() => (copy.textContent = "Copy JSON"), 1200);
+        flashButton(copy, "Copied!", 1200);
       } catch (e) {
         showError("Copy failed: " + (e && e.message ? e.message : String(e)));
       }

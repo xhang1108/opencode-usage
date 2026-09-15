@@ -73,6 +73,50 @@ function chartOptions(overrides = {}) {
   );
 }
 
+// Heatmap cell shading: sqrt ramp so low values stay visible; `min` keeps each
+// heatmap's own floor, `cost == null` means "no data".
+const heatOpacity = (cost, max, min) => (cost == null ? 0.03 : Math.max(min, Math.sqrt(cost / max)));
+
+// Grid label cell shared by both heatmaps.
+function axisLabel(text, align) {
+  const d = document.createElement("div");
+  d.textContent = text;
+  d.style.cssText = `text-align:${align}; padding:0 4px;`;
+  return d;
+}
+
+// Fixed-position hover tooltip shared by both heatmaps.
+function createHeatmapTooltip(wrap) {
+  const tip = document.createElement("div");
+  tip.style.cssText =
+    "position:fixed; pointer-events:none; z-index:60; display:none; " +
+    "background:var(--surface); border:1px solid var(--border); border-radius:6px; " +
+    "padding:8px 10px; font-family:var(--font-mono); font-size:11px; color:var(--text); " +
+    "box-shadow:0 4px 16px rgba(0,0,0,.4);";
+  wrap.appendChild(tip);
+  const place = (x, y) => {
+    tip.style.left = x + 14 + "px";
+    tip.style.top = y + 14 + "px";
+  };
+  return {
+    show(html, x, y) {
+      tip.innerHTML = html;
+      tip.style.display = "block";
+      place(x, y);
+    },
+    move: place,
+    hide() {
+      tip.style.display = "none";
+    },
+  };
+}
+
+// Tooltip body shared by both heatmaps.
+const heatmapTipHTML = (heading, cost, tokens) =>
+  `<div style="color:var(--text-muted); margin-bottom:4px;">${heading}</div>` +
+  `Cost: <strong>$${cost.toFixed(4)}</strong><br>` +
+  `Tokens: <strong>${tokens.toLocaleString()}</strong>`;
+
 // `getRecords()` -> canonical records; `getPrice(rec)` -> { cost, savings, ... };
 // `getFilters()` -> { selectedWorkspace, selectedModel }.
 export function createCharts({ getRecords, getPrice, getFilters }) {
@@ -136,47 +180,23 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
       "display:grid; grid-template-columns: 30px repeat(60, minmax(0, 1fr)); gap:1px; " +
       "font-family:var(--font-mono); font-size:9px; color:var(--text-muted); align-items:center;";
 
-    const label = (text, align) => {
-      const d = document.createElement("div");
-      d.textContent = text;
-      d.style.cssText = `text-align:${align}; padding:0 4px;`;
-      return d;
-    };
+    const tooltip = createHeatmapTooltip(wrap);
 
-    const tip = document.createElement("div");
-    tip.style.cssText =
-      "position:fixed; pointer-events:none; z-index:60; display:none; " +
-      "background:var(--surface); border:1px solid var(--border); border-radius:6px; " +
-      "padding:8px 10px; font-family:var(--font-mono); font-size:11px; color:var(--text); " +
-      "box-shadow:0 4px 16px rgba(0,0,0,.4);";
-    wrap.appendChild(tip);
-
-    grid.appendChild(label("", "right"));
-    for (let m = 0; m < 60; m++) grid.appendChild(label(m % 15 === 0 ? String(m).padStart(2, "0") : "", "center"));
+    grid.appendChild(axisLabel("", "right"));
+    for (let m = 0; m < 60; m++) grid.appendChild(axisLabel(m % 15 === 0 ? String(m).padStart(2, "0") : "", "center"));
     for (let h = 0; h < 24; h++) {
-      grid.appendChild(label(String(h).padStart(2, "0"), "right"));
+      grid.appendChild(axisLabel(String(h).padStart(2, "0"), "right"));
       for (let m = 0; m < 60; m++) {
         const idx = h * 60 + m;
         const d = dayData[idx];
         const cell = document.createElement("div");
-        const opacity = d ? Math.max(0.1, Math.sqrt(d.cost / maxCost)) : 0.03;
+        const opacity = heatOpacity(d ? d.cost : null, maxCost, 0.1);
         cell.style.cssText = `background: rgba(106,143,192,${opacity}); border-radius:1px; aspect-ratio:1;`;
         if (d) {
           const time = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-          cell.addEventListener("mouseenter", () => {
-            tip.innerHTML =
-              `<div style="color:var(--text-muted); margin-bottom:4px;">${time}</div>` +
-              `Cost: <strong>$${d.cost.toFixed(4)}</strong><br>` +
-              `Tokens: <strong>${d.tokens.toLocaleString()}</strong>`;
-            tip.style.display = "block";
-          });
-          cell.addEventListener("mousemove", (e) => {
-            tip.style.left = e.clientX + 14 + "px";
-            tip.style.top = e.clientY + 14 + "px";
-          });
-          cell.addEventListener("mouseleave", () => {
-            tip.style.display = "none";
-          });
+          cell.addEventListener("mouseenter", (e) => tooltip.show(heatmapTipHTML(time, d.cost, d.tokens), e.clientX, e.clientY));
+          cell.addEventListener("mousemove", (e) => tooltip.move(e.clientX, e.clientY));
+          cell.addEventListener("mouseleave", () => tooltip.hide());
         }
         grid.appendChild(cell);
       }
@@ -347,12 +367,6 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
 
     const GAP = 2;
     const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const label = (text, align) => {
-      const d = document.createElement("div");
-      d.textContent = text;
-      d.style.cssText = `text-align:${align}; padding:0 4px;`;
-      return d;
-    };
 
     const grid = document.createElement("div");
     grid.style.cssText =
@@ -363,17 +377,11 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
       "grid-template-rows: 18px repeat(7, auto); " +
       "font-family:var(--font-mono); font-size:9px; color:var(--text-muted);";
 
-    const tip = document.createElement("div");
-    tip.style.cssText =
-      "position:fixed; pointer-events:none; z-index:60; display:none; " +
-      "background:var(--surface); border:1px solid var(--border); border-radius:6px; " +
-      "padding:8px 10px; font-family:var(--font-mono); font-size:11px; color:var(--text); " +
-      "box-shadow:0 4px 16px rgba(0,0,0,.4);";
-    wrap.appendChild(tip);
+    const tooltip = createHeatmapTooltip(wrap);
 
     for (const g of monthGroups) {
       const name = new Date(g.year, g.month, 1).toLocaleDateString("en-US", { month: "short" });
-      const el = label(name, "left");
+      const el = axisLabel(name, "left");
       el.style.gridColumn = `span ${g.count}`;
       grid.appendChild(el);
     }
@@ -385,26 +393,15 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
         const key = iso(d);
         const has = Object.prototype.hasOwnProperty.call(daily, key);
         const cell = document.createElement("div");
-        const opacity = has ? Math.max(0.08, Math.sqrt(daily[key].cost / maxCost)) : 0.03;
+        const opacity = heatOpacity(has ? daily[key].cost : null, maxCost, 0.08);
         cell.style.cssText = `width:100%; aspect-ratio:1; background: rgba(106,143,192,${opacity}); border:1px solid rgba(255,255,255,0.05); border-radius:2px;`;
         if (has) {
           const cost = daily[key].cost;
           const tokens = daily[key].tokens;
           cell.style.cursor = "pointer";
-          cell.addEventListener("mouseenter", () => {
-            tip.innerHTML =
-              `<div style="color:var(--text-muted); margin-bottom:4px;">${key}</div>` +
-              `Cost: <strong>$${cost.toFixed(4)}</strong><br>` +
-              `Tokens: <strong>${tokens.toLocaleString()}</strong>`;
-            tip.style.display = "block";
-          });
-          cell.addEventListener("mousemove", (e) => {
-            tip.style.left = e.clientX + 14 + "px";
-            tip.style.top = e.clientY + 14 + "px";
-          });
-          cell.addEventListener("mouseleave", () => {
-            tip.style.display = "none";
-          });
+          cell.addEventListener("mouseenter", (e) => tooltip.show(heatmapTipHTML(key, cost, tokens), e.clientX, e.clientY));
+          cell.addEventListener("mousemove", (e) => tooltip.move(e.clientX, e.clientY));
+          cell.addEventListener("mouseleave", () => tooltip.hide());
           cell.addEventListener("click", () => {
             selectedHourlyDate = key;
             renderHourlyChart(lastFullHourlyMap, key);
