@@ -1,0 +1,13 @@
+{
+  "name": "opencode-usage",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "manifest": "node tools/build-manifest.mjs",
+    "preset": "node tools/extract-preset.mjs",
+    "unified-preset": "node tools/build-unified-preset.mjs",
+    "price-watch": "node tools/price-watch.mjs",
+    "price-sync": "pwsh -ExecutionPolicy Bypass -File tools/opencode/fetch_diffs.ps1 && pwsh -ExecutionPolicy Bypass -File tools/opencode/postprocess.ps1 && node tools/opencode/build-opencode-preset.mjs --write && node tools/build-unified-preset.mjs"
+  }
+}

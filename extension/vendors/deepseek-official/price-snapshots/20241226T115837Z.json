@@ -1,0 +1,20 @@
+{
+  "capturedAt": "2024-12-26T11:58:37.000Z",
+  "source": "deepseek-official",
+  "models": {
+    "deepseek-chat": {
+      "label": "deepseek-chat",
+      "effectiveAt": "2025-02-08T00:00:00.000Z",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.27,
+            "output": 1.1,
+            "cacheRead": 0.07,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

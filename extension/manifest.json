@@ -1,17 +1,61 @@
 {
   "manifest_version": 3,
   "name": "Opencode Token Usage",
-  "version": "0.8.5",
+  "version": "1.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsywuSqmZOV4WMAwBZgPVGzyJXBgQTcv/VMa0cjpY9nbnRf+W3PRWOT0dc6+/dCDcrGdrARYFpTh/LyoT3LcLKxIAl6VMJQRMS8x2m0TddEcWaRtwxd1mDUcUuwsokz5Vlasyhk9zLeRsUAAKlBL4gRzbfj6140Bx4Hpu3vn/GoITVoEL7CcFgOL6Pwi2NMMio6jBjZ2jxwgWOxd1avslHrrALbqDCF1tvbFYtHD0ykm072oC12yDFqigUhtoD7M0xdjh8vU2WS1smPrQDjlF29OkEiN10dgAjl6wEIentJdOzwzD0nKsvZ1K0/NSDFRFqUOFrqOXbz984Ot4+xGO4wIDAQAB",
   "description": "Syncs opencode.ai usage token data into local storage and visualizes it in an integrated dashboard.",
-  "permissions": ["storage", "scripting", "unlimitedStorage", "notifications", "alarms"],
-  "host_permissions": ["https://opencode.ai/*", "https://api.github.com/*"],
+  "permissions": [
+    "storage",
+    "scripting",
+    "unlimitedStorage",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://opencode.ai/*"
+  ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "web_accessible_resources": [
     {
-      "resources": ["content/crawl-worker.js"],
-      "matches": ["https://opencode.ai/*"]
+      "resources": [
+        "vendors/commandcode/mapper.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://commandcode.ai/*",
+        "https://*.commandcode.ai/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/deepseek-official/mapper.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://*.deepseek.com/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/opencode/crawl-worker.js"
+      ],
+      "matches": [
+        "https://opencode.ai/*"
+      ]
+    },
+    {
+      "resources": [
+        "vendors/openrouter/mapper.js",
+        "vendors/openrouter/analytics-query.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://openrouter.ai/*"
+      ]
     }
   ],
   "action": {
@@ -30,9 +74,19 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://opencode.ai/*"],
-      "js": ["content/content.js"],
+      "matches": [
+        "https://opencode.ai/*"
+      ],
+      "js": [
+        "vendors/opencode/content.js"
+      ],
       "run_at": "document_start"
     }
+  ],
+  "optional_host_permissions": [
+    "https://*.commandcode.ai/*",
+    "https://*.deepseek.com/*",
+    "https://commandcode.ai/*",
+    "https://openrouter.ai/*"
   ]
 }

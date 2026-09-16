@@ -1,0 +1,21 @@
+{
+  "source": "opencode",
+  "label": "opencode",
+  "mode": "crawl",
+  "defaultEnabled": true,
+  "costSource": "vendor",
+  "origins": ["https://opencode.ai/*"],
+  "crawl": {
+    "contentScript": "vendors/opencode/content.js",
+    "runAt": "document_start",
+    "worker": "vendors/opencode/crawl-worker.js",
+    "home": "https://opencode.ai/",
+    "defaultDays": 0
+  },
+  "import": ["json"],
+  "ratesPreset": "rates.preset.json",
+  "storage": {
+    "opfs": "opencode_token_cache_<workspace>.json",
+    "lease": true
+  }
+}

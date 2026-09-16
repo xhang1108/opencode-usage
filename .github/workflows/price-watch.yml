@@ -1,0 +1,36 @@
+name: Price watch
+
+# Long-term vendor price history: fetch each vendor's official price source,
+# commit a snapshot only when prices changed, and rebuild the preset. Git
+# history of vendors/*/price-snapshots/ is the dated price-change log.
+on:
+  schedule:
+    - cron: "17 5 * * *" # daily 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch price snapshots + rebuild presets
+        run: node tools/price-watch.mjs
+
+      - name: Commit changes
+        run: |
+          git config user.name "price-watch"
+          git config user.email "price-watch@users.noreply.github.com"
+          git add extension/vendors/*/price-snapshots extension/vendors/*/rates.preset.json extension/vendors/*/rates.source.json
+          if git diff --cached --quiet; then
+            echo "no price changes"
+          else
+            git commit -m "chore(price-watch): update vendor price snapshots"
+            git push
+          fi

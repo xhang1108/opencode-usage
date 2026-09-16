@@ -1,0 +1,424 @@
+{
+  "source": "deepseek-official",
+  "models": [
+    {
+      "model": "deepseek-chat",
+      "label": "deepseek-chat",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-02-08T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.27,
+              "output": 1.1,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-02-26T00:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "00:30",
+                "end": "16:30"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.27,
+              "output": 1.1,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.135,
+              "output": 0.55,
+              "cacheRead": 0.035,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-05T16:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.56,
+              "output": 1.68,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-29T00:00:00.000Z",
+          "until": "2026-04-24T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.28,
+              "output": 0.42,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "deepseek-coder",
+      "label": "deepseek-coder",
+      "rates": [
+        {
+          "from": null,
+          "until": "2026-04-24T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "deepseek-reasoner",
+      "label": "deepseek-reasoner",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.55,
+              "output": 2.19,
+              "cacheRead": 0.14,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-02-26T00:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "00:30",
+                "end": "16:30"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.55,
+              "output": 2.19,
+              "cacheRead": 0.14,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.135,
+              "output": 0.55,
+              "cacheRead": 0.035,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-05T16:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.56,
+              "output": 1.68,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-29T00:00:00.000Z",
+          "until": "2026-04-24T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.28,
+              "output": 0.42,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "label": "deepseek-v4-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-26T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.0028,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-22T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-09-10T04:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.003,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "label": "deepseek-v4-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.74,
+              "output": 3.48,
+              "cacheRead": 0.145,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-25T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.03625,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-26T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.003625,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 1.32,
+              "output": 3.96,
+              "cacheRead": 0.044,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.66,
+              "output": 1.98,
+              "cacheRead": 0.022,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-22T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 1.32,
+              "output": 3.96,
+              "cacheRead": 0.044,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.66,
+              "output": 1.98,
+              "cacheRead": 0.022,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

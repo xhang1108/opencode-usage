@@ -1,0 +1,1678 @@
+{
+  "enabled": false,
+  "groups": [
+    {
+      "id": "deepseek-4-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-26T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.0028,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-22T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.44,
+              "output": 1.32,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.22,
+              "output": 0.66,
+              "cacheRead": 0.007,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-09-10T04:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.003,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "deepseek-4-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.74,
+              "output": 3.48,
+              "cacheRead": 0.145,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-25T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.03625,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-04-26T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.003625,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-16T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 1.32,
+              "output": 3.96,
+              "cacheRead": 0.044,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.66,
+              "output": 1.98,
+              "cacheRead": 0.022,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-08-22T16:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "01:00",
+                "end": "04:00"
+              },
+              {
+                "days": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "start": "06:00",
+                "end": "10:00"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 1.32,
+              "output": 3.96,
+              "cacheRead": 0.044,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.66,
+              "output": 1.98,
+              "cacheRead": 0.022,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "deepseek-chat",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-02-08T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.27,
+              "output": 1.1,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-02-26T00:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "00:30",
+                "end": "16:30"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.27,
+              "output": 1.1,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.135,
+              "output": 0.55,
+              "cacheRead": 0.035,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-05T16:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.56,
+              "output": 1.68,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-29T00:00:00.000Z",
+          "until": "2026-04-24T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.28,
+              "output": 0.42,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "deepseek-coder",
+      "rates": [
+        {
+          "from": null,
+          "until": "2026-04-24T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.014,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "deepseek-reasoner",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.55,
+              "output": 2.19,
+              "cacheRead": 0.14,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-02-26T00:00:00.000Z",
+          "windows": {
+            "peak": [
+              {
+                "days": [],
+                "start": "00:30",
+                "end": "16:30"
+              }
+            ]
+          },
+          "pricing": {
+            "peak": {
+              "input": 0.55,
+              "output": 2.19,
+              "cacheRead": 0.14,
+              "cacheWrite": 0
+            },
+            "offpeak": {
+              "input": 0.135,
+              "output": 0.55,
+              "cacheRead": 0.035,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-05T16:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.56,
+              "output": 1.68,
+              "cacheRead": 0.07,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2025-09-29T00:00:00.000Z",
+          "until": "2026-04-24T00:00:00.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.28,
+              "output": 0.42,
+              "cacheRead": 0.028,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-2.0-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-2.0-lite-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.075,
+              "output": 0.3,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 2.5,
+              "cacheRead": 0.03,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-2.5-flash-8b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.075,
+              "output": 0.3,
+              "cacheRead": 0.0075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-2.5-lite-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.4,
+              "cacheRead": 0.01,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-2.5-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 1.25,
+                  "output": 10,
+                  "cacheRead": 0.125,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2.5,
+                  "output": 15,
+                  "cacheRead": 0.25,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-3.1-lite-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.25,
+              "output": 1.5,
+              "cacheRead": 0.025,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-3.1-preview-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 2,
+                  "output": 12,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 4,
+                  "output": 18,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 9,
+              "cacheRead": 0.15,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-3.5-lite-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 2.5,
+              "cacheRead": 0.03,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-3.6-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.75,
+              "output": 3.75,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2027-01-01T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 7.5,
+              "cacheRead": 0.15,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-3.7-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.75,
+              "output": 3.75,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2027-01-01T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 7.5,
+              "cacheRead": 0.15,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.75,
+              "output": 3.75,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2027-01-01T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 7.5,
+              "cacheRead": 0.15,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "glm-5",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1,
+              "output": 3.2,
+              "cacheRead": 0.2,
+              "cacheWrite": 0
+            }
+          },
+          "until": "2026-06-17T11:04:33.000Z"
+        }
+      ]
+    },
+    {
+      "id": "glm-5.1",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "glm-5.2",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "glm-5.3",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "glm-5.3-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.5,
+              "cacheRead": 0.03,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-20-ossb",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.02,
+              "output": 0.1,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-4",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 30,
+              "output": 60,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-4-mini-o",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-4-o",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 5,
+              "output": 15,
+              "cacheRead": 2.5,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2024-08-06T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 10,
+              "cacheRead": 1.25,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-4-turbo",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 10,
+              "output": 30,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 5,
+              "output": 15,
+              "cacheRead": 1.25,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5-nano",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.05,
+              "output": 0.4,
+              "cacheRead": 0.005,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 15,
+              "output": 60,
+              "cacheRead": 3.75,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 0.2,
+                  "output": 1.2,
+                  "cacheRead": 0.02,
+                  "cacheWrite": 0.25
+                },
+                "high": {
+                  "input": 0.4,
+                  "output": 1.8,
+                  "cacheRead": 0.04,
+                  "cacheWrite": 0.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 4,
+              "output": 20,
+              "cacheRead": 0.4,
+              "cacheWrite": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 12,
+              "cacheRead": 0.2,
+              "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-6-astra",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 10,
+              "output": 50,
+              "cacheRead": 1,
+              "cacheWrite": 12.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grok-4.5",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.5,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-07-19T06:08:05.000Z",
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.3,
+              "cacheWrite": 0
+            }
+          },
+          "until": "2026-08-25T17:27:48.000Z"
+        }
+      ]
+    },
+    {
+      "id": "grok-4.6",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 2,
+                  "output": 6,
+                  "cacheRead": 0.5,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 4,
+                  "output": 12,
+                  "cacheRead": 1,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "hy-3",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.58,
+              "cacheRead": 0.035,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "hy-4-preview",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.834,
+              "output": 2.501,
+              "cacheRead": 0.042,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "kimi-2.5-k",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 3,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          },
+          "until": "2026-06-12T19:57:13.000Z"
+        }
+      ]
+    },
+    {
+      "id": "kimi-2.6-k",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.95,
+              "output": 4,
+              "cacheRead": 0.16,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "kimi-2.7-k-code",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.95,
+              "output": 4,
+              "cacheRead": 0.19,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "kimi-3-k",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 15,
+              "cacheRead": 0.3,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "kimi-3-k-7-24-2x",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 15,
+              "cacheRead": 0.3,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "laguna-2.1-s",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.09,
+              "output": 0.18,
+              "cacheRead": 0.009,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "longcat-2.0",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mimo-2.5",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.0028,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mimo-2.5-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.0036,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "minimax-2.5-m",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.03,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-05-31T17:59:44.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.06,
+              "cacheWrite": 0.375
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "minimax-2.7-m",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.06,
+              "cacheWrite": 0.375
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "minimax-3-m",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 2.4,
+              "cacheRead": 0.12,
+              "cacheWrite": 0.75
+            }
+          }
+        },
+        {
+          "from": "2026-06-08T11:16:19.000Z",
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.06,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "muse-1.2-spark",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.2,
+              "cacheRead": 0.002,
+              "cacheWrite": 0
+            }
+          },
+          "until": "2026-08-19T06:30:23.000Z"
+        }
+      ]
+    },
+    {
+      "id": "muse-1.2-spark-contributor",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.2,
+              "cacheRead": 0.002,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "nemotron-3-ultra",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.63,
+              "output": 3.13,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "o-1",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 15,
+              "output": 60,
+              "cacheRead": 7.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "o-1-mini",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 12,
+              "cacheRead": 1.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "o-1-preview",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 15,
+              "output": 60,
+              "cacheRead": 7.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "o-3-mini",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.1,
+              "output": 4.4,
+              "cacheRead": 0.55,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "omen-alpha",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 0.66,
+              "cacheRead": 0.04,
+              "cacheWrite": 0
+            }
+          },
+          "until": "2026-09-10T04:22:43.000Z"
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.6-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 3,
+              "cacheRead": 0.05,
+              "cacheWrite": 0.625
+            }
+          }
+        },
+        {
+          "from": "2026-06-05T11:21:46Z",
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.5,
+                  "output": 3,
+                  "cacheRead": 0.05,
+                  "cacheWrite": 0.625
+                },
+                "high": {
+                  "input": 2,
+                  "output": 6,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 2.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.7-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.5,
+              "cacheWrite": 3.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.7-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 1.6,
+              "cacheRead": 0.04,
+              "cacheWrite": 0.5
+            }
+          }
+        },
+        {
+          "from": "2026-06-05T11:21:46Z",
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.4,
+                  "output": 1.6,
+                  "cacheRead": 0.04,
+                  "cacheWrite": 0.5
+                },
+                "high": {
+                  "input": 1.2,
+                  "output": 4.8,
+                  "cacheRead": 0.12,
+                  "cacheWrite": 1.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.8-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.47,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.8-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.25,
+              "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "assign": {
+    "opencode:glm-5.3-flash": "glm-5.3-flash",
+    "opencode:grok-4.6": "grok-4.6",
+    "opencode:longcat-2.0": "longcat-2.0",
+    "opencode:deepseek-v4-flash-vision-exp": "deepseek-4-flash",
+    "opencode:muse-spark-1.2-contributor": "muse-1.2-spark-contributor",
+    "opencode:muse-spark-1.2": "muse-1.2-spark",
+    "opencode:deepseek-v4-flash": "deepseek-4-flash",
+    "opencode:deepseek-v4-pro": "deepseek-4-pro",
+    "opencode:glm-5.3": "glm-5.3",
+    "opencode:gemini-3.7-flash": "gemini-3.7-flash",
+    "opencode:qwen3.8-max": "qwen-3.8-max",
+    "opencode:gpt-5.6-luna": "gpt-5.6-luna",
+    "opencode:hy3": "hy-3",
+    "opencode:grok-4.5": "grok-4.5",
+    "opencode:mimo-v2.5-pro": "mimo-2.5-pro",
+    "opencode:kimi-k3": "kimi-3-k",
+    "opencode:kimi-k3-7-24-2x": "kimi-3-k-7-24-2x",
+    "opencode:glm-5.2": "glm-5.2",
+    "opencode:kimi-k2.7-code": "kimi-2.7-k-code",
+    "opencode:minimax-m3": "minimax-3-m",
+    "opencode:qwen3.6-plus": "qwen-3.6-plus",
+    "opencode:qwen3.7-plus": "qwen-3.7-plus",
+    "opencode:glm-5": "glm-5",
+    "opencode:glm-5.1": "glm-5.1",
+    "opencode:kimi-k2.5": "kimi-2.5-k",
+    "opencode:kimi-k2.6": "kimi-2.6-k",
+    "opencode:mimo-v2.5": "mimo-2.5",
+    "opencode:minimax-m2.5": "minimax-2.5-m",
+    "opencode:minimax-m2.7": "minimax-2.7-m",
+    "opencode:qwen3.7-max": "qwen-3.7-max",
+    "opencode:hy4-preview": "hy-4-preview",
+    "opencode:qwen3.8-flash": "qwen-3.8-flash",
+    "opencode:omen-alpha": "omen-alpha",
+    "opencode:muse-spark-1.3-contributor": "muse-1.2-spark-contributor",
+    "opencode:deepseek-v4.1-flash": "deepseek-4-flash",
+    "opencode:hy3-free": "hy-3",
+    "opencode:laguna-s-2.1-free": "laguna-2.1-s",
+    "opencode:nemotron-3-ultra-free": "nemotron-3-ultra",
+    "opencode:deepseek-v4-flash-free": "deepseek-4-flash",
+    "opencode:deepseek-v4.1-flash-free": "deepseek-4-flash",
+    "opencode:mimo-v2.5-free": "mimo-2.5",
+    "opencode:qwen-3.7-max": "qwen-3.7-max",
+    "opencode:qwen-3.7-plus": "qwen-3.7-plus",
+    "opencode:qwen-3.6-plus": "qwen-3.6-plus",
+    "opencode:muse-spark-1.2-contributor-free": "muse-1.2-spark-contributor",
+    "opencode:muse-spark-1.3-contributor-free": "muse-1.2-spark-contributor",
+    "opencode:gemini-3.8-flash": "gemini-3.8-flash",
+    "opencode:ox-alpha-free": "glm-5.3-flash",
+    "opencode:x-preview-f-free": "glm-5.3-flash",
+    "deepseek-official:deepseek-chat": "deepseek-chat",
+    "deepseek-official:deepseek-coder": "deepseek-coder",
+    "deepseek-official:deepseek-reasoner": "deepseek-reasoner",
+    "deepseek-official:deepseek-v4-flash": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4-pro": "deepseek-4-pro",
+    "deepseek-official:deepseek-flash": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4.1-flash": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4-flash-free": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4.1-flash-free": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4-flash-vision-exp": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4-flash-0731": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4.1-flash-expires-on-0910": "deepseek-4-flash",
+    "deepseek-official:deepseek-v4-pro-free": "deepseek-4-pro",
+    "deepseek-official:deepseek-chat & deepseek-reasoner": "deepseek-chat",
+    "mimo:mimo-v2.5": "mimo-2.5",
+    "mimo:mimo-v2.5-pro": "mimo-2.5-pro",
+    "mimo:MiMo-V2.5-Pro": "mimo-2.5-pro",
+    "mimo:MiMo-V2.5 Pro": "mimo-2.5-pro",
+    "mimo:MiMo-V2.5": "mimo-2.5",
+    "openrouter:stealth/ox-alpha": "glm-5.3-flash",
+    "fp:glm:5.3:flash:": "glm-5.3-flash",
+    "fp:grok:4.6:base:": "grok-4.6",
+    "fp:longcat:2.0:base:": "longcat-2.0",
+    "fp:deepseek:4:base:flash-vision-exp": "deepseek-4-flash",
+    "fp:muse:1.2:base:spark-contributor": "muse-1.2-spark-contributor",
+    "fp:muse:1.2:base:spark": "muse-1.2-spark",
+    "fp:deepseek:4:flash:": "deepseek-4-flash",
+    "fp:deepseek:4:pro:": "deepseek-4-pro",
+    "fp:glm:5.3:base:": "glm-5.3",
+    "fp:gemini:3.7:flash:": "gemini-3.7-flash",
+    "fp:qwen:3.8:max:": "qwen-3.8-max",
+    "fp:gpt:5.6:base:luna": "gpt-5.6-luna",
+    "fp:hy:3:base:": "hy-3",
+    "fp:grok:4.5:base:": "grok-4.5",
+    "fp:mimo:2.5:pro:": "mimo-2.5-pro",
+    "fp:kimi:3:base:k": "kimi-3-k",
+    "fp:kimi:3:base:k-7-24-2x": "kimi-3-k-7-24-2x",
+    "fp:glm:5.2:base:": "glm-5.2",
+    "fp:kimi:2.7:base:k-code": "kimi-2.7-k-code",
+    "fp:minimax:3:base:m": "minimax-3-m",
+    "fp:qwen:3.6:plus:": "qwen-3.6-plus",
+    "fp:qwen:3.7:plus:": "qwen-3.7-plus",
+    "fp:glm:5:base:": "glm-5",
+    "fp:glm:5.1:base:": "glm-5.1",
+    "fp:kimi:2.5:base:k": "kimi-2.5-k",
+    "fp:kimi:2.6:base:k": "kimi-2.6-k",
+    "fp:mimo:2.5:base:": "mimo-2.5",
+    "fp:minimax:2.5:base:m": "minimax-2.5-m",
+    "fp:minimax:2.7:base:m": "minimax-2.7-m",
+    "fp:qwen:3.7:max:": "qwen-3.7-max",
+    "fp:hy:4:preview:": "hy-4-preview",
+    "fp:qwen:3.8:flash:": "qwen-3.8-flash",
+    "fp:omen:0:base:alpha": "omen-alpha",
+    "fp:muse:1.3:base:spark-contributor": "muse-1.2-spark-contributor",
+    "fp:deepseek:4.1:flash:": "deepseek-4-flash",
+    "fp:laguna:2.1:base:s": "laguna-2.1-s",
+    "fp:nemotron:3:base:ultra": "nemotron-3-ultra",
+    "fp:gemini:3.8:flash:": "gemini-3.8-flash",
+    "fp:ox:0:base:alpha": "glm-5.3-flash",
+    "fp:x:0:base:preview-f": "glm-5.3-flash",
+    "fp:deepseek:0:base:chat": "deepseek-chat",
+    "fp:deepseek:0:base:coder": "deepseek-coder",
+    "fp:deepseek:0:base:reasoner": "deepseek-reasoner",
+    "fp:deepseek:0:flash:": "deepseek-4-flash",
+    "fp:deepseek:4:base:flash-0731": "deepseek-4-flash",
+    "fp:deepseek:4.1:base:flash-expires-on-0910": "deepseek-4-flash",
+    "fp:deepseek:0:base:chat-&-deepseek-reasoner": "deepseek-chat",
+    "fp:muse:0:base:spark-contributor": "muse-1.2-spark-contributor",
+    "fp:gpt:5:base:nano": "gpt-5-nano",
+    "fp:gpt:20:base:ossb": "gpt-20-ossb",
+    "fp:gpt:4:base:": "gpt-4",
+    "fp:gpt:4:turbo:": "gpt-4-turbo",
+    "fp:gpt:4:base:o": "gpt-4-o",
+    "fp:gpt:4:mini:o": "gpt-4-mini-o",
+    "fp:o:1:preview:": "o-1-preview",
+    "fp:o:1:base:": "o-1",
+    "fp:o:1:mini:": "o-1-mini",
+    "fp:o:3:mini:": "o-3-mini",
+    "fp:gpt:5:base:": "gpt-5",
+    "fp:gpt:5:pro:": "gpt-5-pro",
+    "fp:gpt:6:base:astra": "gpt-6-astra",
+    "fp:gpt:5.6:base:sol": "gpt-5.6-sol",
+    "fp:gpt:5.6:base:terra": "gpt-5.6-terra",
+    "fp:gemini:3.6:flash:": "gemini-3.6-flash",
+    "fp:gemini:3.5:flash:": "gemini-3.5-flash",
+    "fp:gemini:3.5:lite:flash": "gemini-3.5-lite-flash",
+    "fp:gemini:3.1:lite:flash": "gemini-3.1-lite-flash",
+    "fp:gemini:3.1:preview:pro": "gemini-3.1-preview-pro",
+    "fp:gemini:2.5:pro:": "gemini-2.5-pro",
+    "fp:gemini:2.5:flash:": "gemini-2.5-flash",
+    "fp:gemini:2.5:base:flash-8b": "gemini-2.5-flash-8b",
+    "fp:gemini:2.5:lite:flash": "gemini-2.5-lite-flash",
+    "fp:gemini:2.0:flash:": "gemini-2.0-flash",
+    "fp:gemini:2.0:lite:flash": "gemini-2.0-lite-flash"
+  }
+}

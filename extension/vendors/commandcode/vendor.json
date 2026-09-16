@@ -1,0 +1,28 @@
+{
+  "source": "commandcode",
+  "label": "CommandCode",
+  "mode": "crawl",
+  "defaultEnabled": false,
+  "costSource": "vendor",
+  "origins": ["https://commandcode.ai/*", "https://*.commandcode.ai/*"],
+  "crawl": {
+    "contentScript": "vendors/commandcode/content.js",
+    "runAt": "document_idle",
+    "webAccessible": ["vendors/commandcode/mapper.js", "shared/canonical.js"],
+    "home": "https://commandcode.ai/",
+    "defaultDays": 0,
+    "everyDays": 3
+  },
+  "import": [],
+  "storage": {
+    "opfs": false,
+    "lease": false
+  },
+  "notes": [
+    "Primary source: GET /internal/usage/charts?granularity=day&from=<ISO>&to=<ISO> (cookie, CORS) - daily x model x provider aggregates with cache tokens and cost; not capped.",
+    "The /internal/usage detail list is capped at 100 rows/window (limit=50/page, seen>=100 => 0) and has no cache split; not used for history.",
+    "Cost is vendor-reported (totalCost) via registry costSource:\"vendor\"; cacheReadInputTokens/cacheCreationInputTokens are native.",
+    "timeBucket is naive; treated as UTC.",
+    "No Export button - crawl is the only path."
+  ]
+}

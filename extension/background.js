@@ -1,5 +1,31 @@
 // background.js - Manages the icon badge and popup message routing (export / manual sync / status).
-importScripts("time-reminder.js");
+// Module service worker (manifest "type": "module"): it imports the shared pure
+// modules directly, so there are no inlined copies to drift out of sync.
+import {
+  TIME_RATES_KEY,
+  TIME_ENABLED_KEY,
+  TIME_MODEL_KEY,
+  loadTimeRates,
+  loadTimeModel,
+  loadTimeEnabled,
+  saveTimeModel,
+  listPeakModels,
+  collectPeakWindowsForModel,
+  nextPeakBoundary,
+  formatLocalTime,
+  formatUtcTime,
+  isPeakAt,
+} from "./shared/time-reminder.js";
+import { healOpencodeCrawlOutput } from "./shared/canonical.js";
+import {
+  DEDUP_BUCKET_MS,
+  fingerprintOf,
+  buildFingerprintBuckets,
+  hideDayAnchoredImportCopies,
+  isLocalLooking,
+} from "./shared/merge.js";
+import { STORAGE_SCHEMA_VERSION, pendingMigrations, planMigrations } from "./shared/migrate.js";
+import { OPFS_STORE_KEY, LOCAL_STORE_KEY, VENDOR_STORE_PREFIX } from "./shared/stores.js";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -37,7 +63,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       const newCount = msg.newRecords || 0;
       const newTokens = msg.newTokens || 0;
-      notifyCrawl("Sync complete", `${count} records total — ${newCount} new (${newTokens.toLocaleString()} tokens).`);
+      const serverEmpty = !!msg.serverEmpty;
+      notifyCrawl(
+        "Sync complete",
+        serverEmpty
+          ? `Server has no records for this workspace — showing last synced data.`
+          : `${count} records total — ${newCount} new (${newTokens.toLocaleString()} tokens).`
+      );
       chrome.storage.local.set({
         lastSyncAt: Date.now(),
         lastSyncCount: newCount,
@@ -49,7 +81,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           done: true,
           page: msg.lastPage || 0,
           workspace: msg.workspaceID || "",
-          message: msg.stopReason ? `Crawl stopped: ${msg.stopReason}` : "",
+          warning: count === 0, // B10: completed but nothing returned
+          serverEmpty, // D21: server has no records for this workspace
+          message: count === 0
+            ? "Crawl finished but returned no records"
+            : serverEmpty
+              ? "Server has no records for this workspace — showing last synced data"
+              : msg.stopReason ? `Crawl stopped: ${msg.stopReason}` : "",
         },
       });
       // After a sync, cache the merged data so it's usable without an open page.
@@ -87,7 +125,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.scripting
         .executeScript({
           target: { tabId },
-          files: ["content/interceptor.js"],
+          files: ["vendors/opencode/interceptor.js"],
           world: "MAIN",
         })
         .then(() => sendResponse({ ok: true }))
@@ -96,7 +134,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     case "start-crawl":
-      sendStartCrawl(!!msg.rescan)
+      (msg.vendor && msg.vendor !== "opencode"
+        ? sendStartVendorCrawl(msg.vendor, msg.days, !!(msg.full || msg.rescan))
+        : sendStartCrawl(!!msg.rescan)
+      )
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+      return true;
+
+    case "vendor-crawl-data":
+      handleVendorCrawlData(msg)
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+      return true;
+
+    case "vendor-crawl-done":
+      handleVendorCrawlDone(msg)
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
@@ -135,6 +188,36 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
 
+    case "clear-vendor-data":
+      // Drop one vendor's stored records (<source>ImportData) and rebuild.
+      handleClearVendorData(msg)
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
+      return true;
+
+    case "sync-vendor-scripts":
+      // Re-register runtime content scripts after the user grants a vendor's
+      // optional origin (B1/B2).
+      syncVendorContentScripts()
+        .then(() => sendResponse({ ok: true }))
+        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+      return true;
+
+    case "remove-records":
+      // D11: delete specific records (opencode local imports / vendor maps) and
+      // rebuild the snapshot. Crawler-owned OPFS records are not removable here.
+      handleRemoveRecords(msg)
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+      return true;
+
+    case "get-database":
+      // Settings → Database tab: every usage store + where it lives.
+      handleGetDatabase()
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
+      return true;
+
     case "get-local-status":
       sendLocalStatus()
         .then(sendResponse)
@@ -170,7 +253,7 @@ async function sendMessageToTab(tabId, msg) {
   try {
     return await chrome.tabs.sendMessage(tabId, msg);
   } catch (e) {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["content/content.js"] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["vendors/opencode/content.js"] });
     await new Promise((r) => setTimeout(r, 300)); // Give the injected content script time to initialize
     return await chrome.tabs.sendMessage(tabId, msg);
   }
@@ -229,7 +312,7 @@ async function sendStartCrawl(rescan) {
           if (ready) break;
         } catch (e) {}
         try {
-          await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/content.js"] });
+          await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["vendors/opencode/content.js"] });
         } catch (e) {}
       }
       try {
@@ -251,6 +334,299 @@ const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
     return { ...res, error: `${res.error} (tab url: ${tab.url})` };
   }
   return res;
+}
+
+// ===== Generic vendor crawl routing (content-script vendors) =====
+// Crawl config (origins / content script / home / default days) is read from the
+// generated registry (shared/vendors.json ← vendors/<source>/vendor.json), so a
+// new vendor needs no edit here.
+function crawlConfigFromRegistry(registry, vendor) {
+  const v = ((registry && registry.vendors) || []).find(
+    (x) => x && x.source === vendor && x.crawl && x.crawlScript
+  );
+  if (!v) return null;
+  return {
+    origins: v.origins || [],
+    script: v.crawlScript,
+    home: v.crawlHome,
+    defaultDays: v.crawlDefaultDays || 0,
+  };
+}
+
+async function sendStartVendorCrawl(vendor, days, full) {
+  const registry = await loadVendorRegistry();
+  const cfg = crawlConfigFromRegistry(registry, vendor);
+  if (!cfg) return { ok: false, error: `Unknown crawl vendor: ${vendor}` };
+  // B1: a non-default vendor's origin is optional; crawling without it just
+  // fails silently, so tell the user where to grant it.
+  if (cfg.origins.length > 0) {
+    let granted = true;
+    try {
+      granted = await chrome.permissions.contains({ origins: cfg.origins });
+    } catch (e) {
+      granted = true;
+    }
+    if (!granted) {
+      return {
+        ok: false,
+        error: `Access to ${cfg.origins.join(", ")} is not granted. Open the dashboard → Settings → Vendors and click "Grant access" for ${vendor}.`,
+      };
+    }
+  }
+  // Incremental: newest stored date lets the content script resume from there
+  // (D12, one-day overlap). No stored data -> full range.
+  const since = full ? null : await newestStoredDate(vendor);
+  let tab = (await chrome.tabs.query({ url: cfg.origins }))[0] || null;
+  if (!tab) {
+    tab = await chrome.tabs.create({ url: cfg.home });
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  const message = { type: "start-crawl", vendor, days: days || cfg.defaultDays, since, full: !!full };
+  try {
+    return await chrome.tabs.sendMessage(tab.id, message);
+  } catch (e) {
+    // Content script not injected yet (tab opened before the extension loaded).
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [cfg.script] });
+    await new Promise((r) => setTimeout(r, 300));
+    return await chrome.tabs.sendMessage(tab.id, message);
+  }
+}
+
+// Newest local date ("YYYY-MM-DD") already stored for a vendor, or null.
+async function newestStoredDate(source) {
+  const map = await getVendorImportMap(source);
+  let max = null;
+  for (const rec of Object.values(map)) {
+    const d = (rec && rec.date) || (rec && rec.time ? String(rec.time).slice(0, 10) : null);
+    if (d && (!max || d > max)) max = d;
+  }
+  return max;
+}
+
+async function handleVendorCrawlData(msg) {
+  const source = msg && msg.source;
+  if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
+  const records = msg && msg.records;
+  if (!Array.isArray(records) || records.length === 0) return { ok: true, stored: 0 };
+
+  const map = await getVendorImportMap(source);
+  let added = 0;
+  for (const rec of records) {
+    if (!rec || typeof rec !== "object" || !rec.id || !rec.model) continue;
+    if (!map[rec.id]) added++;
+    map[rec.id] = rec;
+  }
+  const count = Object.keys(map).length;
+  try {
+    await chrome.storage.local.set({
+      [`${source}ImportData`]: JSON.stringify(map),
+      [`${source}ImportMeta`]: { count, updatedAt: Date.now() },
+    });
+  } catch (e) {
+    return { ok: false, error: `Storage quota exceeded - cannot keep ${count} ${source} records (${e.message || e})` };
+  }
+  return { ok: true, stored: records.length, added, count };
+}
+
+async function handleVendorCrawlDone(msg) {
+  const source = msg && msg.source;
+  const newRecords = (msg && msg.newRecords) || 0;
+  try {
+    chrome.action.setBadgeText({ text: "" });
+  } catch (e) {}
+  const importSources = await getVendorImportSources();
+  const count = importSources.includes(source) ? Object.keys(await getVendorImportMap(source)).length : 0;
+  // Refresh the merged snapshot so popup/dashboard see the new records without
+  // an opencode tab.
+  let total = count;
+  try {
+    const res = await sendDashboardData();
+    if (res && res.ok) total = res.count;
+  } catch (e) {}
+  await chrome.storage.local.set({
+    lastSyncAt: Date.now(),
+    lastSyncCount: newRecords,
+    totalRecords: total,
+    crawlState: {
+      running: false,
+      done: true,
+      vendor: source,
+      warning: count === 0, // B10: crawler returned nothing
+      message: count === 0 ? `${source} crawl returned no records` : "",
+    },
+  });
+  const label = (source || "vendor") === "openrouter" ? "OpenRouter" : source;
+  notifyCrawl(
+    "Sync complete",
+    newRecords > 0
+      ? `${label}: ${newRecords} new records (${count} stored, ${total} total).`
+      : `${label}: already up to date (${count} stored, ${total} total).`
+  );
+  return { ok: true, source, count, total, newRecords };
+}
+
+// Drop one vendor's stored records and rebuild the merged snapshot. Used when a
+// vendor's id scheme or mapping changes (e.g. CommandCode detail -> charts) so
+// old and new records don't coexist and double-count.
+async function handleClearVendorData(msg) {
+  const source = msg && msg.source;
+  if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
+  const removed = Object.keys(await getVendorImportMap(source)).length;
+  await chrome.storage.local.remove([`${source}ImportData`, `${source}ImportMeta`]);
+  let total = 0;
+  try {
+    const res = await sendDashboardData();
+    if (res && res.ok) total = res.count;
+  } catch (e) {}
+  await chrome.storage.local.set({ totalRecords: total });
+  return { ok: true, source, removed, total };
+}
+
+// D11: the Settings → Database tab lists every usage store, where it lives
+// (OPFS vs chrome.storage.local), and which ones the extension can delete.
+const DB_MAX_ROWS = 2000;
+const DB_TOKEN_FIELDS = ["input", "output", "reasoning", "cacheRead", "cacheWrite5m", "cacheWrite1h"];
+
+function databaseStoreFrom({ key, label, location, managed, source, map }) {
+  const rows = Object.values(map || {})
+    .filter((r) => r && typeof r === "object" && r.model)
+    .map((r) => ({
+      id: r.id || "",
+      source: r.source || source || "opencode",
+      model: r.model,
+      time: r.time || r.date || "",
+      input: Number(r.input) || 0,
+      output: Number(r.output) || 0,
+      cacheRead: Number(r.cacheRead) || 0,
+    }))
+    .sort((a, b) => String(b.time).localeCompare(String(a.time)));
+  let tokens = 0;
+  for (const r of Object.values(map || {})) {
+    if (!r || typeof r !== "object") continue;
+    for (const f of DB_TOKEN_FIELDS) tokens += Number(r[f]) || 0;
+  }
+  return {
+    key,
+    label,
+    location,
+    managed,
+    source: source || null,
+    count: rows.length,
+    tokens,
+    truncated: rows.length > DB_MAX_ROWS,
+    rows: rows.slice(0, DB_MAX_ROWS),
+  };
+}
+
+async function handleGetDatabase() {
+  const stores = [];
+  const registry = await loadVendorRegistry();
+
+  // opencode crawl records live in OPFS (opencode.ai origin) and are owned by
+  // the content script; the background only sees them via the merged snapshot.
+  const { cachedData } = await chrome.storage.local.get("cachedData");
+  let snapshot = {};
+  try {
+    snapshot = JSON.parse(cachedData || "{}");
+  } catch (e) {}
+
+  // A record's store is decided by the bucket it lives in, not by guessing
+  // provenance: opfs = opencode snapshot records not owned by any chrome.storage
+  // bucket. So a record is listed in exactly one store (no double-listing).
+  const localMap = await getLocalImportMap();
+  const vendorMaps = {};
+  for (const source of await getVendorImportSources()) vendorMaps[source] = await getVendorImportMap(source);
+  const managedIds = new Set(Object.keys(localMap));
+  for (const map of Object.values(vendorMaps)) for (const id of Object.keys(map)) managedIds.add(id);
+
+  const opfsRecords = {};
+  for (const [id, rec] of Object.entries(snapshot)) {
+    if (!rec || typeof rec !== "object") continue;
+    if ((rec.source || "opencode") !== "opencode") continue;
+    if (managedIds.has(id)) continue;
+    opfsRecords[id] = rec;
+  }
+  stores.push(
+    databaseStoreFrom({
+      key: OPFS_STORE_KEY,
+      label: "opencode crawl",
+      location: "OPFS · opencode_token_cache_<workspace>.json (opencode.ai origin)",
+      managed: false,
+      source: "opencode",
+      map: opfsRecords,
+    })
+  );
+
+  stores.push(
+    databaseStoreFrom({
+      key: LOCAL_STORE_KEY,
+      label: "opencode local import",
+      location: "chrome.storage.local · localImportData",
+      managed: true,
+      source: "opencode",
+      map: localMap,
+    })
+  );
+
+  for (const [source, map] of Object.entries(vendorMaps)) {
+    const vendor = ((registry && registry.vendors) || []).find((v) => v && v.source === source);
+    stores.push(
+      databaseStoreFrom({
+        key: `${VENDOR_STORE_PREFIX}${source}`,
+        label: (vendor && vendor.label) || source,
+        location: `chrome.storage.local · ${source}ImportData`,
+        managed: true,
+        source,
+        map,
+      })
+    );
+  }
+  return { ok: true, stores };
+}
+
+
+// D11: delete specific records by id. Only the records the background owns are
+// removable — opencode local imports and per-vendor `<source>ImportData` maps.
+// Crawled opencode OPFS records belong to the content script, so removing their
+// ids is a no-op (they re-sync); the caller reports how many were actually gone.
+async function handleRemoveRecords(msg) {
+  const source = (msg && msg.source) || "opencode";
+  const ids = Array.isArray(msg && msg.ids) ? msg.ids.filter(Boolean) : [];
+  if (ids.length === 0) return { ok: false, error: "No record ids given" };
+
+  if (source === "opencode") {
+    const map = await getLocalImportMap();
+    let removed = 0;
+    for (const id of ids) if (map[id]) { delete map[id]; removed++; }
+    await chrome.storage.local.set({
+      localImportData: JSON.stringify(map),
+      localImportMeta: { count: Object.keys(map).length, updatedAt: Date.now() },
+    });
+    fpCache = { key: null, buckets: null }; // fingerprint cache is now stale
+    let total = 0;
+    try {
+      const res = await sendDashboardData();
+      if (res && res.ok) total = res.count;
+    } catch (e) {}
+    await chrome.storage.local.set({ totalRecords: total });
+    return { ok: true, source, removed, total };
+  }
+
+  if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
+  const map = await getVendorImportMap(source);
+  let removed = 0;
+  for (const id of ids) if (map[id]) { delete map[id]; removed++; }
+  await chrome.storage.local.set({
+    [`${source}ImportData`]: JSON.stringify(map),
+    [`${source}ImportMeta`]: { count: Object.keys(map).length, updatedAt: Date.now() },
+  });
+  let total = 0;
+  try {
+    const res = await sendDashboardData();
+    if (res && res.ok) total = res.count;
+  } catch (e) {}
+  await chrome.storage.local.set({ totalRecords: total });
+  return { ok: true, source, removed, total };
 }
 
 async function sendGetStatus() {
@@ -341,6 +717,36 @@ async function getLocalImportMap() {
   return {};
 }
 
+// ===== Generic vendor import maps (crawl/API vendors without OPFS) =====
+// Records live under "<source>ImportData" ({ id: record } JSON) and are merged
+// into every dashboard/status response like localImportData. Merging is keyed
+// by record id so re-crawling is idempotent. Every vendor except opencode (which
+// has its own OPFS cache) keeps its records this way.
+async function getVendorImportSources() {
+  const registry = await loadVendorRegistry();
+  return ((registry && registry.vendors) || [])
+    .map((v) => v && v.source)
+    .filter((s) => s && s !== "opencode");
+}
+
+async function getVendorImportMap(source) {
+  try {
+    const key = `${source}ImportData`;
+    const stored = await chrome.storage.local.get(key);
+    const raw = stored[key];
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+  } catch (e) {}
+  return {};
+}
+
+async function getAllVendorRecords() {
+  const sources = await getVendorImportSources();
+  const maps = await Promise.all(sources.map((s) => getVendorImportMap(s)));
+  return Object.assign({}, ...maps);
+}
+
 function mergeRecords(base, extra) {
   const merged = { ...(base || {}) };
   let added = 0;
@@ -377,31 +783,12 @@ function normalizeLocalRecord(rec) {
 // (it carries project provenance); the crawler copy is hidden from totals.
 // Only crawler-looking records are ever hidden; anything local-looking or
 // without a parseable timestamp is always kept (conservative: hide only on
-// positive match).
-const DEDUP_BUCKET_MS = 2 * 60 * 1000;
+// positive match). fingerprintOf / DEDUP_BUCKET_MS are imported from shared/merge.
 
-function fingerprintOf(rec) {
-  if (!rec || typeof rec !== "object") return null;
-  const t = new Date(rec.time).getTime();
-  if (isNaN(t)) return null;
-  const cacheWrite = (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
-  return [
-    rec.model || "",
-    rec.input || 0,
-    rec.output || 0,
-    rec.reasoning || 0,
-    rec.cacheRead || 0,
-    cacheWrite,
-  ].join("|");
-}
+// isLocalLooking lives in shared/merge.js (imported above) so the dashboard's
+// backup-restore routing and this dedupe agree on provenance.
 
-function isLocalLooking(id, rec) {
-  return (
-    id.startsWith("msg_") ||
-    rec.workspaceID === "Local" ||
-    (typeof rec.workspaceID === "string" && rec.workspaceID.startsWith("local:"))
-  );
-}
+// Day-anchored import copies are hidden by shared/merge.hideDayAnchoredImportCopies.
 
 function hideCrawlerDuplicates(crawlerMap, localMap) {
   return getLocalBuckets(localMap).then((buckets) => hideWithBuckets(crawlerMap, buckets));
@@ -432,22 +819,9 @@ async function getLocalBuckets(localMap) {
   if (key && fpCache.key === key && fpCache.buckets) {
     return { buckets: fpCache.buckets, cached: true };
   }
-  const buckets = buildLocalBuckets(recs);
+  const buckets = buildFingerprintBuckets(recs);
   if (key) fpCache = { key, buckets };
   return { buckets, cached: false };
-}
-
-function buildLocalBuckets(localRecs) {
-  const buckets = new Set();
-  for (const rec of localRecs) {
-    const fp = fingerprintOf(rec);
-    if (!fp) continue;
-    const b = Math.floor(new Date(rec.time).getTime() / DEDUP_BUCKET_MS);
-    buckets.add(`${fp}@${b - 1}`);
-    buckets.add(`${fp}@${b}`);
-    buckets.add(`${fp}@${b + 1}`);
-  }
-  return buckets;
 }
 
 function hideWithBuckets(crawlerMap, { buckets, cached }) {
@@ -604,19 +978,29 @@ async function sendLocalStatus() {
   return { ok: true, totalLocal, updatedAt: null };
 }
 
+// D23 self-heal for crawl rows written before the parser stored an exclusive
+// `output` — healOpencodeCrawlOutput is imported from shared/canonical.js.
+function healCrawlMap(map) {
+  for (const rec of Object.values(map || {})) healOpencodeCrawlOutput(rec);
+  return map;
+}
+
 // Merged OPFS snapshot for the dashboard. Tries a live export from any open
 // opencode.ai tab (which reads OPFS directly); falls back to the last cached
 // snapshot so the dashboard survives refreshes even with no tab open.
 async function sendDashboardData() {
   const localMap = await getLocalImportMap();
+  const vendorRecordsRaw = await getAllVendorRecords();
+  const vendorRecords = hideDayAnchoredImportCopies(vendorRecordsRaw).map;
   const tab = await findAnyOpencodeTab();
   if (tab) {
     try {
       const res = await sendMessageToTab(tab.id, { type: "export-json" });
       if (res && res.ok) {
         const base = JSON.parse(res.data || "{}");
+        healCrawlMap(base); // D23 legacy repair
         const { map: deduped, dropped } = await hideCrawlerDuplicates(base, localMap);
-        const { merged } = mergeRecords(deduped, localMap);
+        const { merged } = mergeRecords({ ...deduped, ...vendorRecords }, localMap);
         const mergedStr = JSON.stringify(merged);
         const lastRecord = computeLastRecord(merged);
         await chrome.storage.local.set({
@@ -640,14 +1024,30 @@ async function sendDashboardData() {
     // Split the snapshot so pre-dedupe caches also heal: crawler-looking
     // records are re-checked against the local import on every load.
     const parsed = JSON.parse(cachedData);
+    const importSources = await getVendorImportSources();
     const crawlerPart = {};
     const localPart = {};
     for (const [id, rec] of Object.entries(parsed || {})) {
+      const src = rec && typeof rec === "object" ? rec.source : null;
+      // Vendor records are authoritative in <source>ImportData; drop stale
+      // copies from the cached snapshot so a Clear actually removes them.
+      if (src && importSources.includes(src)) continue;
       ((rec && typeof rec === "object" && isLocalLooking(id, rec)) ? localPart : crawlerPart)[id] = rec;
     }
-    const { map: deduped, dropped } = await hideCrawlerDuplicates(crawlerPart, localMap);
-    const { merged } = mergeRecords(deduped, { ...localPart, ...localMap });
+    const { map: deduped, dropped } = await hideCrawlerDuplicates(healCrawlMap(crawlerPart), localMap);
+    const { merged } = mergeRecords(deduped, { ...localPart, ...localMap, ...vendorRecords });
     const mergedStr = JSON.stringify(merged);
+    // Heal the cached snapshot so vendor clears/imports propagate even with no
+    // opencode tab open (the cached branch used to return without writing).
+    await chrome.storage.local.set({
+      cachedData: mergedStr,
+      cachedMeta: {
+        ...(cachedMeta || {}),
+        count: Object.keys(merged).length,
+        lastRecord: computeLastRecord(merged),
+        updatedAt: Date.now(),
+      },
+    });
     return {
       ok: true,
       data: mergedStr,
@@ -657,12 +1057,13 @@ async function sendDashboardData() {
       deduped: dropped,
     };
   }
-  const localIds = Object.keys(localMap);
-  if (localIds.length > 0) {
+  const { merged: fallback } = mergeRecords({ ...localMap, ...vendorRecords });
+  const fallbackIds = Object.keys(fallback);
+  if (fallbackIds.length > 0) {
     return {
       ok: true,
-      data: JSON.stringify(localMap),
-      count: localIds.length,
+      data: JSON.stringify(fallback),
+      count: fallbackIds.length,
       fileCount: 0,
       fromCache: true,
     };
@@ -691,8 +1092,10 @@ async function getTimeReminderContext() {
     loadTimeModel(),
     loadTimeEnabled(),
   ]);
-  // Heal a stale stored model that no longer exists (e.g. removed from defaults).
-  if (model && Array.isArray(rates) && !listPeakModels(rates).includes(model) && !rates.some((r) => r && r.model === model)) {
+  // Heal a stale stored model that the picker no longer offers (retired, or its
+  // current rate version bills flat) so notifications can't announce a window
+  // the model stopped having.
+  if (model && Array.isArray(rates) && !listPeakModels(rates).includes(model)) {
     const fallback = listPeakModels(rates)[0] || "";
     try { await saveTimeModel(fallback); } catch (e) {}
     model = fallback;
@@ -801,3 +1204,147 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 scheduleUpdateCheck().catch(() => {});
+
+// ===== Multi-vendor registry + settings seed (M1) =====
+// The vendor registry is a static JSON shipped with the extension; cache it in
+// chrome.storage.local so the dashboard/popup can read it without fetching.
+// vendorSettings decides which vendors are enabled; new vendors default to off
+// (D9). New installs seed the registry defaults; existing users keep their
+// state and only get a one-time "new vendors available" notice.
+const VENDOR_REGISTRY_URL = "shared/vendors.json";
+
+let _vendorRegistryCache = null;
+async function loadVendorRegistry() {
+  if (_vendorRegistryCache) return _vendorRegistryCache;
+  try {
+    const res = await fetch(chrome.runtime.getURL(VENDOR_REGISTRY_URL));
+    if (!res.ok) return null;
+    const registry = await res.json();
+    _vendorRegistryCache = registry;
+    await chrome.storage.local.set({ vendorRegistry: registry });
+    return registry;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Non-default crawl vendors are NOT declared in the static manifest; their
+// content script is registered at runtime once the vendor is enabled and its
+// optional origin granted, so a disabled vendor needs no permission (B1/B2).
+async function registerVendorScript(v) {
+  const spec = [
+    {
+      id: `vendor-${v.source}`,
+      matches: v.origins,
+      js: [v.crawlScript],
+      runAt: v.crawlRunAt || "document_idle",
+      persistAcrossSessions: true,
+    },
+  ];
+  try {
+    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [spec[0].id] });
+    if (existing && existing.length > 0) await chrome.scripting.updateContentScripts(spec);
+    else await chrome.scripting.registerContentScripts(spec);
+  } catch (e) {
+    try {
+      await chrome.scripting.registerContentScripts(spec);
+    } catch (e2) {}
+  }
+}
+
+async function unregisterVendorScript(id) {
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [id] });
+  } catch (e) {}
+}
+
+async function syncVendorContentScripts() {
+  const registry = await loadVendorRegistry();
+  const { vendorSettings } = await chrome.storage.local.get("vendorSettings");
+  const enabled = vendorSettings && typeof vendorSettings === "object" ? vendorSettings : {};
+  for (const v of (registry && registry.vendors) || []) {
+    if (!v || !v.crawl || !v.crawlScript || v.defaultEnabled) continue;
+    const id = `vendor-${v.source}`;
+    if (enabled[v.source] !== true || !v.origins || v.origins.length === 0) {
+      await unregisterVendorScript(id);
+      continue;
+    }
+    let granted = false;
+    try {
+      granted = await chrome.permissions.contains({ origins: v.origins });
+    } catch (e) {
+      granted = false;
+    }
+    if (granted) await registerVendorScript(v);
+    else await unregisterVendorScript(id);
+  }
+}
+
+function defaultVendorSettings(registry) {
+  const settings = {};
+  for (const vendor of (registry && registry.vendors) || []) {
+    if (vendor && vendor.source) settings[vendor.source] = vendor.defaultEnabled === true;
+  }
+  return settings;
+}
+
+async function seedVendorSettings(reason) {
+  const { vendorSettings } = await chrome.storage.local.get("vendorSettings");
+  if (vendorSettings && typeof vendorSettings === "object" && !Array.isArray(vendorSettings)) {
+    return vendorSettings;
+  }
+  const registry = (await loadVendorRegistry()) || { vendors: [] };
+  const seeded = defaultVendorSettings(registry);
+  // Safety net: never leave a user with every vendor off.
+  if (!Object.values(seeded).some(Boolean)) seeded.opencode = true;
+  await chrome.storage.local.set({
+    vendorSettings: seeded,
+    vendorSettingsSeededAt: Date.now(),
+    // Existing users get a one-time notice that new vendors are available (D9).
+    multiVendorNoticePending: reason === "update",
+  });
+  return seeded;
+}
+
+// Storage-level schema migrations (additive + idempotent; see shared/migrate.js).
+// Reads only the keys the pending steps declare, then writes every patched key
+// plus the new version in a single set. Legacy keys are never deleted, and a
+// failure leaves the store untouched so the next startup retries.
+async function ensureStorageSchema() {
+  try {
+    const { schemaVersion } = await chrome.storage.local.get("schemaVersion");
+    const pending = pendingMigrations(schemaVersion);
+    if (pending.length === 0) return { version: Number(schemaVersion) || 0, applied: [] };
+    const keys = [...new Set(pending.flatMap((s) => s.keys || []))];
+    const state = keys.length ? await chrome.storage.local.get(keys) : {};
+    const { version, patch, applied } = planMigrations({ ...state, schemaVersion });
+    if (applied.length === 0) return { version, applied };
+    await chrome.storage.local.set({ ...patch, schemaVersion: version });
+    return { version, applied };
+  } catch (e) {
+    return { version: null, applied: [], error: String((e && e.message) || e) };
+  }
+}
+
+chrome.runtime.onInstalled.addListener((details) => {
+  ensureStorageSchema().catch(() => {});
+  loadVendorRegistry().catch(() => {});
+  seedVendorSettings((details && details.reason) || "install")
+    .then(() => syncVendorContentScripts())
+    .catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  ensureStorageSchema().catch(() => {});
+  loadVendorRegistry()
+    .then(() => syncVendorContentScripts())
+    .catch(() => {});
+});
+
+// Re-cache the registry + re-sync runtime content scripts on service-worker
+// start (survives eviction), and make sure the storage schema is current.
+ensureStorageSchema().catch(() => {});
+loadVendorRegistry()
+  .then(() => syncVendorContentScripts())
+  .catch(() => {});
+

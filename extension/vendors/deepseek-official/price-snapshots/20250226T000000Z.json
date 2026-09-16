@@ -1,0 +1,65 @@
+{
+  "capturedAt": "2025-02-26T00:00:00.000Z",
+  "source": "deepseek-official",
+  "note": "Synthetic backfill (no Wayback capture available). Off-peak (错峰优惠) regime announced 2025-02-26, effective immediately, ended 2025-09-05T16:00:00Z when the V3.1 pricing took over. The discount window is Beijing 00:30-08:30 = UTC 16:30-00:30; the engine only models peak/offpeak, so windows.peak holds the complement (00:30-16:30 full price) and pricing.offpeak holds the discount. chat is 50% off, reasoner is 75% off, and both share the same discounted rates.",
+  "models": {
+    "deepseek-chat": {
+      "label": "deepseek-chat",
+      "effectiveAt": "2025-02-26T00:00:00.000Z",
+      "entry": {
+        "windows": {
+          "peak": [
+            {
+              "days": [],
+              "start": "00:30",
+              "end": "16:30"
+            }
+          ]
+        },
+        "pricing": {
+          "peak": {
+            "input": 0.27,
+            "output": 1.1,
+            "cacheRead": 0.07,
+            "cacheWrite": 0
+          },
+          "offpeak": {
+            "input": 0.135,
+            "output": 0.55,
+            "cacheRead": 0.035,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "deepseek-reasoner": {
+      "label": "deepseek-reasoner",
+      "effectiveAt": "2025-02-26T00:00:00.000Z",
+      "entry": {
+        "windows": {
+          "peak": [
+            {
+              "days": [],
+              "start": "00:30",
+              "end": "16:30"
+            }
+          ]
+        },
+        "pricing": {
+          "peak": {
+            "input": 0.55,
+            "output": 2.19,
+            "cacheRead": 0.14,
+            "cacheWrite": 0
+          },
+          "offpeak": {
+            "input": 0.135,
+            "output": 0.55,
+            "cacheRead": 0.035,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

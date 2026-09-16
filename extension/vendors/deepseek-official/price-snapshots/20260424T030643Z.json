@@ -1,0 +1,34 @@
+{
+  "capturedAt": "2026-04-24T03:06:43.000Z",
+  "source": "deepseek-official",
+  "models": {
+    "deepseek-v4-flash": {
+      "label": "deepseek-v4-flash",
+      "effectiveAt": "2026-04-24T00:00:00.000Z",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.14,
+            "output": 0.28,
+            "cacheRead": 0.028,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "deepseek-v4-pro": {
+      "label": "deepseek-v4-pro",
+      "effectiveAt": "2026-04-24T00:00:00.000Z",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 1.74,
+            "output": 3.48,
+            "cacheRead": 0.145,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

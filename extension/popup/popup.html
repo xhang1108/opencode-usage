@@ -6,6 +6,7 @@
   <style>
     /* Transparent html background lets the rounded body corners show through */
     html { background: transparent; }
+    html, body { overflow: hidden; }
     body {
       width: 300px;
       font-size: 13px;
@@ -30,7 +31,23 @@
       word-break: break-all;
     }
     .btn { margin-bottom: 8px; }
+    /* Split crawl button: main action + vendor picker */
+    .split { display: flex; gap: 6px; margin-bottom: 8px; }
+    .split .btn { margin-bottom: 0; }
+    .split #btn-sync { flex: 1; }
+    .split-caret { padding: 0 10px !important; }
+    .split-menu { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+    .split-menu[hidden] { display: none; }
+    .split-item {
+      text-align: left; background: var(--bg-content); color: var(--text-secondary);
+      border: 1px solid var(--border-muted); border-radius: var(--radius-sm);
+      padding: 7px 10px; font-size: 12px; cursor: pointer;
+    }
+    .split-item:hover:not(:disabled) { color: var(--text); border-color: var(--border); }
+    .split-item:disabled { opacity: 0.45; cursor: default; }
     #status { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+    /* B10: crawl finished but returned nothing */
+    #status.warn { color: #d69b3c; }
     #status:empty { display: none; }
     #status.ok { color: var(--success); }
     #status.err { color: var(--danger); }
@@ -47,16 +64,10 @@
     .update-detail { font-size: 12px; color: var(--text-muted); }
     .update-detail a { color: var(--primary); font-weight: 600; }
 
-    /* Time reminder */
-    .time-card { padding: 12px; margin-bottom: 10px; }
-    .time-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
-    .time-status { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: var(--radius-sm); }
-    .time-status.peak { background: rgba(176, 74, 74, 0.15); color: var(--peak); border: 1px solid rgba(176, 74, 74, 0.4); }
-    .time-status.offpeak { background: rgba(106, 143, 192, 0.15); color: var(--primary); border: 1px solid rgba(106, 143, 192, 0.4); }
-    .time-status.flat { background: rgba(161, 161, 166, 0.15); color: var(--text-muted); border: 1px solid var(--border); }
+    /* Time reminder (shared base lives in theme.css) */
+    .time-head { margin-bottom: 10px; gap: 8px; }
+    .time-status { padding: 3px 8px; }
     .time-hero {
-      display: flex;
-      align-items: center;
       justify-content: center;
       background: var(--bg-content);
       border: 1px solid var(--border-muted);
@@ -64,71 +75,13 @@
       padding: 6px 12px;
       margin: 0 0 10px;
     }
-    .time-countdown {
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-    .time-countdown.peak { color: var(--peak); }
-    .time-countdown.offpeak { color: var(--primary); }
-    .time-countdown.flat { color: var(--text-muted); }
-    .timeline { display: flex; gap: 2px; height: 14px; margin-bottom: 10px; }
-    .timeline .seg { flex: 1; border-radius: 2px; background: var(--border-muted); }
-    .timeline .seg.peak { background: var(--peak); }
-    .timeline .seg.now { outline: 2px solid var(--text); outline-offset: -1px; }
-    .time-legend { display: flex; gap: 12px; font-size: 10px; color: var(--text-muted); }
-    .time-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
-    .time-legend .dot.peak { background: var(--peak); }
-    .time-legend .dot.offpeak { background: var(--primary); }
-    .time-empty { font-size: 11px; color: var(--text-muted); }
+    .time-countdown { font-size: 24px; letter-spacing: 1px; }
+    .timeline { gap: 2px; height: 14px; margin-bottom: 10px; }
+    .timeline .seg { border-radius: 2px; }
+    .time-legend { gap: 12px; font-size: 10px; }
+    .time-legend .dot { width: 8px; height: 8px; margin-right: 4px; }
+    .time-empty { font-size: 11px; }
 
-    /* Switch toggle */
-    .switch {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .switch input {
-      position: absolute;
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    .switch .track {
-      position: relative;
-      width: 36px;
-      height: 20px;
-      background: var(--border);
-      border-radius: var(--radius-sm);
-      transition: background 0.2s ease;
-      flex-shrink: 0;
-    }
-    .switch .track::after {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: #fff;
-      border-radius: var(--radius-sm);
-      transition: transform 0.2s ease;
-    }
-    .switch input:checked + .track {
-      background: var(--primary);
-    }
-    .switch input:checked + .track::after {
-      transform: translateX(16px);
-    }
-    .switch input:focus-visible + .track {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
-    }
   </style>
 </head>
 <body>
@@ -152,7 +105,11 @@
   </div>
 
   <button class="btn btn-primary btn-block" id="btn-dashboard">Open Dashboard</button>
-  <button class="btn btn-secondary btn-block" id="btn-sync">Crawl Now</button>
+  <div class="split" id="crawl-split">
+    <button class="btn btn-secondary" id="btn-sync">Crawl Now</button>
+    <button class="btn btn-secondary split-caret" id="btn-sync-menu" title="Choose a vendor to crawl">▾</button>
+  </div>
+  <div class="split-menu" id="sync-menu" hidden></div>
   <!-- Rescan button - hidden by default. Uncomment to show:
   <button class="btn btn-danger btn-block" id="btn-rescan">Rescan (overwrite, keep data)</button>
   -->
@@ -178,7 +135,6 @@
 
   <div id="status"></div>
 
-  <script src="../time-reminder.js"></script>
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

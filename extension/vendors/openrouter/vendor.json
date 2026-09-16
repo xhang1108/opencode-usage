@@ -1,0 +1,25 @@
+{
+  "source": "openrouter",
+  "label": "OpenRouter",
+  "mode": "crawl",
+  "defaultEnabled": false,
+  "costSource": "vendor",
+  "origins": ["https://openrouter.ai/*"],
+  "crawl": {
+    "contentScript": "vendors/openrouter/content.js",
+    "runAt": "document_idle",
+    "webAccessible": ["vendors/openrouter/mapper.js", "vendors/openrouter/analytics-query.js", "shared/canonical.js"],
+    "home": "https://openrouter.ai/activity",
+    "defaultDays": 365
+  },
+  "import": [],
+  "storage": {
+    "opfs": false,
+    "lease": false
+  },
+  "notes": [
+    "Cost is vendor-reported (analytics-query `total_usage`, USD) via registry costSource:\"vendor\"; no price table / preset is shipped.",
+    "Cookie-authenticated private endpoint /api/frontend/v1/private/analytics-query (no management key).",
+    "time_range is capped at 31 days when the provider dimension is requested; the crawler slices into <=30-day windows."
+  ]
+}

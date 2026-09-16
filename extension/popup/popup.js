@@ -1,29 +1,57 @@
 // popup.js - Shows sync status and triggers background actions.
+import {
+  TIME_MODEL_KEY,
+  loadTimeEnabled,
+  saveTimeEnabled,
+  loadTimeRates,
+  loadTimeModel,
+  collectPeakWindowsForModel,
+} from "../shared/time-reminder.js";
+import { renderTimeReminderCard } from "../shared/time-reminder-view.js";
+import {
+  crawlButtonText,
+  crawlStatusText,
+  crawlableVendors,
+  defaultCrawlLabel as crawlLabelFor,
+  formatDateTime,
+  pickUsageWorkspace,
+  usageUrl,
+} from "./view-model.js";
+
 const $ = (sel) => document.querySelector(sel);
 
 const statusEl = $("#status");
 
-function setStatus(text, ok) {
+// ===== Crawl button label =====
+// The main crawl button mirrors the provider chosen as default in Settings ->
+// General, so the label reads "Crawl <Provider>". Holding Shift flips it to
+// "Full Scan <Provider>" so the user can see the click will re-crawl everything.
+let defaultCrawlLabel = "OpenCode";
+let shiftHeld = false;
+
+function updateCrawlButtonLabel() {
+  const btn = $("#btn-sync");
+  if (!btn) return;
+  const { text, title } = crawlButtonText({ shiftHeld, label: defaultCrawlLabel });
+  btn.textContent = text;
+  btn.title = title;
+}
+
+async function loadDefaultCrawlLabel() {
+  defaultCrawlLabel = crawlLabelFor(await chrome.storage.local.get(["defaultCrawl", "vendorRegistry"]));
+  updateCrawlButtonLabel();
+}
+
+function setStatus(text, ok, warn) {
   statusEl.textContent = text;
-  statusEl.className = ok ? "ok" : "err";
+  statusEl.className = ok ? "ok" : warn ? "warn" : "err";
 }
 
 function setBusy(busy) {
-  ["#btn-dashboard", "#btn-sync", "#btn-rescan"].forEach((sel) => {
+  ["#btn-dashboard", "#btn-sync", "#btn-rescan", "#btn-sync-menu"].forEach((sel) => {
     const el = $(sel);
     if (el) el.disabled = busy;
   });
-}
-
-function formatDateTime(rec) {
-  if (rec.time) {
-    const d = new Date(rec.time);
-    if (!isNaN(d.getTime())) {
-      const pad = (n) => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-  }
-  return rec.date || "-";
 }
 
 function renderLastRecord(lr) {
@@ -43,7 +71,7 @@ function renderUsageLink(workspaceID) {
   const empty = $("#usage-link-empty");
   if (!link || !empty) return;
   if (workspaceID && /^wrk_/.test(workspaceID)) {
-    const url = `https://opencode.ai/workspace/${workspaceID}/usage`;
+    const url = usageUrl(workspaceID);
     link.href = url;
     link.textContent = "Open Usage ↗";
     link.title = url;
@@ -93,6 +121,14 @@ async function loadStatus() {
   } else if (cs && cs.error) {
     progressRow.style.display = "flex";
     progressEl.textContent = `Error: ${cs.error}`;
+  } else if (cs && cs.done && (cs.warning || cs.serverEmpty)) {
+    // B10: crawl completed but produced nothing - don't fail silently.
+    // D21: the server had no records for this workspace; the rows below still
+    // show the last synced data, so say that instead of looking broken.
+    progressRow.style.display = "flex";
+    progressEl.textContent = cs.message || (cs.serverEmpty
+      ? "Server has no records for this workspace — showing last synced data"
+      : "Crawler returned no records");
   } else {
     progressRow.style.display = "none";
   }
@@ -102,14 +138,7 @@ async function loadStatus() {
   if (stored.totalRecords !== undefined) $("#total-records").textContent = stored.totalRecords;
   renderLastRecord(stored.cachedMeta && stored.cachedMeta.lastRecord);
   // Usage link: auto-build https://opencode.ai/workspace/<wrk_...>/usage
-  // Priority: last visited (user's most recent workspace) > last sync
-  const wsFromStored =
-    (stored.lastVisitedWorkspace && /^wrk_/.test(stored.lastVisitedWorkspace) && stored.lastVisitedWorkspace) ||
-    (stored.lastSyncWorkspace && /^wrk_/.test(stored.lastSyncWorkspace) && stored.lastSyncWorkspace) ||
-    (stored.cachedMeta && stored.cachedMeta.lastRecord && stored.cachedMeta.lastRecord.workspaceID) ||
-    (stored.crawlState && stored.crawlState.workspace) ||
-    "";
-  renderUsageLink(wsFromStored);
+  renderUsageLink(pickUsageWorkspace(stored));
 
   // While a crawl is running the progress ticks already arrive via storage;
   // skip the live query because it re-parses the whole OPFS cache on every tick.
@@ -137,25 +166,8 @@ async function send(msg) {
   setStatus("Processing...", true);
   try {
     const res = await chrome.runtime.sendMessage(msg);
-    if (res && res.ok) {
-      if (msg.type === "start-crawl") {
-        if (res.openedUsage) {
-          setStatus(res.started ? "Opened Usage page & sync started" : "Opened Usage page - syncing...", true);
-        } else {
-          const label = msg.rescan ? "Rescan" : "Sync";
-          if (res.started) setStatus(`${label} started - watch the icon badge`, true);
-          else if (res.reason === "busy") setStatus("Sync already in progress", true);
-          else setStatus("Sync requested (waiting for server ID)", true);
-        }
-      } else if (msg.type === "open-dashboard") {
-        setStatus(
-          `Dashboard opened (${res.fromCache ? "cached" : "latest"} data, ${res.count} records)`,
-          true
-        );
-      }
-    } else {
-      setStatus(`Error: ${(res && res.error) || "unknown error"}`, false);
-    }
+    const status = crawlStatusText(msg, res);
+    if (status) setStatus(status.text, status.ok);
   } catch (e) {
     setStatus(`Error: ${e.message}`, false);
   } finally {
@@ -165,7 +177,83 @@ async function send(msg) {
 }
 
 $("#btn-dashboard").addEventListener("click", () => send({ type: "open-dashboard" }));
-$("#btn-sync").addEventListener("click", () => send({ type: "start-crawl" }));
+// Flip the button label while Shift is held so the user knows the click will
+// perform a full scan instead of a normal crawl.
+function setShiftHeld(held) {
+  if (shiftHeld === held) return;
+  shiftHeld = held;
+  updateCrawlButtonLabel();
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Shift") setShiftHeld(true);
+});
+document.addEventListener("keyup", (e) => {
+  if (e.key === "Shift") setShiftHeld(false);
+});
+// Reset if focus leaves the popup while Shift is down.
+window.addEventListener("blur", () => setShiftHeld(false));
+
+$("#btn-sync").addEventListener("click", async (e) => {
+  // D10: crawl the vendor selected as default in Settings -> General.
+  let vendor = "opencode";
+  let note = "";
+  try {
+    const stored = await chrome.storage.local.get(["defaultCrawl", "totalRecords", "cachedMeta"]);
+    if (stored.defaultCrawl) vendor = stored.defaultCrawl;
+    const n = stored.totalRecords != null ? stored.totalRecords : stored.cachedMeta && stored.cachedMeta.count;
+    if (n) note = `\n\nCurrently stored: ${Number(n).toLocaleString()} records.`;
+  } catch (err) {}
+  const full = e.shiftKey;
+  if (full && !confirm(`Re-crawl ALL ${vendor} data from scratch?${note}\n\nThis re-fetches the full history (more server requests, can take several minutes) and overwrites existing records.`)) return;
+  send({ type: "start-crawl", vendor, full, rescan: full });
+});
+
+// Vendor picker: list enabled vendors; crawl-capable ones are clickable, the
+// rest are shown disabled (D10).
+async function renderCrawlMenu() {
+  const menu = $("#sync-menu");
+  const caret = $("#btn-sync-menu");
+  if (!menu || !caret) return;
+  const stored = await chrome.storage.local.get(["vendorRegistry", "vendorSettings"]);
+  const vendors = (stored.vendorRegistry && stored.vendorRegistry.vendors) || [];
+  // Only vendors that are enabled AND have a crawler.
+  const crawlable = crawlableVendors(vendors, stored.vendorSettings);
+  menu.innerHTML = "";
+  if (crawlable.length <= 1) {
+    // Nothing to choose (or only one) - hide the picker entirely.
+    menu.hidden = true;
+    caret.hidden = true;
+    return;
+  }
+  caret.hidden = false;
+  for (const v of crawlable) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "split-item";
+    item.textContent = v.label || v.source;
+    item.addEventListener("click", (e) => {
+      menu.hidden = true;
+      const full = e.shiftKey;
+      if (full && !confirm(`Re-crawl ALL ${v.label || v.source} data from scratch?\n\nThis re-fetches the full history (more server requests, can take several minutes) and overwrites existing records.`)) return;
+      send({ type: "start-crawl", vendor: v.source, full, rescan: full });
+    });
+    menu.appendChild(item);
+  }
+}
+
+$("#btn-sync-menu").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const menu = $("#sync-menu");
+  menu.hidden = !menu.hidden;
+});
+document.addEventListener("click", (e) => {
+  const menu = $("#sync-menu");
+  if (menu && !menu.hidden && !e.target.closest("#crawl-split") && !e.target.closest("#sync-menu")) {
+    menu.hidden = true;
+  }
+});
+renderCrawlMenu();
+loadDefaultCrawlLabel();
 // Rescan button is hidden (commented in popup.html). Uncomment to re-enable:
 // $("#btn-rescan").addEventListener("click", () => send({ type: "start-crawl", rescan: true }));
 
@@ -178,6 +266,7 @@ loadStatus();
 let lastStatusReload = 0;
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
+  if (changes.defaultCrawl) loadDefaultCrawlLabel();
   if (!(changes.crawlState || changes.lastSyncAt || changes.totalRecords || changes.cachedMeta || changes.lastSyncWorkspace || changes.lastVisitedWorkspace)) return;
   const cs = changes.crawlState;
   const wasRunning = !!(cs && cs.oldValue && cs.oldValue.running);
@@ -199,31 +288,10 @@ let timePeakWindows = [];
 let timeRates = null;
 
 function renderTimeReminder() {
-  const now = new Date();
-
-  const peak = isPeakAt(now, timePeakWindows);
-  const hasWindows = timePeakWindows.length > 0;
-
-  // Status badge
-  timeStatusEl.className = "time-status " + (hasWindows ? (peak ? "peak" : "offpeak") : "flat");
-  timeStatusEl.textContent = hasWindows ? (peak ? "PEAK" : "OFF-PEAK") : "NO RATES";
-
-  // 24h timeline (laid out in local time)
-  const timeline = buildTimeline(timePeakWindows);
-  const nowHour = now.getHours();
-  timeTimelineEl.innerHTML = timeline
-    .map((seg) => `<div class="seg ${seg.peak ? "peak" : ""} ${seg.hour === nowHour ? "now" : ""}" title="${String(seg.hour).padStart(2, "0")}:00"></div>`)
-    .join("");
-
-  // Countdown to the next peak boundary (start or end), ticking every second
-  if (hasWindows) {
-    timeCountdownEl.className = "time-countdown " + (peak ? "peak" : "offpeak");
-    const boundary = nextPeakBoundary(now, timePeakWindows);
-    timeCountdownEl.textContent = boundary ? formatCountdownClock(boundary.time - now) : "--:--:--";
-  } else {
-    timeCountdownEl.className = "time-countdown flat";
-    timeCountdownEl.textContent = "NO RATES";
-  }
+  renderTimeReminderCard(
+    { statusEl: timeStatusEl, countdownEl: timeCountdownEl, timelineEl: timeTimelineEl },
+    timePeakWindows
+  );
 }
 
 async function initTimeReminder() {

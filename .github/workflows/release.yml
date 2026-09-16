@@ -27,14 +27,30 @@ jobs:
           fi
 
       # Zip the extension folder so manifest.json sits at the zip root -
-      # users unzip and Load unpacked that folder directly.
+      # users unzip and Load unpacked that folder directly. The third-party
+      # notices ride along at the root so the redistributed bundle carries the
+      # licenses of its bundled libraries (mermaid, Chart.js, IBM Plex).
       - name: Package extension
         run: |
           cd extension
           zip -r "../opencode-usage-${GITHUB_REF_NAME}.zip" . -x "*.DS_Store"
+          cd ..
+          zip -r "opencode-usage-${GITHUB_REF_NAME}.zip" THIRD-PARTY-NOTICES.md licenses
+
+      # Release notes come from CHANGELOG.md (curated, includes upgrade steps),
+      # not GitHub's auto-generated commit list - the breaking-change notes must
+      # not be buried. Write the section for this tag into the release body.
+      - name: Extract release notes from CHANGELOG
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          awk -v ver="$TAG" 'index($0,"## " ver)==1 {flag=1; next} flag && index($0,"## ")==1 {exit} flag {print}' CHANGELOG.md > release-body.md
+          if [ ! -s release-body.md ]; then
+            echo "No CHANGELOG section for $TAG" >&2
+            echo "Release $TAG. See CHANGELOG.md for details." > release-body.md
+          fi
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: opencode-usage-${{ github.ref_name }}.zip
-          generate_release_notes: true
+          body_path: release-body.md

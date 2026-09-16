@@ -1,0 +1,97 @@
+{
+  "capturedAt": "2026-09-10T07:12:52.000Z",
+  "source": "deepseek-official",
+  "models": {
+    "deepseek-v4-flash": {
+      "label": "deepseek-v4-flash",
+      "effectiveAt": "2026-09-10T04:00:00.000Z",
+      "entry": {
+        "windows": {
+          "peak": [
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "01:00",
+              "end": "04:00"
+            },
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "06:00",
+              "end": "10:00"
+            }
+          ]
+        },
+        "pricing": {
+          "peak": {
+            "input": 0.3,
+            "output": 1.2,
+            "cacheRead": 0.006,
+            "cacheWrite": 0
+          },
+          "offpeak": {
+            "input": 0.15,
+            "output": 0.6,
+            "cacheRead": 0.003,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "deepseek-v4-pro": {
+      "label": "deepseek-v4-pro",
+      "entry": {
+        "windows": {
+          "peak": [
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "01:00",
+              "end": "04:00"
+            },
+            {
+              "days": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "start": "06:00",
+              "end": "10:00"
+            }
+          ]
+        },
+        "pricing": {
+          "peak": {
+            "input": 1.32,
+            "output": 3.96,
+            "cacheRead": 0.044,
+            "cacheWrite": 0
+          },
+          "offpeak": {
+            "input": 0.66,
+            "output": 1.98,
+            "cacheRead": 0.022,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}
