@@ -1,19 +1,19 @@
 // extension/dashboard/settings/how-it-works.js
 // Static, user-facing reference: shared concepts first, then one table per
-// vendor. Diagram-first on purpose (little prose) — mermaid source is rendered
-// at load. Hand-written copy — keep it in sync with docs/vendors.md when an
-// adapter changes. Renders once.
+// vendor. Diagram-first on purpose (little prose) — each flow model is drawn as
+// an inline SVG at load (see views/flow-diagram.js; no third-party renderer).
+// Hand-written copy — keep it in sync with docs/vendors.md when an adapter
+// changes. Renders once.
 
 // Each section: { id, title, diagrams?, caption?, head?, rows?, notes?, extra? }.
-//   diagrams    -> [{ label?, src }] mermaid sources, each rendered into .hw-diagram.
+//   diagrams    -> [{ label?, flow }] flow models, each rendered into .hw-diagram.
 //   caption     -> optional line under the diagrams.
 //   head given  -> rows are cell arrays rendered against that header row.
 //   head absent -> rows are [label, value] key/value pairs.
 //   notes       -> extra [label, value] rows rendered as a second table (with head).
 //   extra       -> optional HTML appended after the tables (vendor-specific how-to).
 import { flashButton } from "../../shared/dom-ui.js";
-
-const FONT = '"Berkeley Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
+import { renderFlow } from "../views/flow-diagram.js";
 
 const SECTIONS = [
   {
@@ -22,19 +22,38 @@ const SECTIONS = [
     diagrams: [
       {
         label: "Unified ON — re-price everything on your list",
-        src: `flowchart LR
-    T["every vendor's tokens"] --> G["match its rate group<br/>source:model + model fingerprint"]
-    G --> R["rate version effective at that time<br/>+ peak / off-peak window"]
-    R --> C["final price"]`,
+        flow: {
+          nodes: [
+            { id: "T", label: "every vendor's tokens" },
+            { id: "G", label: "match its rate group", sub: "source:model + model fingerprint" },
+            { id: "R", label: "rate version effective at that time", sub: "+ peak / off-peak window" },
+            { id: "C", label: "final price" },
+          ],
+          edges: [
+            { from: "T", to: "G" },
+            { from: "G", to: "R" },
+            { from: "R", to: "C" },
+          ],
+        },
       },
       {
         label: "Unified OFF — the vendor's own price wins",
-        src: `flowchart LR
-    R["vendor record"] --> Q{"vendor reports<br/>an amount?"}
-    Q -->|"yes"| A["use that USD amount"]
-    Q -->|"no"| B["tokens x shipped rate table"]
-    A --> C["final price"]
-    B --> C`,
+        flow: {
+          nodes: [
+            { id: "R", label: "vendor record" },
+            { id: "Q", label: "vendor reports an amount?", shape: "decision" },
+            { id: "A", label: "use that USD amount" },
+            { id: "B", label: "tokens x shipped rate table" },
+            { id: "C", label: "final price" },
+          ],
+          edges: [
+            { from: "R", to: "Q" },
+            { from: "Q", to: "A", label: "yes" },
+            { from: "Q", to: "B", label: "no" },
+            { from: "A", to: "C" },
+            { from: "B", to: "C" },
+          ],
+        },
       },
     ],
     rows: [
@@ -49,11 +68,23 @@ const SECTIONS = [
     title: "Time & dates",
     diagrams: [
       {
-        src: `flowchart LR
-    S["vendor timestamp"] --> U["stored as UTC"] --> L["shown in your timezone"]
-    U --> P{"inside the vendor's peak window?<br/>window judged in UTC"}
-    P -->|"yes"| H["peak rate"]
-    P -->|"no"| O["off-peak rate"]`,
+        flow: {
+          nodes: [
+            { id: "S", label: "vendor timestamp" },
+            { id: "U", label: "stored as UTC" },
+            { id: "L", label: "shown in your timezone" },
+            { id: "P", label: "inside the vendor's peak window?", sub: "window judged in UTC", shape: "decision" },
+            { id: "H", label: "peak rate" },
+            { id: "O", label: "off-peak rate" },
+          ],
+          edges: [
+            { from: "S", to: "U" },
+            { from: "U", to: "L" },
+            { from: "U", to: "P" },
+            { from: "P", to: "H", label: "yes" },
+            { from: "P", to: "O", label: "no" },
+          ],
+        },
       },
     ],
   },
@@ -63,13 +94,25 @@ const SECTIONS = [
     caption: "Only opencode uses OPFS. Every other vendor — CommandCode included — is stored in <code>chrome.storage.local</code>.",
     diagrams: [
       {
-        src: `flowchart LR
-    O["opencode crawl"] --> F[("OPFS<br/>opencode.ai origin")]
-    F --> E[("chrome.storage.local<br/>extension storage")]
-    R["OpenRouter / DeepSeek /<br/>CommandCode / MiMo"] --> E
-    L["opencode local DB import"] --> E
-    S["settings + pricing"] --> E
-    E --> D["dashboard"]`,
+        flow: {
+          nodes: [
+            { id: "O", label: "opencode crawl" },
+            { id: "F", label: "OPFS", sub: "opencode.ai origin", shape: "store" },
+            { id: "E", label: "chrome.storage.local", sub: "extension storage", shape: "store" },
+            { id: "R", label: ["OpenRouter / DeepSeek /", "CommandCode / MiMo"] },
+            { id: "L", label: "opencode local DB import" },
+            { id: "S", label: "settings + pricing" },
+            { id: "D", label: "dashboard" },
+          ],
+          edges: [
+            { from: "O", to: "F" },
+            { from: "F", to: "E" },
+            { from: "R", to: "E" },
+            { from: "L", to: "E" },
+            { from: "S", to: "E" },
+            { from: "E", to: "D" },
+          ],
+        },
       },
     ],
     head: ["Data", "Stored in", "Key"],
@@ -164,41 +207,17 @@ const SECTIONS = [
   },
 ];
 
-async function renderDiagrams(pane) {
-  const mermaid = window.mermaid;
-  if (!mermaid) return; // extension page ships lib/mermaid.min.js; skip if absent.
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "strict",
-    theme: "base",
-    fontFamily: FONT,
-    flowchart: { curve: "basis", htmlLabels: true, padding: 10 },
-    themeVariables: {
-      background: "transparent",
-      fontFamily: FONT,
-      fontSize: "12px",
-      primaryColor: "#1c1c1f",
-      primaryTextColor: "#f2eded",
-      primaryBorderColor: "#38383a",
-      secondaryColor: "#161618",
-      tertiaryColor: "#131010",
-      lineColor: "#68686f",
-      textColor: "#b8b2b2",
-      edgeLabelBackground: "#131010",
-    },
-  });
-
+function renderDiagrams(pane) {
   let i = 0;
   for (const s of SECTIONS) {
     for (let j = 0; j < (s.diagrams || []).length; j++) {
       const host = pane.querySelector(`#hw-${s.id} .hw-diagram[data-idx="${j}"]`);
       if (!host) continue;
       try {
-        const { svg } = await mermaid.render(`hw-mmd-${i++}`, s.diagrams[j].src);
-        host.innerHTML = svg;
+        host.innerHTML = renderFlow(s.diagrams[j].flow, i++);
       } catch (e) {
         host.classList.add("hw-diagram--error");
-        host.textContent = s.diagrams[j].src;
+        host.textContent = "diagram unavailable";
       }
     }
   }

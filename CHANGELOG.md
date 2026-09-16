@@ -23,7 +23,7 @@ Multi-vendor support, a unified price list, and version-aware pricing. **This is
 - **Export Backup**: one button, two disjoint files — `opencode-usage_settings_*.json` (settings + pricing) and `opencode-usage_records_*.csv` (every record, every source, with lossless `raw`). Import restores either.
 - **Stable extension ID**: a `key` in the manifest pins the ID so the folder can be moved/re-cloned without losing data.
 - **Storage migrations**: storage carries a `schemaVersion` and additive, idempotent migrations run at startup.
-- **How it works diagrams**: each pipeline section renders a mermaid flowchart alongside its notes.
+- **How it works diagrams**: each pipeline section renders a self-drawn SVG flowchart alongside its notes.
 - Automatic per-vendor price presets and a price-watch workflow.
 
 ### Changed
