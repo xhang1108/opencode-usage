@@ -27,11 +27,15 @@ jobs:
           fi
 
       # Zip the extension folder so manifest.json sits at the zip root -
-      # users unzip and Load unpacked that folder directly.
+      # users unzip and Load unpacked that folder directly. The third-party
+      # notices ride along at the root so the redistributed bundle carries the
+      # licenses of its bundled libraries (mermaid, Chart.js, IBM Plex).
       - name: Package extension
         run: |
           cd extension
           zip -r "../opencode-usage-${GITHUB_REF_NAME}.zip" . -x "*.DS_Store"
+          cd ..
+          zip -r "opencode-usage-${GITHUB_REF_NAME}.zip" THIRD-PARTY-NOTICES.md licenses
 
       # Release notes come from CHANGELOG.md (curated, includes upgrade steps),
       # not GitHub's auto-generated commit list - the breaking-change notes must

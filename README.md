@@ -8,15 +8,17 @@ A Chrome extension that aggregates token usage from several AI vendors into one 
 
 ## Vendors
 
-| Vendor | Mode | Default |
-|---|---|---|
-| opencode | crawl (Usage page) | on |
-| OpenRouter | crawl (analytics) | off |
-| DeepSeek | crawl (API key) | off |
-| CommandCode | crawl (charts) | off |
-| MiMo | XLSX import | off |
+| Vendor | Mode | Import file | Default |
+|---|---|---|---|
+| opencode | crawl (Usage page) | local DB JSON | on |
+| OpenRouter | crawl (analytics) | — | off |
+| DeepSeek | crawl (API key) | — | off |
+| CommandCode | crawl (charts) | — | off |
+| MiMo | XLSX import | XLSX | off |
 
 Enable more in **Settings → Vendors**. Each additional vendor may ask for host permission the first time you turn it on.
+
+Only **opencode** and **MiMo** accept a vendor-native import file (opencode local DB JSON, MiMo XLSX). OpenRouter, DeepSeek and CommandCode have no export format to import — their records come from **Crawl Now**, or from a backup records CSV.
 
 ## Features
 
@@ -64,7 +66,7 @@ This is a breaking release: multi-vendor support plus a unified price list. Read
 2. Click the extension icon → **Crawl Now** to sync the latest usage records. Syncing is intentionally MANUAL to avoid hitting vendors too frequently.
 3. Click **Open Dashboard** to view charts, tables, and cost estimates.
 4. **Export Backup** in the dashboard downloads two files: `opencode-usage_settings_*.json` (your settings + pricing) and `opencode-usage_records_*.csv` (every record, every source). **Import Usage** restores either file.
-5. **Import Usage** also accepts vendor exports (MiMo XLSX, opencode local JSON, DeepSeek/OpenRouter files).
+5. **Import Usage** accepts three file types, and one pick may mix them: `.xlsx` (MiMo export), `.json` (opencode local DB export, or a settings backup), `.csv` (backup records). Each file is routed by type, and a per-file failure does not abort the rest of the batch.
 
 ## How It Works
 
@@ -87,27 +89,13 @@ flowchart LR
 
 ![Dashboard](screenshots/dashboard.avif)
 
-## Local SQLite import (free models / CLI users)
-
-opencode.ai no longer shows free-model usage, so crawling misses it. The local
-database still has per-message tokens for every model — if you use the opencode
-CLI or local app, this is where your usage already lives, no crawl needed.
-Requires Node >= 22.5. The DB is read read-only, so it is safe while opencode runs.
-
-```bash
-node tools/import-local.mjs --out opencode_local_records.json
-```
-
-Options: `--db <path>` (default `~/.local/share/opencode/opencode.db`), `--workspace <name>` (default `Local`, single workspace for all local records).
-
-Then open the dashboard → **Import Usage** and select the file. Local records
-merge with crawled data under the **Local** workspace (the per-project label is
-kept in each record's `project` field). Re-importing is safe. You can see and
-clear imports under **Settings → Database**.
-
 ## Notes
 
 - Crawling is MANUAL (click **Crawl Now** each time); the extension refreshes the server ID itself. There is no background auto-sync on purpose — burst traffic has been observed to trigger rate limiting (HTTP 429) and throttling.
 - Sync only when you need fresh data (e.g. once after a work session), not on a timer.
 - Prices live in the dashboard's **Settings → Pricing** tab; **Settings → Database** lists every stored usage store and what can be deleted.
 - The Rescan button is hidden by default; uncomment it in `popup/popup.html` and `popup/popup.js` to show it.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Bundled third-party libraries keep their own licenses; see [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
