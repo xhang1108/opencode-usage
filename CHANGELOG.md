@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-09-20
 
 opencode now syncs from the Console Usage API instead of crawling the RSC `/_server` protocol.
 
