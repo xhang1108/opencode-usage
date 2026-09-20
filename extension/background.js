@@ -22,6 +22,7 @@ import {
   buildFingerprintBuckets,
   hideDayAnchoredImportCopies,
   isLocalLooking,
+  recordFingerprints,
 } from "./shared/merge.js";
 import { STORAGE_SCHEMA_VERSION, pendingMigrations, planMigrations } from "./shared/migrate.js";
 import { LOCAL_STORE_KEY, VENDOR_STORE_PREFIX } from "./shared/stores.js";
@@ -120,7 +121,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case "clear-local-data":
-      // Drop the local import and rebuild the snapshot from crawler data only.
+      // Drop the local import and rebuild the snapshot from synced data only.
       handleClearLocal()
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
@@ -142,8 +143,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case "remove-records":
-      // D11: delete specific records (opencode local imports / vendor maps) and
-      // rebuild the snapshot. Crawler-owned OPFS records are not removable here.
+      // D11: delete specific records from the stores background owns — the
+      // opencode API sync, the local DB import, and every vendor map — then
+      // rebuild the snapshot.
       handleRemoveRecords(msg)
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
@@ -383,7 +385,7 @@ async function handleClearVendorData(msg) {
 }
 
 // D11: the Settings → Database tab lists every usage store, where it lives
-// (OPFS vs chrome.storage.local), and which ones the extension can delete.
+// (always chrome.storage.local now), and which ones the extension can delete.
 const DB_MAX_ROWS = 2000;
 const DB_TOKEN_FIELDS = ["input", "output", "reasoning", "cacheRead", "cacheWrite5m", "cacheWrite1h"];
 
@@ -457,10 +459,10 @@ async function handleGetDatabase() {
 }
 
 
-// D11: delete specific records by id. Only the records the background owns are
-// removable — opencode local imports and per-vendor `<source>ImportData` maps.
-// Crawled opencode OPFS records belong to the content script, so removing their
-// ids is a no-op (they re-sync); the caller reports how many were actually gone.
+// D11: delete specific records by id. Every store lives in chrome.storage.local
+// and is removable here — opencode's API sync (<source>ImportData) and local DB
+// import, plus each other vendor's `<source>ImportData` map. The caller reports
+// how many ids were actually found and removed.
 async function handleRemoveRecords(msg) {
   const source = (msg && msg.source) || "opencode";
   const ids = Array.isArray(msg && msg.ids) ? msg.ids.filter(Boolean) : [];
@@ -543,11 +545,11 @@ async function getLocalImportMap() {
   return {};
 }
 
-// ===== Generic vendor import maps (crawl/API vendors without OPFS) =====
+// ===== Generic vendor import maps (crawl/API vendors) =====
 // Records live under "<source>ImportData" ({ id: record } JSON) and are merged
 // into every dashboard/status response like localImportData. Merging is keyed
-// by record id so re-crawling is idempotent. Every vendor except opencode (which
-// has its own OPFS cache) keeps its records this way.
+// by record id so re-syncing is idempotent. Every vendor, opencode included,
+// keeps its synced records this way.
 async function getVendorImportSources() {
   const registry = await loadVendorRegistry();
   return ((registry && registry.vendors) || [])
@@ -602,12 +604,12 @@ function normalizeLocalRecord(rec) {
   return rec;
 }
 
-// ===== Cross-source dedupe (crawler OPFS vs local SQLite import) =====
+// ===== Cross-source dedupe (opencode API sync vs local SQLite import) =====
 // The two sources share no common id, so the same usage is recognized by
 // fingerprint: same model, same token counts, timestamps within a small
 // window (server vs client clock skew). On a match the LOCAL record wins
-// (it carries project provenance); the crawler copy is hidden from totals.
-// Only crawler-looking records are ever hidden; anything local-looking or
+// (it carries project provenance); the server copy is hidden from totals.
+// Only non-local-looking records are ever hidden; anything local-looking or
 // without a parseable timestamp is always kept (conservative: hide only on
 // positive match). fingerprintOf / DEDUP_BUCKET_MS are imported from shared/merge.
 
@@ -703,6 +705,74 @@ async function handleClearLocal() {
   return { ok: true, cleared, total: res.count || 0 };
 }
 
+const IMPORT_IDENTITY_FIELDS = new Set(["id", "source", "time", "date"]);
+
+// Fill only the fields `primary` is missing (null/undefined/"") from `other`;
+// identity/time fields are never copied. `primary` keeps its own values.
+function fillMissingFields(primary, other) {
+  let changed = false;
+  for (const [k, v] of Object.entries(other || {})) {
+    if (IMPORT_IDENTITY_FIELDS.has(k) || v == null || v === "") continue;
+    if (primary[k] == null || primary[k] === "") {
+      primary[k] = v;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+// Upsert incoming opencode records against what is already stored (the API
+// vendor store + the local store). Identity is the content fingerprint within
+// +/- one time bucket; both output encodings (exclusive-of-reasoning and the
+// legacy inclusive one) are tried, so no date cutoff and no encoding assumption
+// is needed. A match is a duplicate: fill the STORED record's missing fields
+// from the incoming copy and drop the incoming one. Stored records win on
+// conflicts (the API store is authoritative). Returns the records to actually
+// import plus counters.
+function reconcileOpencodeImport(incoming, existingLocal, existingVendor) {
+  const index = new Map();
+  const indexMap = (map, kind) => {
+    for (const rec of Object.values(map || {})) {
+      if (!rec || typeof rec !== "object" || !rec.model) continue;
+      const t = new Date(rec.time).getTime();
+      if (isNaN(t)) continue;
+      const b = Math.floor(t / DEDUP_BUCKET_MS);
+      for (const fp of recordFingerprints(rec)) {
+        for (const off of [-1, 0, 1]) index.set(`${fp}@${b + off}`, { kind, rec });
+      }
+    }
+  };
+  indexMap(existingLocal, "local");
+  indexMap(existingVendor, "vendor"); // vendor wins a shared fingerprint
+
+  const keep = {};
+  let duplicates = 0;
+  let filled = 0;
+  let vendorChanged = false;
+  for (const [id, rec] of Object.entries(incoming || {})) {
+    if (!rec || typeof rec !== "object" || !rec.model) continue;
+    const t = new Date(rec.time).getTime();
+    let hit = null;
+    if (!isNaN(t)) {
+      const b = Math.floor(t / DEDUP_BUCKET_MS);
+      for (const fp of recordFingerprints(rec)) {
+        hit = index.get(`${fp}@${b}`);
+        if (hit) break;
+      }
+    }
+    if (hit) {
+      duplicates++;
+      if (fillMissingFields(hit.rec, rec)) {
+        filled++;
+        if (hit.kind === "vendor") vendorChanged = true;
+      }
+    } else {
+      keep[id] = rec;
+    }
+  }
+  return { keep, duplicates, filled, vendorChanged };
+}
+
 async function handleLocalImport(msg) {
   let incoming;
   try {
@@ -711,12 +781,22 @@ async function handleLocalImport(msg) {
     return { ok: false, error: `Invalid JSON: ${e.message}` };
   }
   const existing = await getLocalImportMap();
+  const existingVendor = await getVendorImportMap("opencode");
   const validIncoming = Object.values(incoming).filter((rec) => rec && typeof rec === "object" && rec.model);
   if (validIncoming.length === 0) return { ok: false, error: "No valid records found in file" };
-  const { merged: nextLocal, added } = mergeRecords(existing, incoming);
+  // Upsert: duplicates merge into the stored record (filling schema gaps) and
+  // are not imported again; only genuinely new records are kept.
+  const { keep, duplicates, filled, vendorChanged } = reconcileOpencodeImport(incoming, existing, existingVendor);
+  const { merged: nextLocal, added } = mergeRecords(existing, keep);
   const totalLocal = Object.keys(nextLocal).length;
   try {
     await chrome.storage.local.set({ localImportData: JSON.stringify(nextLocal) });
+    if (vendorChanged) {
+      await chrome.storage.local.set({
+        opencodeImportData: JSON.stringify(existingVendor),
+        opencodeImportMeta: { count: Object.keys(existingVendor).length, updatedAt: Date.now() },
+      });
+    }
   } catch (e) {
     return { ok: false, error: `Storage quota exceeded - cannot keep ${totalLocal} local records (${e.message || e})` };
   }
@@ -752,9 +832,9 @@ async function handleLocalImport(msg) {
     for (const [id, rec] of Object.entries(base)) {
       if (!isLocalLooking(id, rec)) crawlerPart[id] = rec;
     }
-    overlap = (await hideCrawlerDuplicates(crawlerPart, incoming)).dropped;
+    overlap = (await hideCrawlerDuplicates(crawlerPart, keep)).dropped;
   } catch (e) {}
-  return { ok: true, imported: Object.keys(incoming).length, newRecords: added, totalLocal, total: Object.keys(snapshot).length, overlap };
+  return { ok: true, imported: Object.keys(keep).length, newRecords: added, duplicates, filled, totalLocal, total: Object.keys(snapshot).length, overlap };
 }
 
 async function sendLocalStatus() {
@@ -770,13 +850,13 @@ async function sendLocalStatus() {
 
 // Merged snapshot for the dashboard/popup, rebuilt from chrome.storage only:
 // vendor records (<source>ImportData, opencode included) + the local SQLite
-// import. The old OPFS crawl snapshot is no longer a source of truth.
+// import. The old crawler snapshot is no longer a source of truth.
 async function sendDashboardData() {
   const localMap = await getLocalImportMap();
   const vendorRecordsRaw = await getAllVendorRecords();
   const vendorRecords = hideDayAnchoredImportCopies(vendorRecordsRaw).map;
   // opencode API rows share usage with the local SQLite import, so dedupe them
-  // exactly as the old OPFS crawler rows were deduped. Other vendors are left as-is.
+  // against it. Other vendors are left as-is.
   const opencodePart = {};
   const otherPart = {};
   for (const [id, rec] of Object.entries(vendorRecords)) {
@@ -798,7 +878,7 @@ async function sendDashboardData() {
 }
 
 async function handleOpenDashboard() {
-  // Refresh the OPFS snapshot now so the dashboard tab (and later refreshes)
+  // Refresh the merged snapshot now so the dashboard tab (and later refreshes)
   // have current data. The dashboard itself re-fetches on every load too.
   const res = await sendDashboardData();
   await chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });

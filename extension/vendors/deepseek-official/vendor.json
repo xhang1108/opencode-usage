@@ -17,10 +17,11 @@
     "lease": false
   },
   "notes": [
+    "One row per model + hour, merged across API keys; per-key identity is kept in raw only.",
     "Crawl: GET /api/v0/usage/by_api_key/amount?start=<unix-sec>&end=<unix-sec>&tz=28800 with `authorization: Bearer <localStorage.userToken.value>` (+ x-client-* headers). Requires +08-aligned day boundaries; exactly a 1-day range returns hourly buckets (3600), wider returns daily (86400), >~31 days returns empty.",
     "Crawler scans backwards in <=31-day windows to find days with usage, then fetches each such day as a 1-day range for hourly rows. Bounded by MAX_SCAN_DAYS; incremental resumes one day before the newest stored record.",
     "Fields: input=PROMPT_CACHE_MISS_TOKEN, cacheRead=PROMPT_CACHE_HIT_TOKEN, output=RESPONSE_TOKEN (completion incl. reasoning), requests=REQUEST, reasoning=0, cacheWrite=0. sensitive_id is dropped.",
-    "The /cost endpoint (CNY) is also fetched per day; raw keeps only per-key identity + spend (raw.byApiKey[].cost) for audit (D18). The token split is not duplicated into raw. Never used for pricing (derived, P1).",
+    "Cost is derived from the official price table; the /cost endpoint (CNY) is fetched per day only for audit (raw.byApiKey[].cost) and never used for pricing (P1).",
     "Model names are display labels (e.g. 'deepseek-chat & deepseek-reasoner', 'deepseek-flash', 'deepseek-v4.1-flash-expires-on-0910') mapped via rates.preset.json modelMap.",
     "Export ZIP import removed (day-granular only -> peak/offpeak always offpeak, and it would double count against crawl)."
   ]

@@ -144,7 +144,7 @@ function renderSettingsPage(tab) {
   else if (tab === "vendors") renderVendors(settingsCtx);
   else if (tab === "pricing") renderUnified(settingsCtx);
   else if (tab === "database") renderDatabase(settingsCtx);
-  else if (tab === "how") renderHowItWorks();
+  else if (tab === "how") renderHowItWorks(settings.registry);
 }
 
 async function reloadSettings() {
@@ -403,8 +403,12 @@ async function importRecordsCSV(file) {
   if (localCount > 0) {
     const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(plan.localMap) });
     if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
+    const dup = res.duplicates ? `, ${res.duplicates} duplicates merged` : "";
+    const enr = res.filled ? ` (${res.filled} enriched)` : "";
+    parts.push(`opencode: ${res.newRecords} new${dup}${enr}`);
+  } else {
+    parts.push("opencode: nothing to restore");
   }
-  parts.push(`opencode: ${localCount} local restored${plan.skippedCrawl ? `, ${plan.skippedCrawl} crawl skipped (open the Usage page and Crawl Now)` : ""}`);
   for (const { source, records: recs } of plan.vendors) {
     const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source, records: recs });
     if (!res || !res.ok) throw new Error((res && res.error) || `${source} restore failed`);

@@ -3,7 +3,6 @@
 // records CSV splits across stores, and the settings-restore summary. Pure: no
 // chrome, no DOM (the caller does the actual storage writes).
 import { groupBySource, SETTINGS_FORMAT } from "../../shared/backup.js";
-import { isLocalLooking } from "../../shared/merge.js";
 
 // Dispatch a file to its parser by extension.
 export function classifyImport(name) {
@@ -20,35 +19,28 @@ export function isSettingsPayload(parsed) {
 }
 
 // Split a records CSV into its destinations.
-//   localMap      - opencode local-DB records (id-keyed; re-import is idempotent)
+//   localMap      - opencode records (id-keyed; re-import is idempotent). Every
+//                   opencode record is kept, old crawl history included: the
+//                   local store is fingerprint-deduped against the live API rows
+//                   in background, so restoring a backup never double-counts the
+//                   overlap with the Console's retention window.
 //   vendors       - [{ source, records }] for known non-opencode sources
-//   skippedCrawl  - opencode crawl-track records dropped here on purpose: they
-//                   are rebuilt from the opencode.ai cache (OPFS) by Crawl Now.
-//                   Restoring them would pollute the local-import store, double
-//                   them in Settings -> Database, and let "Clear local" wipe them.
 //   unknownCount  - records whose source is not in the registry
 export function planRecordsImport(records, vendorSources) {
   const localMap = {};
   const vendors = [];
-  let skippedCrawl = 0;
   let unknownCount = 0;
   const known = new Set(vendorSources || []);
   for (const [source, recs] of groupBySource(records)) {
     if (source === "opencode") {
-      for (const rec of recs) {
-        if (!isLocalLooking(rec.id, rec)) {
-          skippedCrawl++;
-          continue;
-        }
-        localMap[rec.id] = rec;
-      }
+      for (const rec of recs) localMap[rec.id] = rec;
     } else if (known.has(source)) {
       vendors.push({ source, records: recs });
     } else {
       unknownCount += recs.length;
     }
   }
-  return { localMap, vendors, skippedCrawl, unknownCount };
+  return { localMap, vendors, unknownCount };
 }
 
 // Summary for a restored settings backup (records live in the CSV).

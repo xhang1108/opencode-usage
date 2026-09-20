@@ -13,6 +13,14 @@
     "defaultDays": 0
   },
   "import": ["json"],
+  "notes": [
+    "Primary source: GET /console/api/usage/rows?range=all&pageSize=100&cursor=… from the signed-in Console tab (session cookie + x-org-id header). One record per inference request, cursor-paginated; range=all covers full history and an incremental sync stops once a page reaches the newest stored record.",
+    "Provides input, output, reasoning, cacheRead, cacheWrite5m, cacheWrite1h, provider, an optional API-key id and app, the billing source (free/byok/credit/…), and the Console-charged USD amount (cost_micro_cents / 1e8).",
+    "Missing: no session id — records carry the org id instead of a workspace id; free/BYOK usage is tagged via the billing source.",
+    "Cost: the Console-charged amount when present, otherwise estimated from the price table (or re-priced under unified pricing).",
+    "Needs a signed-in Console tab; auto-sync (opencode only) reuses an open Console tab, or opens a background one, every 6h.",
+    "A local DB import (tools/import-local.mjs) lands in localImportData and serves models the server no longer reports (e.g. free models)."
+  ],
   "ratesPreset": "rates.preset.json",
   "storage": {
     "opfs": false,

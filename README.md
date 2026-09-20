@@ -2,9 +2,9 @@
 
 [![Version](https://img.shields.io/github/manifest-json/v/xhang1108/opencode-usage?filename=extension%2Fmanifest.json&label=version&color=blue)](https://github.com/xhang1108/opencode-usage)
 
-A Chrome extension that aggregates token usage from several AI vendors into one local dashboard. opencode is synced from its **Console Usage API** (one record per request, full history); the extension also tracks the free models opencode's own page ignores. OpenRouter, DeepSeek, CommandCode and MiMo can be enabled as well.
+A Chrome extension that aggregates token usage from several AI vendors into one local dashboard. opencode no longer scrapes its page — it syncs from the **Console Usage API** (one record per request, full history) using the signed-in Console session, so **no API key is stored**. The extension also tracks the free models opencode's own page ignores. OpenRouter, DeepSeek, CommandCode and MiMo can be enabled as well.
 
-> **Syncing is MANUAL** — click **Crawl Now** when you need fresh data. No auto-sync, to avoid hitting vendors too frequently.
+> **Syncing is MANUAL by default** — click **Sync** when you need fresh data, to avoid hitting vendors too frequently. opencode has an optional 6h auto-sync, which needs Chrome running with a signed-in opencode.ai session.
 
 ## Vendors
 
@@ -56,7 +56,7 @@ This is a breaking release: multi-vendor support plus a unified price list. Read
 
 - **Your custom Rate Settings from 0.8.x are not carried over.** Costs fall back to the shipped price tables; edit them in **Settings → Pricing**.
 - **Settings reset once on upgrade** — this release fixes the extension ID, which changes the storage namespace one time. You re-set: the peak-reminder toggle and model, workspace display names, enabled vendors, and default crawl vendor.
-- **Your usage history is kept.** opencode crawl data lives in OPFS on the `opencode.ai` origin, independent of the extension ID. After loading the new version, open your opencode.ai Usage page and click **Crawl Now** — the history is rebuilt from the local cache.
+- **Your usage history is re-synced, not migrated.** opencode records now live in `chrome.storage.local` and are fetched from the Console Usage API. After loading the new version, open a signed-in `opencode.ai/console` page and click **Sync** (a full sync backfills all history).
 - **Before updating**, use the old version's exports if you want a copy of anything; note the old CSV / rates formats are not importable by 1.0.0.
 - **Local DB imports** (`tools/import-local.mjs`) are not stored on opencode.ai and are lost on the ID change — re-run the tool and Import again.
 
@@ -73,26 +73,29 @@ This is a breaking release: multi-vendor support plus a unified price list. Read
 ```mermaid
 flowchart LR
     U([User]) --> P[MANUAL Sync]
-    P --> S[Vendor usage page / API]
-    S --> C[(Local cache)]
+    P --> S[opencode Console Usage API]
+    S --> C[(chrome.storage.local)]
+    O[Other vendors: their own pages / APIs] --> C
+    L[(Local opencode DB)] --> J[Import Usage]
+    J --> C
     C --> D[Dashboard]
-    L[(Local database)] --> J[Import Usage]
-    J --> D
     D --> P2[Unified pricing]
     P2 --> D
 ```
 
-- **Sync (MANUAL):** open a Console page, click **Sync** to save records locally (other vendors use their own pages / APIs).
+- **Sync (MANUAL):** open a signed-in `opencode.ai/console` page and click **Sync**. The extension calls the Console Usage API (`/console/api/usage/rows?range=all` — session cookie + `x-org-id`) for one record per request, paginated by cursor; hold **Shift** for a full-history sync. Other vendors sync from their own pages / APIs.
 - **Pricing:** one user-authored price list (**Settings → Pricing**) bills every vendor; each model is mapped to a rate group and priced from tokens, so costs can be recomputed at any time.
 - **Free models:** export from the local database and import the JSON on the dashboard.
 - **View:** open **Dashboard** for charts, costs, and backup export.
+
+Per-vendor detail (endpoints, fields, limits) lives in the dashboard's **Settings → How it works**, generated from each `vendor.json`, so it stays in sync with the adapters.
 
 ![Dashboard](screenshots/dashboard.avif)
 
 ## Notes
 
-- Syncing is MANUAL (click **Sync** each time); hold **Shift** for a Full Sync. There is no background auto-sync on purpose.
-- opencode reads its Console Usage API for the signed-in workspace (one record per request) and can backfill all history, so sync only when you need fresh data, not on a timer.
+- Syncing is MANUAL by default (click **Sync** each time); hold **Shift** for a Full Sync. opencode can optionally auto-sync every 6h (**Settings → Vendors → opencode**), but only while Chrome is open and you're signed in at opencode.ai — it reuses an open Console tab, or opens a background one and closes it once the sync ends.
+- opencode reads its Console Usage API for the signed-in workspace (one record per request) and can backfill all history, so a manual sync only when you need fresh data is usually enough. It authenticates with the Console tab's session cookie; no API key is stored.
 - Prices live in the dashboard's **Settings → Pricing** tab; **Settings → Database** lists every stored usage store and what can be deleted.
 - The Rescan button is hidden by default; uncomment it in `popup/popup.html` and `popup/popup.js` to show it.
 

@@ -10,9 +10,11 @@
     "lease": false
   },
   "notes": [
+    "One row per model per UTC day, exported by month; import only (no crawl path).",
     "Usage Export is XLSX (not CSV): Token Plan token_plan_usage_*.xlsx (single sheet) or Pay-as-you-go usage_data_*.xlsx (Model usage detail + Plugin sheet).",
     "Wide shape: Date | Model | Total Tokens | Input Hit Tokens | Input Miss Tokens | Output Tokens | Total audio duration | Request Count.",
     "input=Input Miss Tokens, cacheRead=Input Hit Tokens, output=Output Tokens, requests=Request Count; Date is a UTC day.",
+    "Missing: no reasoning and no cacheWrite. Cost is derived from the official USD price table.",
     "Amounts/currency and the Plugin sheet are ignored (P1). Parsed in-extension (shared/xlsx.js)."
   ]
 }

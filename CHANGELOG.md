@@ -10,6 +10,7 @@ opencode now syncs from the Console Usage API instead of crawling the RSC `/_ser
 - **opencode cost**: always the Console-charged amount (`cost_micro_cents / 1e8`). Peak/offpeak is labelled from the record's timestamp and the model's rate windows, so the split stays meaningful without changing the price.
 - **Usage link**: the popup's "Open Usage" link and the auto-opened tab now use `/console/<org>/usage` (was `/workspace/<workspace>/usage`).
 - **Popup button**: "Crawl <vendor>" → "Sync <vendor>" (Shift = Full Sync).
+- **Import Usage (opencode)**: records are now upserted by content fingerprint (`model|input|output|reasoning|cacheRead|cacheWrite`, ±2 min), checked under both output encodings (no date cutoff). A duplicate merges into the stored record (filling missing fields; the API store wins on conflicts) instead of being skipped or double-counted. Old crawl backups can therefore be restored alongside the live API history.
 
 ### Removed
 

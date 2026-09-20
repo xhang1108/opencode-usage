@@ -16,6 +16,34 @@ export function fingerprintOf(rec) {
   return [rec.model || "", rec.input || 0, rec.output || 0, rec.reasoning || 0, rec.cacheRead || 0, cacheWrite].join("|");
 }
 
+// Fingerprint that tolerates the legacy inclusive-output encoding: a record that
+// carries reasoning but was not flagged `outputExcludesReasoning` (old opencode
+// crawl rows, pre-D23) is normalised to exclusive output first. This lets a
+// restored backup row match the SAME request's API row instead of looking unique
+// and importing as a duplicate.
+export function reconcileFingerprint(rec) {
+  if (!rec || typeof rec !== "object") return null;
+  const reasoning = Number(rec.reasoning) || 0;
+  if (!rec.outputExcludesReasoning && reasoning > 0) {
+    return fingerprintOf({ ...rec, output: Math.max(0, (Number(rec.output) || 0) - reasoning) });
+  }
+  return fingerprintOf(rec);
+}
+
+// Every fingerprint a record could match under, covering BOTH output encodings:
+// the record as stored, and (when reasoning is present) the exclusive-output
+// interpretation. Stored and incoming records are indexed/looked up under every
+// candidate, so cross-source de-duplication never depends on knowing which
+// encoding a particular file used — and never on a date cutoff.
+export function recordFingerprints(rec) {
+  const out = [];
+  const raw = fingerprintOf(rec);
+  if (raw) out.push(raw);
+  const norm = reconcileFingerprint(rec);
+  if (norm && norm !== raw) out.push(norm);
+  return out;
+}
+
 export function buildFingerprintBuckets(recs) {
   const buckets = new Set();
   for (const rec of recs || []) {

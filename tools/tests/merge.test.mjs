@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import {
   fingerprintOf,
+  reconcileFingerprint,
+  recordFingerprints,
   buildFingerprintBuckets,
   mergeRecords,
   hideDayAnchoredImportCopies,
@@ -25,6 +27,29 @@ test("fingerprintOf is stable and null without a time", () => {
   const a = fingerprintOf(rec({ id: "a" }));
   assert.equal(a, fingerprintOf(rec({ id: "b" })));
   assert.equal(fingerprintOf({ model: "m" }), null);
+});
+
+test("reconcileFingerprint normalises legacy inclusive output so old rows match API rows", () => {
+  const api = rec({ id: "opencode:1", output: 170, reasoning: 30, outputExcludesReasoning: true });
+  const legacy = rec({ id: "hash", output: 200, reasoning: 30 }); // inclusive, no flag
+  assert.notEqual(fingerprintOf(legacy), fingerprintOf(api)); // raw encoding mismatch
+  assert.equal(reconcileFingerprint(legacy), reconcileFingerprint(api)); // normalised match
+  // A flagged record is fingerprinted as-is.
+  const flagged = { ...legacy, outputExcludesReasoning: true };
+  assert.equal(reconcileFingerprint(flagged), fingerprintOf(flagged));
+  // No reasoning -> no normalisation needed.
+  assert.equal(reconcileFingerprint(rec({ output: 200 })), fingerprintOf(rec({ output: 200 })));
+});
+
+test("recordFingerprints covers both output encodings without an assumption", () => {
+  const inclusive = rec({ output: 200, reasoning: 30 }); // legacy, no flag
+  const exclusive = rec({ output: 170, reasoning: 30, outputExcludesReasoning: true });
+  assert.ok(recordFingerprints(inclusive).includes(fingerprintOf(exclusive)));
+  const a = recordFingerprints(inclusive);
+  const b = recordFingerprints(exclusive);
+  assert.ok(a.some((fp) => b.includes(fp)), "the two encodings share a candidate");
+  // No reasoning -> a single candidate.
+  assert.equal(recordFingerprints(rec({ output: 200 })).length, 1);
 });
 
 test("mergeRecords is N-way by id and idempotent", () => {

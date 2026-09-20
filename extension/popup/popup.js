@@ -140,8 +140,8 @@ async function loadStatus() {
   // Usage link: auto-build https://opencode.ai/console/<org>/usage
   renderUsageLink(pickUsageWorkspace(stored));
 
-  // While a crawl is running the progress ticks already arrive via storage;
-  // skip the live query because it re-parses the whole OPFS cache on every tick.
+  // While a sync is running the progress ticks already arrive via storage;
+  // skip the live query because it re-reads the whole merged store on every tick.
   if (cs && cs.running) return;
 
   // Live status from the content script; falls back to the cached overview.

@@ -1,8 +1,9 @@
 // extension/dashboard/settings/database.js
 // Settings → Database: every usage store, where it lives, and what can be
 // deleted. Stores are collapsed by default (expensive tables are built lazily
-// on expand). OPFS crawl data is owned by the opencode content script and shown
-// read-only; chrome.storage.local stores support per-record and full delete.
+// on expand). Every store now lives in chrome.storage.local (opencode's API
+// sync, the local DB import, and each other vendor) and supports per-record
+// and full delete.
 
 import { downloadText, escHTML } from "../views/format.js";
 import { clearMessageFor } from "../../shared/stores.js";
@@ -45,8 +46,8 @@ export async function renderDatabase(ctx) {
   const intro = document.createElement("p");
   intro.className = "modal-hint";
   intro.innerHTML =
-    "Every usage store the extension knows about. Click a store to expand it. Records in <code>chrome.storage.local</code> can be deleted here; " +
-    "<strong>OPFS</strong> crawl data is managed by the opencode page crawler.";
+    "Every usage store the extension knows about, all in <code>chrome.storage.local</code>. " +
+    "Click a store to expand it; records can be deleted per row or cleared entirely.";
   wrap.appendChild(intro);
 
   for (const store of res.stores) wrap.appendChild(renderStore(ctx, store));
@@ -85,35 +86,26 @@ function renderStore(ctx, store) {
 }
 
 function buildStoreBody(ctx, store, body) {
-  if (!store.managed) {
-    const note = document.createElement("div");
-    note.className = "db-note-block";
-    note.innerHTML =
-      "These records live in <strong>OPFS</strong> on the <code>opencode.ai</code> origin (owned by the page crawler). " +
-      "The extension reads them but does not store or delete them here.";
-    body.appendChild(note);
-  } else {
-    const toolbar = document.createElement("div");
-    toolbar.className = "db-store-toolbar";
-    toolbar.innerHTML = `<button type="button" class="btn btn-danger" data-clear-all>Delete all ${store.count.toLocaleString()}</button>`;
-    toolbar.querySelector("[data-clear-all]").addEventListener("click", async () => {
-      if (!confirm(`Delete all ${store.count} ${store.label} record(s)?`)) return;
-      const msg = clearMessageFor(store.key);
-      if (!msg) return;
-      let r = null;
-      try {
-        r = await chrome.runtime.sendMessage(msg);
-      } catch (e) {
-        r = { ok: false, error: (e && e.message) || String(e) };
-      }
-      if (!r || !r.ok) {
-        alert("Delete failed: " + ((r && r.error) || "unknown"));
-        return;
-      }
-      await ctx.refreshData();
-    });
-    body.appendChild(toolbar);
-  }
+  const toolbar = document.createElement("div");
+  toolbar.className = "db-store-toolbar";
+  toolbar.innerHTML = `<button type="button" class="btn btn-danger" data-clear-all>Delete all ${store.count.toLocaleString()}</button>`;
+  toolbar.querySelector("[data-clear-all]").addEventListener("click", async () => {
+    if (!confirm(`Delete all ${store.count} ${store.label} record(s)?`)) return;
+    const msg = clearMessageFor(store.key);
+    if (!msg) return;
+    let r = null;
+    try {
+      r = await chrome.runtime.sendMessage(msg);
+    } catch (e) {
+      r = { ok: false, error: (e && e.message) || String(e) };
+    }
+    if (!r || !r.ok) {
+      alert("Delete failed: " + ((r && r.error) || "unknown"));
+      return;
+    }
+    await ctx.refreshData();
+  });
+  body.appendChild(toolbar);
 
   if (store.count === 0) {
     const empty = document.createElement("div");
@@ -127,9 +119,7 @@ function buildStoreBody(ctx, store, body) {
   const table = document.createElement("table");
   table.className = "db-table";
   table.innerHTML =
-    `<thead><tr><th>Model</th><th>Source</th><th>Time</th><th>Input</th><th>Output</th><th>Cache read</th>${
-      store.managed ? "<th></th>" : ""
-    }</tr></thead>` +
+    "<thead><tr><th>Model</th><th>Source</th><th>Time</th><th>Input</th><th>Output</th><th>Cache read</th><th></th></tr></thead>" +
     "<tbody>" +
     shown
       .map(
@@ -140,7 +130,7 @@ function buildStoreBody(ctx, store, body) {
           <td>${r.input.toLocaleString()}</td>
           <td>${r.output.toLocaleString()}</td>
           <td>${r.cacheRead.toLocaleString()}</td>
-          ${store.managed ? `<td><button type="button" class="row-del" data-del="${escHTML(r.id)}" title="Delete this record">×</button></td>` : ""}
+          <td><button type="button" class="row-del" data-del="${escHTML(r.id)}" title="Delete this record">×</button></td>
         </tr>`
       )
       .join("") +
@@ -153,8 +143,6 @@ function buildStoreBody(ctx, store, body) {
     trunc.textContent = `Showing ${shown.length} of ${store.count.toLocaleString()} records.`;
     body.appendChild(trunc);
   }
-
-  if (!store.managed) return;
 
   table.querySelectorAll("[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {

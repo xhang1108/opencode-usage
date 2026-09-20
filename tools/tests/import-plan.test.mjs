@@ -27,25 +27,24 @@ test("isSettingsPayload recognizes our settings backup", () => {
   assert.equal(isSettingsPayload([]), false);
 });
 
-test("planRecordsImport routes opencode local vs vendor vs unknown and skips crawl", () => {
+test("planRecordsImport restores every opencode record and routes vendors/unknown", () => {
   const plan = planRecordsImport(
     [
-      { id: "msg_1", source: "opencode", workspaceID: "wrk_a", model: "a" }, // local (msg_)
-      { id: "crawl_9", source: "opencode", workspaceID: "wrk_a", model: "a" }, // crawl-track -> skipped
-      { id: "x", source: "opencode", workspaceID: "Local", model: "b" }, // local (Local workspace)
-      { id: "y", source: "opencode", workspaceID: "local:proj", model: "c" }, // local (local: prefix)
+      { id: "msg_1", source: "opencode", workspaceID: "wrk_a", model: "a" }, // local
+      { id: "crawl_9", source: "opencode", workspaceID: "wrk_a", model: "a" }, // old crawl -> restored
+      { id: "x", source: "opencode", workspaceID: "Local", model: "b" },
+      { id: "y", source: "opencode", workspaceID: "local:proj", model: "c" },
       { id: "m1", source: "mimo", model: "d" }, // known vendor
       { id: "w1", source: "mystery", model: "e" }, // unknown vendor
       { id: "w2", source: "mystery", model: "f" },
-      { id: "n1", model: "g" }, // no source -> opencode, crawl-track
+      { id: "n1", model: "g" }, // no source -> opencode
     ],
     new Set(["mimo"])
   );
-  assert.deepEqual(Object.keys(plan.localMap).sort(), ["msg_1", "x", "y"]);
+  assert.deepEqual(Object.keys(plan.localMap).sort(), ["crawl_9", "msg_1", "n1", "x", "y"]);
   assert.equal(plan.vendors.length, 1);
   assert.equal(plan.vendors[0].source, "mimo");
   assert.deepEqual(plan.vendors[0].records.map((r) => r.id), ["m1"]);
-  assert.equal(plan.skippedCrawl, 2, "crawl_9 and the no-source record are crawl-track");
   assert.equal(plan.unknownCount, 2);
 });
 
@@ -58,7 +57,7 @@ test("planRecordsImport is id-keyed so re-import collapses duplicates", () => {
 });
 
 test("planRecordsImport with no records is empty", () => {
-  assert.deepEqual(planRecordsImport([], new Set()), { localMap: {}, vendors: [], skippedCrawl: 0, unknownCount: 0 });
+  assert.deepEqual(planRecordsImport([], new Set()), { localMap: {}, vendors: [], unknownCount: 0 });
 });
 
 test("describeSettingsRestore pluralizes the section count", () => {

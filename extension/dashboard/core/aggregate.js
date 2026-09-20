@@ -7,7 +7,7 @@ import { localDateOf } from "./time.js";
 
 // Request count for one record. Aggregated sources (DeepSeek/MiMo export days,
 // OpenRouter day rows, CommandCode 5-min buckets) carry many requests in a
-// single record; opencode crawl/local records are one request each and have no
+// single record; opencode API/local records are one request each and have no
 // `requests` field. Never count a record as 0 requests.
 export function requestCount(rec) {
   const n = Number(rec && rec.requests);

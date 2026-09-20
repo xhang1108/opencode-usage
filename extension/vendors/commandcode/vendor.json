@@ -20,9 +20,11 @@
   },
   "notes": [
     "Primary source: GET /internal/usage/charts?granularity=day&from=<ISO>&to=<ISO> (cookie, CORS) - daily x model x provider aggregates with cache tokens and cost; not capped.",
+    "Granularity: one row per 5-minute bucket × model × provider; requests is the vendor's count for that bucket.",
+    "Provides tokensIn, cacheReadInputTokens, cacheCreationInputTokens, tokensOut, requests and vendor-reported totalCost.",
     "The /internal/usage detail list is capped at 100 rows/window (limit=50/page, seen>=100 => 0) and has no cache split; not used for history.",
     "Cost is vendor-reported (totalCost) via registry costSource:\"vendor\"; cacheReadInputTokens/cacheCreationInputTokens are native.",
     "timeBucket is naive; treated as UTC.",
-    "No Export button - crawl is the only path."
+    "Retention ~35 days; the default re-crawl interval is every 3 days. No Export button - crawl is the only path."
   ]
 }

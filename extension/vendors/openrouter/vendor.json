@@ -18,8 +18,10 @@
     "lease": false
   },
   "notes": [
-    "Cost is vendor-reported (analytics-query `total_usage`, USD) via registry costSource:\"vendor\"; no price table / preset is shipped.",
-    "Cookie-authenticated private endpoint /api/frontend/v1/private/analytics-query (no management key).",
-    "time_range is capped at 31 days when the provider dimension is requested; the crawler slices into <=30-day windows."
+    "Cookie-authenticated private endpoint /api/frontend/v1/private/analytics-query (no management key); one row per day × model × provider.",
+    "Provides tokens_prompt, cached_tokens, tokens_completion, reasoning_tokens and request_count.",
+    "Cost is vendor-reported (analytics-query total_usage, USD) via registry costSource:\"vendor\"; no price table / preset is shipped.",
+    "Missing: no cacheWrite, and BYOK spend cannot be split out. No public API — the private endpoint can change.",
+    "History is capped at 365 days (31 days when grouped by provider); the crawler slices into <=30-day windows."
   ]
 }
