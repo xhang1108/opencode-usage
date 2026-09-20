@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+opencode now syncs from the Console Usage API instead of crawling the RSC `/_server` protocol.
+
+### Changed
+
+- **opencode data source**: `GET /console/api/usage/rows?range=all` (session cookie + `x-org-id`), cursor-paginated, one record per request. Full history via `range=all`; incremental via `since`. Records land in `opencodeImportData`.
+- **opencode cost**: always the Console-charged amount (`cost_micro_cents / 1e8`). Peak/offpeak is labelled from the record's timestamp and the model's rate windows, so the split stays meaningful without changing the price.
+- **Usage link**: the popup's "Open Usage" link and the auto-opened tab now use `/console/<org>/usage` (was `/workspace/<workspace>/usage`).
+- **Popup button**: "Crawl <vendor>" → "Sync <vendor>" (Shift = Full Sync).
+
+### Removed
+
+- The opencode RSC crawler: `interceptor.js`, `crawl-worker.js`, the OPFS cache, the D23 output heal, and the `/workspace/.../usage` crawl path. Other vendors are unchanged.
+
 ## 1.0.0 — 2026-09-15
 
 Multi-vendor support, a unified price list, and version-aware pricing. **This is a breaking release — read the upgrade notes.**

@@ -6,7 +6,6 @@ import {
   canonicalDate,
   dayToISO,
   exclusiveOutput,
-  healOpencodeCrawlOutput,
   stableHash,
   makeId,
   normalizeRecord,
@@ -35,26 +34,6 @@ test("exclusiveOutput subtracts reasoning from an inclusive completion count", (
   assert.equal(exclusiveOutput(100, 150), 0); // never negative
   assert.equal(exclusiveOutput(undefined, 5), 0);
   assert.equal(exclusiveOutput(50, undefined), 50);
-});
-
-test("healOpencodeCrawlOutput repairs legacy inclusive output once (D23)", () => {
-  const legacy = { source: "opencode", output: 500, reasoning: 200 };
-  healOpencodeCrawlOutput(legacy);
-  assert.equal(legacy.output, 300);
-  assert.equal(legacy.reasoning, 200);
-  assert.equal(legacy.outputExcludesReasoning, true);
-  // idempotent: a second pass must not subtract again
-  healOpencodeCrawlOutput(legacy);
-  assert.equal(legacy.output, 300);
-  // zero reasoning is left alone but still marked
-  const noReasoning = { source: "opencode", output: 42, reasoning: 0 };
-  healOpencodeCrawlOutput(noReasoning);
-  assert.equal(noReasoning.output, 42);
-  assert.equal(noReasoning.outputExcludesReasoning, true);
-  // never negative
-  const odd = { source: "opencode", output: 10, reasoning: 99 };
-  healOpencodeCrawlOutput(odd);
-  assert.equal(odd.output, 0);
 });
 
 test("stableHash is deterministic, 8 hex chars", () => {

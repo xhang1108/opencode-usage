@@ -95,15 +95,37 @@ export function renderUnified(ctx) {
     </div>`;
 
   // When unified pricing is off the whole board is inert (greyed, not clickable)
-  // with a prompt to turn it on.
+  // with a prompt to turn it on. The master switch sits outside the locked board
+  // so it stays clickable in both states.
+  const master = `
+    <div class="settings-vendor up-master">
+      <div class="settings-vendor-main">
+        <label class="switch" title="${unified.enabled ? "Disable unified pricing" : "Enable unified pricing"}">
+          <input type="checkbox" id="upToggle" ${unified.enabled ? "checked" : ""}>
+          <span class="track"></span>
+        </label>
+        <div class="settings-vendor-text">
+          <strong>Unified pricing</strong>
+          <span class="settings-vendor-meta">Bill every vendor from your own price list. Pauses all vendor-reported spend and fallback prices.</span>
+        </div>
+      </div>
+    </div>`;
+
   wrap.innerHTML =
+    master +
     (unified.enabled
       ? ""
       : `<div class="up-off-bar">
            <span>Unified pricing is <strong>off</strong> — vendors use their own reported spend / fallback prices. Turn it on to edit this list.</span>
-           <button type="button" class="btn btn-primary" id="upEnable">Enable unified pricing</button>
          </div>`) +
     `<div class="up-board${unified.enabled ? "" : " up-locked"}"${unified.enabled ? "" : " inert"}>${board}</div>`;
+
+  const toggle = wrap.querySelector("#upToggle");
+  if (toggle) {
+    toggle.addEventListener("change", async (e) => {
+      await persist(ctx, { ...unified, enabled: e.target.checked });
+    });
+  }
 
   if (unified.enabled) {
     wireDrag(ctx, wrap);
@@ -111,13 +133,6 @@ export function renderUnified(ctx) {
     wireToolbar(ctx, wrap);
     wireJson(ctx, wrap);
     wireResizable(wrap);
-  } else {
-    const btn = wrap.querySelector("#upEnable");
-    if (btn) {
-      btn.addEventListener("click", async () => {
-        await persist(ctx, { ...unified, enabled: true });
-      });
-    }
   }
 }
 

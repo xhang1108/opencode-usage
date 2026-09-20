@@ -6,16 +6,16 @@
   "costSource": "vendor",
   "origins": ["https://opencode.ai/*"],
   "crawl": {
-    "contentScript": "vendors/opencode/content.js",
+    "contentScript": "vendors/opencode/api.js",
     "runAt": "document_start",
-    "worker": "vendors/opencode/crawl-worker.js",
-    "home": "https://opencode.ai/",
+    "webAccessible": ["vendors/opencode/mapper.js", "shared/canonical.js"],
+    "home": "https://opencode.ai/console",
     "defaultDays": 0
   },
   "import": ["json"],
   "ratesPreset": "rates.preset.json",
   "storage": {
-    "opfs": "opencode_token_cache_<workspace>.json",
-    "lease": true
+    "opfs": false,
+    "lease": false
   }
 }

@@ -37,21 +37,6 @@ export function exclusiveOutput(outputInclusive, reasoning) {
   return Math.max(0, out - r);
 }
 
-// D23 one-time self-heal for opencode crawl records written before the parser
-// started storing an exclusive `output`. Legacy rows kept the console
-// `outputTokens` (reasoning INCLUDED) while core adds `reasoning` again, so
-// they must be repaired once. New rows carry `outputExcludesReasoning: true`
-// and are skipped, which also makes this safe to call on every read.
-// NOTE: background.js imports this module and heals every opencode export, so
-// there is a single implementation (the opencode content script does not heal).
-export function healOpencodeCrawlOutput(rec) {
-  if (!rec || typeof rec !== "object" || rec.outputExcludesReasoning) return rec;
-  const reasoning = Number(rec.reasoning) || 0;
-  if (reasoning > 0) rec.output = Math.max(0, (Number(rec.output) || 0) - reasoning);
-  rec.outputExcludesReasoning = true;
-  return rec;
-}
-
 // FNV-1a 32-bit -> 8 hex chars. Stable across runs, used for ids without an
 // origin id (D4).
 export function stableHash(str) {

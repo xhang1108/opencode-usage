@@ -26,17 +26,17 @@ export function defaultCrawlLabel(stored) {
   return v && v.label ? v.label : src.charAt(0).toUpperCase() + src.slice(1);
 }
 
-// Main button label: holding Shift flips a crawl into a full scan.
+// Main button label: holding Shift flips an incremental sync into a full one.
 export function crawlButtonText({ shiftHeld, label }) {
   return {
-    text: shiftHeld ? `Full Scan ${label}` : `Crawl ${label}`,
+    text: shiftHeld ? `Full Sync ${label}` : `Sync ${label}`,
     title: shiftHeld
-      ? `Click to re-crawl ALL ${label} data from scratch`
-      : `Click to crawl ${label} now · hold Shift for a full scan`,
+      ? `Click to re-sync ALL ${label} history from scratch`
+      : `Click to sync ${label} now · hold Shift for a full sync`,
   };
 }
 
-const isWorkspaceId = (id) => typeof id === "string" && /^wrk_/.test(id);
+const isWorkspaceId = (id) => typeof id === "string" && /^(?:org_|wrk_)/.test(id);
 
 // Which workspace the "Open Usage" link should point at: the last visited
 // (most recent) workspace wins, then the last synced one, then the last record's,
@@ -54,7 +54,7 @@ export function pickUsageWorkspace(stored) {
 }
 
 export function usageUrl(workspaceID) {
-  return `https://opencode.ai/workspace/${workspaceID}/usage`;
+  return `https://opencode.ai/console/${workspaceID}/usage`;
 }
 
 // Vendors that are enabled AND have a crawler — the choices in the crawl picker.
@@ -75,7 +75,7 @@ export function crawlStatusText(msg, res) {
     const label = msg.rescan ? "Rescan" : "Sync";
     if (res.started) return { text: `${label} started - watch the icon badge`, ok: true };
     if (res.reason === "busy") return { text: "Sync already in progress", ok: true };
-    return { text: "Sync requested (waiting for server ID)", ok: true };
+    return { text: "Sync requested", ok: true };
   }
   if (msg.type === "open-dashboard") {
     return { text: `Dashboard opened (${res.fromCache ? "cached" : "latest"} data, ${res.count} records)`, ok: true };

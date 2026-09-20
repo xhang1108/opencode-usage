@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/github/manifest-json/v/xhang1108/opencode-usage?filename=extension%2Fmanifest.json&label=version&color=blue)](https://github.com/xhang1108/opencode-usage)
 
-A Chrome extension that aggregates token usage from several AI vendors into one local dashboard. opencode has no public usage API, so crawling the Usage page you already have open is the only way to get its cloud records; the extension also tracks the free models opencode's own page ignores. OpenRouter, DeepSeek, CommandCode and MiMo can be enabled as well.
+A Chrome extension that aggregates token usage from several AI vendors into one local dashboard. opencode is synced from its **Console Usage API** (one record per request, full history); the extension also tracks the free models opencode's own page ignores. OpenRouter, DeepSeek, CommandCode and MiMo can be enabled as well.
 
 > **Syncing is MANUAL** — click **Crawl Now** when you need fresh data. No auto-sync, to avoid hitting vendors too frequently.
 
@@ -10,7 +10,7 @@ A Chrome extension that aggregates token usage from several AI vendors into one 
 
 | Vendor | Mode | Import file | Default |
 |---|---|---|---|
-| opencode | crawl (Usage page) | local DB JSON | on |
+| opencode | sync (Console Usage API) | local DB JSON | on |
 | OpenRouter | crawl (analytics) | — | off |
 | DeepSeek | crawl (API key) | — | off |
 | CommandCode | crawl (charts) | — | off |
@@ -62,8 +62,8 @@ This is a breaking release: multi-vendor support plus a unified price list. Read
 
 ## Usage
 
-1. Sign in at [opencode.ai/auth](https://opencode.ai/auth) and open your workspace **Usage** page — `https://opencode.ai/workspace/<your-workspace-id>/usage`.
-2. Click the extension icon → **Crawl Now** to sync the latest usage records. Syncing is intentionally MANUAL to avoid hitting vendors too frequently.
+1. Sign in at [opencode.ai](https://opencode.ai) and open a **Console** page — `https://opencode.ai/console` (it redirects to your workspace, e.g. `https://opencode.ai/console/<workspace-id>/usage`). The sync uses this signed-in session.
+2. Click the extension icon → **Sync** to fetch the latest usage records. Syncing is intentionally MANUAL to avoid hitting vendors too frequently. Hold **Shift** for a **Full Sync** (re-fetches all history).
 3. Click **Open Dashboard** to view charts, tables, and cost estimates.
 4. **Export Backup** in the dashboard downloads two files: `opencode-usage_settings_*.json` (your settings + pricing) and `opencode-usage_records_*.csv` (every record, every source). **Import Usage** restores either file.
 5. **Import Usage** accepts three file types, and one pick may mix them: `.xlsx` (MiMo export), `.json` (opencode local DB export, or a settings backup), `.csv` (backup records). Each file is routed by type, and a per-file failure does not abort the rest of the batch.
@@ -72,7 +72,7 @@ This is a breaking release: multi-vendor support plus a unified price list. Read
 
 ```mermaid
 flowchart LR
-    U([User]) --> P[MANUAL Crawl Now]
+    U([User]) --> P[MANUAL Sync]
     P --> S[Vendor usage page / API]
     S --> C[(Local cache)]
     C --> D[Dashboard]
@@ -82,7 +82,7 @@ flowchart LR
     P2 --> D
 ```
 
-- **Sync (MANUAL):** open a vendor's usage page, click **Crawl Now** to save records locally.
+- **Sync (MANUAL):** open a Console page, click **Sync** to save records locally (other vendors use their own pages / APIs).
 - **Pricing:** one user-authored price list (**Settings → Pricing**) bills every vendor; each model is mapped to a rate group and priced from tokens, so costs can be recomputed at any time.
 - **Free models:** export from the local database and import the JSON on the dashboard.
 - **View:** open **Dashboard** for charts, costs, and backup export.
@@ -91,8 +91,8 @@ flowchart LR
 
 ## Notes
 
-- Crawling is MANUAL (click **Crawl Now** each time); the extension refreshes the server ID itself. There is no background auto-sync on purpose — burst traffic has been observed to trigger rate limiting (HTTP 429) and throttling.
-- Sync only when you need fresh data (e.g. once after a work session), not on a timer.
+- Syncing is MANUAL (click **Sync** each time); hold **Shift** for a Full Sync. There is no background auto-sync on purpose.
+- opencode reads its Console Usage API for the signed-in workspace (one record per request) and can backfill all history, so sync only when you need fresh data, not on a timer.
 - Prices live in the dashboard's **Settings → Pricing** tab; **Settings → Database** lists every stored usage store and what can be deleted.
 - The Rescan button is hidden by default; uncomment it in `popup/popup.html` and `popup/popup.js` to show it.
 

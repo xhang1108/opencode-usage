@@ -16,7 +16,6 @@ import {
   formatUtcTime,
   isPeakAt,
 } from "./shared/time-reminder.js";
-import { healOpencodeCrawlOutput } from "./shared/canonical.js";
 import {
   DEDUP_BUCKET_MS,
   fingerprintOf,
@@ -25,7 +24,7 @@ import {
   isLocalLooking,
 } from "./shared/merge.js";
 import { STORAGE_SCHEMA_VERSION, pendingMigrations, planMigrations } from "./shared/migrate.js";
-import { OPFS_STORE_KEY, LOCAL_STORE_KEY, VENDOR_STORE_PREFIX } from "./shared/stores.js";
+import { LOCAL_STORE_KEY, VENDOR_STORE_PREFIX } from "./shared/stores.js";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -53,54 +52,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       break;
     }
 
-    case "crawl-done": {
-      const tabId = sender.tab && sender.tab.id;
-      const count = msg.total || 0;
-      // Clear the badge on completion; it only indicates active crawling.
-      try { chrome.action.setBadgeText({ text: "" }); } catch (e) {}
-      if (tabId !== undefined && tabId !== null) {
-        chrome.action.setBadgeText({ tabId, text: "" });
-      }
-      const newCount = msg.newRecords || 0;
-      const newTokens = msg.newTokens || 0;
-      const serverEmpty = !!msg.serverEmpty;
-      notifyCrawl(
-        "Sync complete",
-        serverEmpty
-          ? `Server has no records for this workspace — showing last synced data.`
-          : `${count} records total — ${newCount} new (${newTokens.toLocaleString()} tokens).`
-      );
-      chrome.storage.local.set({
-        lastSyncAt: Date.now(),
-        lastSyncCount: newCount,
-        lastSyncTokens: newTokens,
-        lastSyncWorkspace: msg.workspaceID || "",
-        totalRecords: count,
-        crawlState: {
-          running: false,
-          done: true,
-          page: msg.lastPage || 0,
-          workspace: msg.workspaceID || "",
-          warning: count === 0, // B10: completed but nothing returned
-          serverEmpty, // D21: server has no records for this workspace
-          message: count === 0
-            ? "Crawl finished but returned no records"
-            : serverEmpty
-              ? "Server has no records for this workspace — showing last synced data"
-              : msg.stopReason ? `Crawl stopped: ${msg.stopReason}` : "",
-        },
-      });
-      // After a sync, cache the merged data so it's usable without an open page.
-      if (tabId !== undefined && tabId !== null) {
-        stashMergedData(tabId).catch(() => {});
-      }
-      sendResponse({ ok: true });
-      break;
-    }
-
     case "error":
     case "info": {
       setBadge(sender, msg.type === "error" ? "ERR" : "", msg.type === "error" ? "#cc6f66" : "#a1a1a6");
+      if (msg.type === "error") closeAutoSyncTab();
       if (msg.type === "error") try { chrome.action.setBadgeText({ text: "ERR" }); } catch (e) {}
       if (msg.type === "error") notifyCrawl("Sync failed", msg.message || "Unknown error — reopen the popup for details.");
       chrome.storage.local.get("crawlState", ({ crawlState }) => {
@@ -116,27 +71,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       break;
     }
 
-    case "inject-interceptor": {
-      const tabId = sender.tab && sender.tab.id;
-      if (tabId === undefined || tabId === null) {
-        sendResponse({ ok: false, error: "Cannot get tab" });
-        break;
-      }
-      chrome.scripting
-        .executeScript({
-          target: { tabId },
-          files: ["vendors/opencode/interceptor.js"],
-          world: "MAIN",
-        })
-        .then(() => sendResponse({ ok: true }))
-        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
-      return true; // Keep the message channel open
-    }
-
     case "start-crawl":
       (msg.vendor && msg.vendor !== "opencode"
         ? sendStartVendorCrawl(msg.vendor, msg.days, !!(msg.full || msg.rescan))
-        : sendStartCrawl(!!msg.rescan)
+        : sendStartOpencodeCrawl(!!(msg.full || msg.rescan))
       )
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
@@ -253,87 +191,35 @@ async function sendMessageToTab(tabId, msg) {
   try {
     return await chrome.tabs.sendMessage(tabId, msg);
   } catch (e) {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["vendors/opencode/content.js"] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["vendors/opencode/api.js"] });
     await new Promise((r) => setTimeout(r, 300)); // Give the injected content script time to initialize
     return await chrome.tabs.sendMessage(tabId, msg);
   }
 }
 
-async function findUsageTab() {
+// opencode now syncs through the Console Usage API (vendors/opencode/api.js)
+// instead of the old RSC /_server crawl. The API needs the org from a
+// /console/<org>/ page (session cookie + x-org-id header), so ensure a Console
+// tab is open and pass the incremental `since` from the newest stored record.
+async function sendStartOpencodeCrawl(full) {
   const tabs = await chrome.tabs.query({ url: ["https://opencode.ai/*"] });
-  return tabs.find((t) => t.url && /\/workspace\/wrk_[^/]+\/usage/.test(t.url)) || null;
-}
-
-async function findAnyOpencodeTab() {
-  const tabs = await chrome.tabs.query({ url: ["https://opencode.ai/*"] });
-  return (
-    tabs.find((t) => t.url && /\/workspace\/wrk_[^/]+\/usage/.test(t.url)) ||
-    tabs[0] ||
-    null
-  );
-}
-
-async function sendStartCrawl(rescan) {
-  let tab = await findUsageTab();
+  let tab = tabs.find((t) => t.url && /^https:\/\/opencode\.ai\/console\/(?:org_|wrk_)/.test(t.url)) || null;
   if (!tab) {
-    // No usage tab open — try to auto-open https://opencode.ai/workspace/<wrk_...>/usage from stored workspace
-    // Priority: last visited (most recent browsing) > last sync
-    const { lastVisitedWorkspace, lastSyncWorkspace, cachedMeta, crawlState } = await chrome.storage.local.get([
-      "lastVisitedWorkspace",
-      "lastSyncWorkspace",
-      "cachedMeta",
-      "crawlState",
-    ]);
-    let ws =
-      (lastVisitedWorkspace && /^wrk_/.test(lastVisitedWorkspace) && lastVisitedWorkspace) ||
-      (lastSyncWorkspace && /^wrk_/.test(lastSyncWorkspace) && lastSyncWorkspace) ||
-      (cachedMeta && cachedMeta.lastRecord && cachedMeta.lastRecord.workspaceID) ||
-      (crawlState && crawlState.workspace) ||
-      "";
-    // Also scan cachedData for any workspace as last resort
-    if (!ws) {
+    tab = await chrome.tabs.create({ url: "https://opencode.ai/console" });
+    // /console redirects to the default workspace; wait until an org is in the URL.
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      const t = await chrome.tabs.get(tab.id).catch(() => null);
+      if (t && t.url && /\/console\/(?:org_|wrk_)/.test(t.url)) break;
       try {
-        const { cachedData } = await chrome.storage.local.get("cachedData");
-        if (cachedData) {
-          const parsed = JSON.parse(cachedData);
-          const first = Object.values(parsed)[0];
-          if (first && first.workspaceID && /^wrk_/.test(first.workspaceID)) ws = first.workspaceID;
-        }
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["vendors/opencode/api.js"] });
       } catch (e) {}
     }
-    if (ws) {
-      const url = `https://opencode.ai/workspace/${ws}/usage`;
-      tab = await chrome.tabs.create({ url });
-      // Wait for content script to become ready, then auto-start crawl
-      for (let i = 0; i < 20; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        try {
-          const ready = await chrome.tabs.sendMessage(tab.id, { type: "get-status" }).catch(() => null);
-          if (ready) break;
-        } catch (e) {}
-        try {
-          await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["vendors/opencode/content.js"] });
-        } catch (e) {}
-      }
-      try {
-const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
-        if (res && res.ok) return { ...res, openedUsage: true };
-      } catch (e) {}
-      return { ok: true, openedUsage: true, started: false };
-    }
-    const tabs = await chrome.tabs.query({ url: ["https://opencode.ai/*"] });
-    const urls = tabs.map((t) => t.url || "(no url)").join(" | ") || "(no opencode.ai tabs)";
-    return { ok: false, error: `No usage tab found. Open https://opencode.ai workspace usage page first. Open tabs: ${urls}` };
   }
-
-  // Focus existing usage tab and start crawl
+  const knownNewest = full ? null : await newestStoredTime("opencode");
   try { await chrome.tabs.update(tab.id, { active: true }); } catch (e) {}
-  const res = await sendMessageToTab(tab.id, { type: "start-crawl", rescan });
-  if (!res) return { ok: false, error: `Content script did not respond (tab url: ${tab.url})` };
-  if (!res.ok) {
-    return { ...res, error: `${res.error} (tab url: ${tab.url})` };
-  }
-  return res;
+  const res = await sendMessageToTab(tab.id, { type: "start-crawl", vendor: "opencode", knownNewest, full: !!full });
+  return res && res.ok ? { ...res, openedUsage: !tabs.length } : res;
 }
 
 // ===== Generic vendor crawl routing (content-script vendors) =====
@@ -403,6 +289,19 @@ async function newestStoredDate(source) {
   return max;
 }
 
+// Newest stored `time` (ISO) for a vendor, or null. Used as the early-stop
+// marker for the opencode API sync: rows come newest-first, so once a page
+// reaches this timestamp everything older is already stored and the crawl stops.
+async function newestStoredTime(source) {
+  const map = await getVendorImportMap(source);
+  let max = null;
+  for (const rec of Object.values(map)) {
+    const t = rec && rec.time;
+    if (t && (!max || t > max)) max = t;
+  }
+  return max;
+}
+
 async function handleVendorCrawlData(msg) {
   const source = msg && msg.source;
   if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
@@ -431,6 +330,7 @@ async function handleVendorCrawlData(msg) {
 async function handleVendorCrawlDone(msg) {
   const source = msg && msg.source;
   const newRecords = (msg && msg.newRecords) || 0;
+  if (source === "opencode") closeAutoSyncTab();
   try {
     chrome.action.setBadgeText({ text: "" });
   } catch (e) {}
@@ -522,40 +422,12 @@ async function handleGetDatabase() {
   const stores = [];
   const registry = await loadVendorRegistry();
 
-  // opencode crawl records live in OPFS (opencode.ai origin) and are owned by
-  // the content script; the background only sees them via the merged snapshot.
-  const { cachedData } = await chrome.storage.local.get("cachedData");
-  let snapshot = {};
-  try {
-    snapshot = JSON.parse(cachedData || "{}");
-  } catch (e) {}
-
-  // A record's store is decided by the bucket it lives in, not by guessing
-  // provenance: opfs = opencode snapshot records not owned by any chrome.storage
-  // bucket. So a record is listed in exactly one store (no double-listing).
+  // Records now live entirely in chrome.storage: opencode (API) in
+  // opencodeImportData, the local SQLite import in localImportData, and every
+  // other vendor in <source>ImportData. Each record is listed in exactly one store.
   const localMap = await getLocalImportMap();
   const vendorMaps = {};
   for (const source of await getVendorImportSources()) vendorMaps[source] = await getVendorImportMap(source);
-  const managedIds = new Set(Object.keys(localMap));
-  for (const map of Object.values(vendorMaps)) for (const id of Object.keys(map)) managedIds.add(id);
-
-  const opfsRecords = {};
-  for (const [id, rec] of Object.entries(snapshot)) {
-    if (!rec || typeof rec !== "object") continue;
-    if ((rec.source || "opencode") !== "opencode") continue;
-    if (managedIds.has(id)) continue;
-    opfsRecords[id] = rec;
-  }
-  stores.push(
-    databaseStoreFrom({
-      key: OPFS_STORE_KEY,
-      label: "opencode crawl",
-      location: "OPFS · opencode_token_cache_<workspace>.json (opencode.ai origin)",
-      managed: false,
-      source: "opencode",
-      map: opfsRecords,
-    })
-  );
 
   stores.push(
     databaseStoreFrom({
@@ -594,32 +466,36 @@ async function handleRemoveRecords(msg) {
   const ids = Array.isArray(msg && msg.ids) ? msg.ids.filter(Boolean) : [];
   if (ids.length === 0) return { ok: false, error: "No record ids given" };
 
+  let removed = 0;
+  // opencode has two stores: the local SQLite import and the API vendor store.
   if (source === "opencode") {
-    const map = await getLocalImportMap();
-    let removed = 0;
-    for (const id of ids) if (map[id]) { delete map[id]; removed++; }
-    await chrome.storage.local.set({
-      localImportData: JSON.stringify(map),
-      localImportMeta: { count: Object.keys(map).length, updatedAt: Date.now() },
-    });
-    fpCache = { key: null, buckets: null }; // fingerprint cache is now stale
-    let total = 0;
-    try {
-      const res = await sendDashboardData();
-      if (res && res.ok) total = res.count;
-    } catch (e) {}
-    await chrome.storage.local.set({ totalRecords: total });
-    return { ok: true, source, removed, total };
+    const localMap = await getLocalImportMap();
+    let changed = false;
+    for (const id of ids) if (localMap[id]) { delete localMap[id]; removed++; changed = true; }
+    if (changed) {
+      await chrome.storage.local.set({
+        localImportData: JSON.stringify(localMap),
+        localImportMeta: { count: Object.keys(localMap).length, updatedAt: Date.now() },
+      });
+      fpCache = { key: null, buckets: null }; // fingerprint cache is now stale
+    }
   }
 
-  if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
-  const map = await getVendorImportMap(source);
-  let removed = 0;
-  for (const id of ids) if (map[id]) { delete map[id]; removed++; }
-  await chrome.storage.local.set({
-    [`${source}ImportData`]: JSON.stringify(map),
-    [`${source}ImportMeta`]: { count: Object.keys(map).length, updatedAt: Date.now() },
-  });
+  const sources = await getVendorImportSources();
+  if (sources.includes(source)) {
+    const map = await getVendorImportMap(source);
+    let changed = false;
+    for (const id of ids) if (map[id]) { delete map[id]; removed++; changed = true; }
+    if (changed) {
+      await chrome.storage.local.set({
+        [`${source}ImportData`]: JSON.stringify(map),
+        [`${source}ImportMeta`]: { count: Object.keys(map).length, updatedAt: Date.now() },
+      });
+    }
+  } else if (source !== "opencode") {
+    return { ok: false, error: `Unknown source: ${source}` };
+  }
+
   let total = 0;
   try {
     const res = await sendDashboardData();
@@ -629,37 +505,18 @@ async function handleRemoveRecords(msg) {
   return { ok: true, source, removed, total };
 }
 
+// Records now live in chrome.storage (opencodeImportData + localImportData), so
+// status no longer needs an open opencode.ai tab.
 async function sendGetStatus() {
   const localMap = await getLocalImportMap();
-  const localIds = Object.keys(localMap);
-  const tab = await findUsageTab();
-  if (tab) {
-    try {
-      if (localIds.length > 0) {
-        // Local records present: need the full export to hide crawler
-        // duplicates shadowed by the local import.
-        const res = await sendMessageToTab(tab.id, { type: "export-json" });
-        if (res && res.ok) {
-          const { map: deduped } = await hideCrawlerDuplicates(JSON.parse(res.data || "{}"), localMap);
-          const { merged } = mergeRecords(deduped, localMap);
-          return {
-            ok: true,
-            totalRecords: Object.keys(merged).length,
-            files: res.files || [],
-            lastRecord: computeLastRecord(merged),
-          };
-        }
-      } else {
-        const res = await sendMessageToTab(tab.id, { type: "get-status" });
-        if (res && res.ok) return res;
-      }
-    } catch (e) {
-      // Injection still failed (e.g. restricted page) - fall back to cache
-    }
+  const vendorRecords = await getAllVendorRecords();
+  const { merged } = mergeRecords(vendorRecords, localMap);
+  const ids = Object.keys(merged);
+  if (ids.length > 0) {
+    return { ok: true, totalRecords: ids.length, files: [], lastRecord: computeLastRecord(merged) };
   }
-  // No usage tab open - return the last cached overview.
   const { cachedMeta } = await chrome.storage.local.get("cachedMeta");
-  if (cachedMeta) {
+  if (cachedMeta && cachedMeta.count) {
     return {
       ok: true,
       fromCache: true,
@@ -668,45 +525,14 @@ async function sendGetStatus() {
       lastRecord: cachedMeta.lastRecord || null,
     };
   }
-  if (localIds.length > 0) {
-    return {
-      ok: true,
-      fromCache: true,
-      totalRecords: localIds.length,
-      files: [],
-      lastRecord: computeLastRecord(localMap),
-    };
-  }
-  return { ok: false, error: "No cached data - open the opencode.ai usage page and sync first" };
-}
-
-async function stashMergedData(tabId) {
-  try {
-    const res = await sendMessageToTab(tabId, { type: "export-json" });
-    if (!res || !res.ok) return;
-    const localMap = await getLocalImportMap();
-    const { map: deduped } = await hideCrawlerDuplicates(JSON.parse(res.data || "{}"), localMap);
-    const { merged } = mergeRecords(deduped, localMap);
-    await chrome.storage.local.set({
-      cachedData: JSON.stringify(merged),
-      cachedMeta: {
-        count: Object.keys(merged).length,
-        fileCount: res.fileCount,
-        files: res.files || [],
-        lastRecord: computeLastRecord(merged),
-        updatedAt: Date.now(),
-      },
-    });
-  } catch (e) {
-    // Content script unavailable - skip
-  }
+  return { ok: false, error: "No cached data - open the opencode.ai Console and sync first" };
 }
 
 // ===== Local SQLite import (tools/import-local.mjs) =====
 // Local records live in chrome.storage.local under "localImportData" (a JSON
-// string of { id: record }), separate from the crawler's OPFS snapshot, and
-// are merged into every dashboard/status response. Merging is idempotent
-// (keyed by record id), so re-importing the same file never duplicates.
+// string of { id: record }) and are merged into every dashboard/status
+// response. Merging is idempotent (keyed by record id), so re-importing the
+// same file never duplicates.
 async function getLocalImportMap() {
   try {
     const { localImportData } = await chrome.storage.local.get("localImportData");
@@ -726,7 +552,7 @@ async function getVendorImportSources() {
   const registry = await loadVendorRegistry();
   return ((registry && registry.vendors) || [])
     .map((v) => v && v.source)
-    .filter((s) => s && s !== "opencode");
+    .filter((s) => !!s);
 }
 
 async function getVendorImportMap(source) {
@@ -870,47 +696,11 @@ function normalizeImportPayload(data) {
 
 async function handleClearLocal() {
   const localMap = await getLocalImportMap();
-  const localIds = new Set(Object.keys(localMap));
+  const cleared = Object.keys(localMap).length;
   await chrome.storage.local.remove(["localImportData", "localImportMeta"]);
   fpCache = { key: null, buckets: null }; // drop cached fingerprints with the data
-  // Rebuild the snapshot without local records: prefer a fresh OPFS export
-  // (pure crawler data); otherwise strip the known local ids from the cache.
-  const tab = await findAnyOpencodeTab();
-  if (tab) {
-    try {
-      const res = await sendMessageToTab(tab.id, { type: "export-json" });
-      if (res && res.ok) {
-        await chrome.storage.local.set({
-          cachedData: res.data,
-          cachedMeta: {
-            count: res.count,
-            fileCount: res.fileCount,
-            files: res.files || [],
-            lastRecord: res.lastRecord || null,
-            updatedAt: Date.now(),
-          },
-        });
-        return { ok: true, cleared: localIds.size, total: res.count };
-      }
-    } catch (e) {
-      // Fall through to cache stripping
-    }
-  }
-  let base = {};
-  try {
-    const { cachedData } = await chrome.storage.local.get("cachedData");
-    if (cachedData) base = JSON.parse(cachedData) || {};
-  } catch (e) {}
-  for (const id of localIds) delete base[id];
-  await chrome.storage.local.set({
-    cachedData: JSON.stringify(base),
-    cachedMeta: {
-      count: Object.keys(base).length,
-      lastRecord: computeLastRecord(base),
-      updatedAt: Date.now(),
-    },
-  });
-  return { ok: true, cleared: localIds.size, total: Object.keys(base).length };
+  const res = await sendDashboardData();
+  return { ok: true, cleared, total: res.count || 0 };
 }
 
 async function handleLocalImport(msg) {
@@ -978,97 +768,33 @@ async function sendLocalStatus() {
   return { ok: true, totalLocal, updatedAt: null };
 }
 
-// D23 self-heal for crawl rows written before the parser stored an exclusive
-// `output` — healOpencodeCrawlOutput is imported from shared/canonical.js.
-function healCrawlMap(map) {
-  for (const rec of Object.values(map || {})) healOpencodeCrawlOutput(rec);
-  return map;
-}
-
-// Merged OPFS snapshot for the dashboard. Tries a live export from any open
-// opencode.ai tab (which reads OPFS directly); falls back to the last cached
-// snapshot so the dashboard survives refreshes even with no tab open.
+// Merged snapshot for the dashboard/popup, rebuilt from chrome.storage only:
+// vendor records (<source>ImportData, opencode included) + the local SQLite
+// import. The old OPFS crawl snapshot is no longer a source of truth.
 async function sendDashboardData() {
   const localMap = await getLocalImportMap();
   const vendorRecordsRaw = await getAllVendorRecords();
   const vendorRecords = hideDayAnchoredImportCopies(vendorRecordsRaw).map;
-  const tab = await findAnyOpencodeTab();
-  if (tab) {
-    try {
-      const res = await sendMessageToTab(tab.id, { type: "export-json" });
-      if (res && res.ok) {
-        const base = JSON.parse(res.data || "{}");
-        healCrawlMap(base); // D23 legacy repair
-        const { map: deduped, dropped } = await hideCrawlerDuplicates(base, localMap);
-        const { merged } = mergeRecords({ ...deduped, ...vendorRecords }, localMap);
-        const mergedStr = JSON.stringify(merged);
-        const lastRecord = computeLastRecord(merged);
-        await chrome.storage.local.set({
-          cachedData: mergedStr,
-          cachedMeta: {
-            count: Object.keys(merged).length,
-            fileCount: res.fileCount,
-            files: res.files || [],
-            lastRecord,
-            updatedAt: Date.now(),
-          },
-        });
-        return { ok: true, data: mergedStr, count: Object.keys(merged).length, fileCount: res.fileCount, fromCache: false, deduped: dropped };
-      }
-    } catch (e) {
-      // Content script unavailable - fall back to cache
-    }
+  // opencode API rows share usage with the local SQLite import, so dedupe them
+  // exactly as the old OPFS crawler rows were deduped. Other vendors are left as-is.
+  const opencodePart = {};
+  const otherPart = {};
+  for (const [id, rec] of Object.entries(vendorRecords)) {
+    const src = (rec && rec.source) || "opencode";
+    (src === "opencode" ? opencodePart : otherPart)[id] = rec;
   }
-  const { cachedData, cachedMeta } = await chrome.storage.local.get(["cachedData", "cachedMeta"]);
-  if (cachedData) {
-    // Split the snapshot so pre-dedupe caches also heal: crawler-looking
-    // records are re-checked against the local import on every load.
-    const parsed = JSON.parse(cachedData);
-    const importSources = await getVendorImportSources();
-    const crawlerPart = {};
-    const localPart = {};
-    for (const [id, rec] of Object.entries(parsed || {})) {
-      const src = rec && typeof rec === "object" ? rec.source : null;
-      // Vendor records are authoritative in <source>ImportData; drop stale
-      // copies from the cached snapshot so a Clear actually removes them.
-      if (src && importSources.includes(src)) continue;
-      ((rec && typeof rec === "object" && isLocalLooking(id, rec)) ? localPart : crawlerPart)[id] = rec;
-    }
-    const { map: deduped, dropped } = await hideCrawlerDuplicates(healCrawlMap(crawlerPart), localMap);
-    const { merged } = mergeRecords(deduped, { ...localPart, ...localMap, ...vendorRecords });
-    const mergedStr = JSON.stringify(merged);
-    // Heal the cached snapshot so vendor clears/imports propagate even with no
-    // opencode tab open (the cached branch used to return without writing).
-    await chrome.storage.local.set({
-      cachedData: mergedStr,
-      cachedMeta: {
-        ...(cachedMeta || {}),
-        count: Object.keys(merged).length,
-        lastRecord: computeLastRecord(merged),
-        updatedAt: Date.now(),
-      },
-    });
-    return {
-      ok: true,
-      data: mergedStr,
+  const { map: dedupedOpencode, dropped } = await hideCrawlerDuplicates(opencodePart, localMap);
+  const { merged } = mergeRecords({ ...dedupedOpencode, ...otherPart }, localMap);
+  const mergedStr = JSON.stringify(merged);
+  await chrome.storage.local.set({
+    cachedData: mergedStr,
+    cachedMeta: {
       count: Object.keys(merged).length,
-      fileCount: (cachedMeta && cachedMeta.fileCount) || 0,
-      fromCache: true,
-      deduped: dropped,
-    };
-  }
-  const { merged: fallback } = mergeRecords({ ...localMap, ...vendorRecords });
-  const fallbackIds = Object.keys(fallback);
-  if (fallbackIds.length > 0) {
-    return {
-      ok: true,
-      data: JSON.stringify(fallback),
-      count: fallbackIds.length,
-      fileCount: 0,
-      fromCache: true,
-    };
-  }
-  return { ok: false, error: "No usage data yet - open the opencode.ai usage page and click Crawl Now in the popup" };
+      lastRecord: computeLastRecord(merged),
+      updatedAt: Date.now(),
+    },
+  });
+  return { ok: true, data: mergedStr, count: Object.keys(merged).length, fileCount: 0, fromCache: false, deduped: dropped };
 }
 
 async function handleOpenDashboard() {
@@ -1145,6 +871,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (changes[TIME_ENABLED_KEY] || changes[TIME_RATES_KEY] || changes[TIME_MODEL_KEY]) {
     schedulePeakAlarm().catch(() => {});
   }
+  if (changes.autoSyncEnabled) scheduleAutoSync().catch(() => {});
 });
 
 // Re-arm on service-worker start so the chain survives browser restarts and SW eviction.
@@ -1204,6 +931,67 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 scheduleUpdateCheck().catch(() => {});
+
+// ===== Auto-sync (opencode, every 6h) =====
+// The Console Usage API authenticates with the page session cookie, which a
+// background service-worker fetch cannot send cross-site, so the periodic sync
+// runs through a content script on an opencode.ai Console tab. An existing tab
+// is reused and left open; a tab we open ourselves is closed once the sync ends.
+const AUTO_SYNC_ALARM = "auto-sync";
+const AUTO_SYNC_MINUTES = 360; // 6h
+let autoSyncTabId = null; // non-null only for a tab we opened
+
+async function scheduleAutoSync() {
+  try { await chrome.alarms.clear(AUTO_SYNC_ALARM); } catch (e) {}
+  const { autoSyncEnabled } = await chrome.storage.local.get("autoSyncEnabled");
+  if (autoSyncEnabled !== true) return;
+  chrome.alarms.create(AUTO_SYNC_ALARM, { periodInMinutes: AUTO_SYNC_MINUTES });
+}
+
+function closeAutoSyncTab() {
+  if (autoSyncTabId == null) return;
+  try { chrome.tabs.remove(autoSyncTabId); } catch (e) {}
+  autoSyncTabId = null;
+}
+
+async function runAutoSync() {
+  const { autoSyncEnabled, vendorSettings, crawlState } = await chrome.storage.local.get([
+    "autoSyncEnabled",
+    "vendorSettings",
+    "crawlState",
+  ]);
+  if (autoSyncEnabled !== true) return;
+  if (vendorSettings && vendorSettings.opencode === false) return;
+  if (crawlState && crawlState.running) return; // don't pile onto a live sync
+
+  const tabs = await chrome.tabs.query({ url: ["https://opencode.ai/*"] });
+  const existing = tabs.find((t) => t.url && /^https:\/\/opencode\.ai\/console\/(?:org_|wrk_)/.test(t.url)) || null;
+  let tab = existing;
+  if (existing) {
+    autoSyncTabId = null; // user's tab: never close it
+  } else {
+    tab = await chrome.tabs.create({ url: "https://opencode.ai/console", active: false });
+    autoSyncTabId = tab.id;
+  }
+  // Wait for /console to redirect to an org before messaging the content script.
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    const t = await chrome.tabs.get(tab.id).catch(() => null);
+    if (t && /^https:\/\/opencode\.ai\/console\/(?:org_|wrk_)/.test(t.url || "")) break;
+    try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["vendors/opencode/api.js"] }); } catch (e) {}
+  }
+  const knownNewest = await newestStoredTime("opencode");
+  try {
+    await sendMessageToTab(tab.id, { type: "start-crawl", vendor: "opencode", knownNewest, full: false });
+  } catch (e) {
+    closeAutoSyncTab();
+  }
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTO_SYNC_ALARM) runAutoSync().catch(() => closeAutoSyncTab());
+});
+scheduleAutoSync().catch(() => {});
 
 // ===== Multi-vendor registry + settings seed (M1) =====
 // The vendor registry is a static JSON shipped with the extension; cache it in
@@ -1329,6 +1117,7 @@ async function ensureStorageSchema() {
 chrome.runtime.onInstalled.addListener((details) => {
   ensureStorageSchema().catch(() => {});
   loadVendorRegistry().catch(() => {});
+  scheduleAutoSync().catch(() => {});
   seedVendorSettings((details && details.reason) || "install")
     .then(() => syncVendorContentScripts())
     .catch(() => {});
@@ -1336,6 +1125,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.runtime.onStartup.addListener(() => {
   ensureStorageSchema().catch(() => {});
+  scheduleAutoSync().catch(() => {});
   loadVendorRegistry()
     .then(() => syncVendorContentScripts())
     .catch(() => {});
@@ -1344,6 +1134,7 @@ chrome.runtime.onStartup.addListener(() => {
 // Re-cache the registry + re-sync runtime content scripts on service-worker
 // start (survives eviction), and make sure the storage schema is current.
 ensureStorageSchema().catch(() => {});
+scheduleAutoSync().catch(() => {});
 loadVendorRegistry()
   .then(() => syncVendorContentScripts())
   .catch(() => {});

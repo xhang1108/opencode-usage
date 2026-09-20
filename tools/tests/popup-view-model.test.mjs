@@ -32,13 +32,13 @@ test("defaultCrawlLabel prefers the registry label then title-cases the source",
   assert.equal(defaultCrawlLabel(null), "Opencode");
 });
 
-test("crawlButtonText flips to a full scan while Shift is held", () => {
+test("crawlButtonText flips to a full sync while Shift is held", () => {
   const idle = crawlButtonText({ shiftHeld: false, label: "OpenCode" });
-  assert.equal(idle.text, "Crawl OpenCode");
-  assert.match(idle.title, /hold Shift for a full scan/);
+  assert.equal(idle.text, "Sync OpenCode");
+  assert.match(idle.title, /hold Shift for a full sync/);
   const held = crawlButtonText({ shiftHeld: true, label: "OpenCode" });
-  assert.equal(held.text, "Full Scan OpenCode");
-  assert.match(held.title, /re-crawl ALL OpenCode/);
+  assert.equal(held.text, "Full Sync OpenCode");
+  assert.match(held.title, /re-sync ALL OpenCode/);
 });
 
 test("pickUsageWorkspace ranks last-visited, last-sync, last record, in-flight crawl", () => {
@@ -50,14 +50,16 @@ test("pickUsageWorkspace ranks last-visited, last-sync, last record, in-flight c
   assert.equal(pickUsageWorkspace(null), "");
 });
 
-test("pickUsageWorkspace ignores a visited/synced id that is not a wrk_ id", () => {
-  // The stored visited/sync ids are gated on the wrk_ shape; the cached record
-  // and crawl state are accepted as-is (they were never gated).
+test("pickUsageWorkspace ignores a visited/synced id that is not an org_/wrk_ id", () => {
+  // The stored visited/sync ids are gated on the org_/wrk_ shape; the cached
+  // record and crawl state are accepted as-is (they were never gated).
   assert.equal(pickUsageWorkspace({ lastVisitedWorkspace: "abc", cachedMeta: { lastRecord: { workspaceID: "wrk_c" } } }), "wrk_c");
+  assert.equal(pickUsageWorkspace({ lastVisitedWorkspace: "org_a" }), "org_a");
 });
 
-test("usageUrl builds the workspace usage link", () => {
-  assert.equal(usageUrl("wrk_x"), "https://opencode.ai/workspace/wrk_x/usage");
+test("usageUrl builds the console usage link", () => {
+  assert.equal(usageUrl("wrk_x"), "https://opencode.ai/console/wrk_x/usage");
+  assert.equal(usageUrl("org_x"), "https://opencode.ai/console/org_x/usage");
 });
 
 test("crawlableVendors keeps only enabled vendors that can crawl", () => {
@@ -85,7 +87,7 @@ test("crawlStatusText maps a start-crawl reply", () => {
     text: "Sync already in progress",
     ok: true,
   });
-  assert.equal(crawlStatusText({ type: "start-crawl" }, { ok: true }).text, "Sync requested (waiting for server ID)");
+  assert.equal(crawlStatusText({ type: "start-crawl" }, { ok: true }).text, "Sync requested");
   assert.equal(crawlStatusText({ type: "start-crawl" }, { ok: true, openedUsage: true, started: true }).text, "Opened Usage page & sync started");
   assert.equal(crawlStatusText({ type: "start-crawl" }, { ok: true, openedUsage: true }).text, "Opened Usage page - syncing...");
 });

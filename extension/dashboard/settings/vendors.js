@@ -1,9 +1,9 @@
 // extension/dashboard/settings/vendors.js
-// Vendors tab: the unified-pricing master switch + per-vendor enable (D9) and
-// crawl controls. When unified pricing is on, every vendor's own cost basis
-// (reported spend / fallback price tables) is bypassed and greyed out.
+// Vendors tab: per-vendor enable (D9) and crawl controls. When unified pricing
+// is on (its master switch lives on the Pricing tab), every vendor's own cost
+// basis (reported spend / fallback price tables) is bypassed and greyed out.
 
-import { saveVendorSettings, saveUnifiedPricing } from "./store.js";
+import { saveVendorSettings, saveAutoSync } from "./store.js";
 import { escHTML } from "../views/format.js";
 import { vendorMeta, hasOrigins } from "./vendors-model.js";
 
@@ -11,8 +11,6 @@ export function renderVendors(ctx) {
   const wrap = document.getElementById("vendorsList");
   const vendors = (ctx.settings.registry && ctx.settings.registry.vendors) || [];
   wrap.innerHTML = "";
-
-  wrap.appendChild(renderUnifiedToggle(ctx));
 
   if (vendors.length === 0) {
     const note = document.createElement("div");
@@ -42,7 +40,7 @@ export function renderVendors(ctx) {
         </div>
       </div>
       <div class="settings-vendor-actions">
-        ${v.crawl ? `<button type="button" class="btn btn-secondary settings-crawl" data-crawl="${escHTML(v.source)}" title="Incremental crawl (shift-click for a full rescan)" ${enabled ? "" : "disabled"}>Crawl now</button>` : ""}
+        ${v.crawl ? `<button type="button" class="btn btn-secondary settings-crawl" data-crawl="${escHTML(v.source)}" title="Incremental sync (shift-click for a full rescan)" ${enabled ? "" : "disabled"}>${v.source === "opencode" ? "Sync now" : "Crawl now"}</button>` : ""}
         <button type="button" class="btn btn-danger settings-clear" data-clear="${escHTML(v.source)}" title="Delete all stored records for this vendor">Clear</button>
       </div>
     `;
@@ -53,7 +51,7 @@ export function renderVendors(ctx) {
         const full = e.shiftKey;
         if (full) {
           const note = ctx.records && ctx.records.length ? `\n\nCurrently stored: ${ctx.records.length.toLocaleString()} records.` : "";
-          if (!confirm(`Re-crawl ALL ${v.label || v.source} data from scratch?${note}\n\nThis re-fetches the full history (more server requests, can take several minutes) and overwrites existing records.`)) return;
+          if (!confirm(`Full sync ALL ${v.label || v.source} history?${note}\n\nThis re-fetches the full history (more server requests, can take several minutes).`)) return;
         }
         crawlBtn.disabled = true;
         const label = crawlBtn.textContent;
@@ -74,7 +72,7 @@ export function renderVendors(ctx) {
     const clearBtn = row.querySelector("[data-clear]");
     if (clearBtn) {
       clearBtn.addEventListener("click", async () => {
-        if (!confirm(`Delete ALL stored ${v.label || v.source} records?\n\nOther vendors are not affected. Re-crawl to fetch them again.`)) return;
+        if (!confirm(`Delete ALL stored ${v.label || v.source} records?\n\nOther vendors are not affected. Sync to fetch them again.`)) return;
         clearBtn.disabled = true;
         try {
           const res = await chrome.runtime.sendMessage({ type: "clear-vendor-data", source: v.source });
@@ -117,8 +115,34 @@ export function renderVendors(ctx) {
 
     if (enabled && hasOrigins(v)) decorateOriginAccess(v, row, ctx);
 
+    // Auto-sync is opencode-only (its Console API needs a signed-in page tab).
+    // Kept in the left group so it sits with the vendor name, leaving Sync now
+    // (in the right actions column) on the right.
+    if (v.source === "opencode") {
+      const main = row.querySelector(".settings-vendor-main");
+      if (main) main.appendChild(renderAutoSync(ctx));
+    }
+
     wrap.appendChild(row);
   }
+}
+
+// opencode-only auto-sync toggle: background reschedules its 6h alarm when the
+// stored key changes (see background's storage.onChanged listener).
+function renderAutoSync(ctx) {
+  const on = !!ctx.settings.autoSync;
+  const box = document.createElement("div");
+  box.className = "settings-vendor-auto";
+  box.innerHTML =
+    `<label class="switch" title="Auto-sync opencode every 6 hours. Reuses an open Console tab; otherwise opens one in the background and closes it afterwards.">` +
+    `<input type="checkbox" data-auto-sync ${on ? "checked" : ""}>` +
+    `<span class="track"></span></label>` +
+    `<span class="settings-vendor-meta">Auto-sync every 6h (opencode only)</span>`;
+  box.querySelector("[data-auto-sync]").addEventListener("change", async (e) => {
+    ctx.settings.autoSync = e.target.checked;
+    await saveAutoSync(e.target.checked);
+  });
+  return box;
 }
 
 // B1: an enabled vendor whose optional origin was not granted (e.g. after an
@@ -152,28 +176,4 @@ async function decorateOriginAccess(v, row, ctx) {
     }
   });
   row.appendChild(warn);
-}
-
-function renderUnifiedToggle(ctx) {
-  const on = ctx.settings.unifiedPricing.enabled;
-  const box = document.createElement("div");
-  box.className = "settings-vendor up-master";
-  box.innerHTML = `
-    <div class="settings-vendor-main">
-      <label class="switch" title="${on ? "Disable unified pricing" : "Enable unified pricing"}">
-        <input type="checkbox" id="unifiedToggle" ${on ? "checked" : ""}>
-        <span class="track"></span>
-      </label>
-      <div class="settings-vendor-text">
-        <strong>Unified pricing</strong>
-        <span class="settings-vendor-meta">Bill every vendor from your own price list (Settings → Pricing). Pauses all vendor-reported spend and fallback prices.</span>
-      </div>
-    </div>`;
-  box.querySelector("#unifiedToggle").addEventListener("change", async (e) => {
-    const unified = { ...ctx.settings.unifiedPricing, enabled: e.target.checked };
-    ctx.settings.unifiedPricing = unified;
-    await saveUnifiedPricing(unified);
-    await ctx.reload();
-  });
-  return box;
 }

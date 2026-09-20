@@ -2,16 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  OPFS_STORE_KEY,
   LOCAL_STORE_KEY,
   VENDOR_STORE_PREFIX,
   clearMessageFor,
 } from "../../extension/shared/stores.js";
 
 // The Database tab lives or dies by this invariant: every managed store maps to
-// exactly one clear message, and the read-only OPFS store maps to none.
-test("every managed store has a clear handler; OPFS is read-only", () => {
-  assert.equal(clearMessageFor(OPFS_STORE_KEY), null);
+// exactly one clear message.
+test("every managed store has a clear handler", () => {
   assert.deepEqual(clearMessageFor(LOCAL_STORE_KEY), { type: "clear-local-data" });
   assert.deepEqual(clearMessageFor(`${VENDOR_STORE_PREFIX}deepseek-official`), {
     type: "clear-vendor-data",

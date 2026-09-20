@@ -4,12 +4,29 @@
 // pages. Unified pricing is handled separately (shared/unified.js).
 // Zero chrome / DOM dependencies (P9).
 
-import { priceRecord } from "../../shared/pricing.js";
+import { priceRecord, resolveTargetId, getRateEntry, getWindow, effectiveTimeMs } from "../../shared/pricing.js";
 
 // D4: legacy records without a `source` are opencode. Never mutate the input.
 export function withDefaultSource(record) {
   if (!record || record.source) return record || { source: "opencode" };
   return { ...record, source: "opencode" };
+}
+
+// Vendor-reported spend is authoritative, but the vendor row carries no
+// peak/offpeak label. Derive the window from the record's timestamp and the
+// model's rate windows so peak/offpeak totals stay meaningful WITHOUT touching
+// the cost. Unknown/unwindowed models stay flat (as before).
+function vendorWindow(rec, pricing) {
+  try {
+    const targetId = resolveTargetId(rec, (pricing && pricing.modelMap) || {});
+    const target = targetId && pricing && pricing.targets ? pricing.targets[targetId] : null;
+    if (!target || !Array.isArray(target.rates) || target.rates.length === 0) return "flat";
+    const entry = getRateEntry({ rates: target.rates }, effectiveTimeMs(rec));
+    if (!entry) return "flat";
+    return getWindow(rec, entry);
+  } catch (e) {
+    return "flat";
+  }
 }
 
 // Price one canonical record against the fallback config. Vendors may opt into
@@ -25,7 +42,7 @@ export function priceWithConfig(record, pricing, costSource = {}) {
     // it). The conversion happens here — never at ingest, so stored data is
     // exactly what the vendor returned.
     const cost = (Number(rec.vendorCost) || 0) / (Number(rec.costScale) || 1);
-    return { cost, savings: 0, window: "flat", unpriced: false, targetId: null, priceBasis: "vendor-reported" };
+    return { cost, savings: 0, window: vendorWindow(rec, pricing), unpriced: false, targetId: null, priceBasis: "vendor-reported" };
   }
   // No vendor amount (server sent `cost: null`) or a non-vendor source:
   // estimate from the token rate table.

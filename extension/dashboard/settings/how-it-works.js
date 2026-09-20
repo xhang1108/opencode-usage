@@ -91,13 +91,12 @@ const SECTIONS = [
   {
     id: "sources",
     title: "Where the data comes from",
-    caption: "Only opencode uses OPFS. Every other vendor — CommandCode included — is stored in <code>chrome.storage.local</code>.",
+    caption: "Every vendor — opencode included — is stored in <code>chrome.storage.local</code>.",
     diagrams: [
       {
         flow: {
           nodes: [
-            { id: "O", label: "opencode crawl" },
-            { id: "F", label: "OPFS", sub: "opencode.ai origin", shape: "store" },
+            { id: "O", label: "opencode Usage API" },
             { id: "E", label: "chrome.storage.local", sub: "extension storage", shape: "store" },
             { id: "R", label: ["OpenRouter / DeepSeek /", "CommandCode / MiMo"] },
             { id: "L", label: "opencode local DB import" },
@@ -105,8 +104,7 @@ const SECTIONS = [
             { id: "D", label: "dashboard" },
           ],
           edges: [
-            { from: "O", to: "F" },
-            { from: "F", to: "E" },
+            { from: "O", to: "E" },
             { from: "R", to: "E" },
             { from: "L", to: "E" },
             { from: "S", to: "E" },
@@ -117,8 +115,8 @@ const SECTIONS = [
     ],
     head: ["Data", "Stored in", "Key"],
     rows: [
-      ["opencode crawl", "OPFS on the <code>opencode.ai</code> origin", "<code>opencode_token_cache_&lt;workspace&gt;.json</code>"],
-      ["opencode crawl snapshot", "extension", "<code>cachedData</code> / <code>cachedMeta</code>"],
+      ["opencode (Usage API)", "extension", "<code>opencodeImportData</code>"],
+      ["opencode snapshot", "extension", "<code>cachedData</code> / <code>cachedMeta</code>"],
       ["opencode local DB import", "extension", "<code>localImportData</code>"],
       ["OpenRouter", "extension", "<code>openrouterImportData</code>"],
       ["DeepSeek", "extension", "<code>deepseek-officialImportData</code>"],
@@ -127,10 +125,9 @@ const SECTIONS = [
       ["settings + pricing", "extension", "<code>vendorSettings</code>, <code>unifiedPricing</code>, …"],
     ],
     notes: [
-      ["OPFS", "Only the opencode crawl raw cache. Owned by the page crawler and read-only for the dashboard. Survives an extension reinstall, a folder move and a settings reset."],
-      ["Extension storage", "Everything else. Tied to the extension ID — reinstalling with a different ID loses it (re-crawl or re-import to restore)."],
+      ["Extension storage", "Every vendor's records plus settings. Tied to the extension ID — reinstalling with a different ID loses it (re-sync or re-import to restore)."],
       ["Backup", "Settings -> General -> Export Backup writes settings (JSON, includes your pricing) and every record (CSV). Import both to restore."],
-      ["Data count", "opencode counts one per usage record; the other vendors count their own requests. Because the definitions differ, mixing vendors makes the total approximate."],
+      ["Data count", "opencode counts one per usage request; the other vendors count their own requests. Because the definitions differ, mixing vendors makes the total approximate."],
     ],
   },
   {
@@ -138,12 +135,12 @@ const SECTIONS = [
     title: "opencode",
     head: ["Aspect", "Detail"],
     rows: [
-      ["Storage", "OPFS on the <code>opencode.ai</code> origin (<code>opencode_token_cache_&lt;workspace&gt;.json</code>), plus a snapshot in <code>chrome.storage.local</code>. A local DB import lands in <code>localImportData</code>."],
-      ["Granularity", "One record per usage record."],
-      ["Provides", "input, output, reasoning, cacheRead, cacheWrite5m, cacheWrite1h; a USD amount when the console reports one."],
-      ["Missing", "No request count. The console omits free-model usage — import the local DB for that. The reported amount is sometimes null."],
-      ["Cost", "The reported amount when present, otherwise estimated from the price table."],
-      ["Limits", "Session id rotates each redeploy (auto re-captured). Full rescan stalls ~198 pages. Crawl daily; keep the tab visible."],
+      ["Storage", "<code>chrome.storage.local</code> (<code>opencodeImportData</code>), synced from the Console Usage API (<code>/console/api/usage/rows</code>). A local DB import lands in <code>localImportData</code>."],
+      ["Granularity", "One record per request (per inference call)."],
+      ["Provides", "input, output, reasoning, cacheRead, cacheWrite5m, cacheWrite1h; billing source (free/byok/credit/…); the Console-charged USD amount."],
+      ["Missing", "No session id; the org id replaces the workspace id. Free/BYOK usage is tagged via the billing source."],
+      ["Cost", "The Console-charged amount (<code>cost_micro_cents / 1e8</code>), otherwise estimated from the price table."],
+      ["Limits", "Needs a signed-in Console tab (session cookie + <code>x-org-id</code>). Full history comes from <code>range=all</code>."],
     ],
     extra:
       `<div class="settings-section-title">Local usage import</div>

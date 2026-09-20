@@ -12,6 +12,7 @@ test("normalizeSettings fills safe defaults for an empty store", () => {
   assert.equal(s.defaultCrawl, "");
   assert.deepEqual(s.workspaceLabels, {});
   assert.deepEqual(s.unmappedFirstSeen, {});
+  assert.equal(s.autoSync, false);
 });
 
 test("normalizeSettings coerces malformed values instead of throwing", () => {
@@ -36,6 +37,7 @@ test("normalizeSettings keeps good values and flags a stored pricelist", () => {
     [STORAGE_KEYS.unified]: { enabled: true, groups: [{ id: "g1", rates: [] }], assign: { "opencode:a": "g1" } },
     [STORAGE_KEYS.defaultCrawl]: "opencode",
     [STORAGE_KEYS.workspaceLabels]: { "opencode:wrk_a": "Work" },
+    [STORAGE_KEYS.autoSync]: true,
   });
   assert.equal(s.registry.vendors.length, 1);
   assert.deepEqual(s.vendorSettings, { opencode: true, mimo: false });
@@ -43,6 +45,7 @@ test("normalizeSettings keeps good values and flags a stored pricelist", () => {
   assert.equal(s.unifiedPricing.enabled, true);
   assert.equal(s.defaultCrawl, "opencode");
   assert.equal(s.workspaceLabels["opencode:wrk_a"], "Work");
+  assert.equal(s.autoSync, true);
 });
 
 test("an empty-object pricelist still counts as authored", () => {

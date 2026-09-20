@@ -110,3 +110,30 @@ test("priceWithConfig falls back to token pricing when vendorCost is missing", (
   assert.equal(out.cost, 0.1);
   assert.equal(out.priceBasis, "vendor");
 });
+
+const PEAK_RATE = {
+  from: null,
+  windows: { peak: [{ days: [], start: "01:00", end: "04:00" }] },
+  pricing: { peak: { input: 1, output: 2 }, offpeak: { input: 0.5, output: 1 } },
+};
+const PRICING_PEAK = {
+  modelMap: { "opencode:peakm": "opencode:peakm" },
+  targets: { "opencode:peakm": { label: "PeakM", rates: [PEAK_RATE] } },
+};
+
+test("priceWithConfig labels a vendor-cost record's window by its timestamp without changing cost", () => {
+  const base = { source: "opencode", model: "peakm", input: 1, vendorCost: 12345678, costScale: 1e8 };
+  const peak = priceWithConfig({ ...base, time: "2026-09-01T02:00:00Z" }, PRICING_PEAK, { opencode: "vendor" });
+  const off = priceWithConfig({ ...base, time: "2026-09-01T12:00:00Z" }, PRICING_PEAK, { opencode: "vendor" });
+  assert.equal(peak.window, "peak");
+  assert.equal(off.window, "offpeak");
+  assert.equal(peak.cost, 12345678 / 1e8);
+  assert.equal(off.cost, peak.cost); // the window never changes the vendor price
+  assert.equal(peak.priceBasis, "vendor-reported");
+  // A model with no peak windows stays flat.
+  const flat = priceWithConfig({ source: "opencode", model: "m1", time: "2026-09-01T02:00:00Z", input: 1, vendorCost: 5, costScale: 1 }, PRICING, { opencode: "vendor" });
+  assert.equal(flat.window, "flat");
+  // A model absent from the price map stays flat too.
+  const unknown = priceWithConfig({ source: "opencode", model: "nope", time: "2026-09-01T02:00:00Z", input: 1, vendorCost: 5, costScale: 1 }, PRICING_PEAK, { opencode: "vendor" });
+  assert.equal(unknown.window, "flat");
+});

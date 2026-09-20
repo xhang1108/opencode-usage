@@ -232,6 +232,7 @@
     .settings-vendor-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .settings-vendor-meta, .settings-inbox-age { color: var(--text-disabled); font-size: 11px; }
     .settings-vendor-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+    .settings-vendor-auto { display: flex; align-items: center; gap: 8px; }
     .settings-price-choice { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
     .settings-inbox-key code { font-family: var(--font-mono); font-size: 12px; }
     /* Unified pricing board */
@@ -899,7 +900,7 @@
         </section>
 
         <section class="settings-pane" id="settings-vendors" hidden>
-          <p class="modal-hint">Enable the vendors you use. <strong>Unified pricing</strong> bills every vendor from your own price list (see the Pricing tab); when it is off, vendors fall back to their reported spend or the shipped price tables.</p>
+          <p class="modal-hint">Enable the vendors you use. <strong>Unified pricing</strong> bills every vendor from your own price list (toggle it on the Pricing tab); when it is off, vendors fall back to their reported spend or the shipped price tables.</p>
           <div id="vendorsList"></div>
         </section>
 

@@ -41,7 +41,8 @@
     },
     {
       "resources": [
-        "vendors/opencode/crawl-worker.js"
+        "vendors/opencode/mapper.js",
+        "shared/canonical.js"
       ],
       "matches": [
         "https://opencode.ai/*"
@@ -78,7 +79,7 @@
         "https://opencode.ai/*"
       ],
       "js": [
-        "vendors/opencode/content.js"
+        "vendors/opencode/api.js"
       ],
       "run_at": "document_start"
     }

@@ -15,6 +15,7 @@ export const STORAGE_KEYS = {
   defaultCrawl: "defaultCrawl",
   workspaceLabels: "workspaceLabels",
   unmappedFirstSeen: "unmappedFirstSeen",
+  autoSync: "autoSyncEnabled",
 };
 
 const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -35,6 +36,7 @@ export function normalizeSettings(stored) {
     defaultCrawl: typeof stored[STORAGE_KEYS.defaultCrawl] === "string" ? stored[STORAGE_KEYS.defaultCrawl] : "",
     workspaceLabels: asObject(stored[STORAGE_KEYS.workspaceLabels]),
     unmappedFirstSeen: asObject(stored[STORAGE_KEYS.unmappedFirstSeen]),
+    autoSync: stored[STORAGE_KEYS.autoSync] === true,
   };
 }
 
@@ -52,6 +54,10 @@ export async function saveUnifiedPricing(unifiedPricing) {
 
 export async function saveDefaultCrawl(source) {
   await chrome.storage.local.set({ [STORAGE_KEYS.defaultCrawl]: String(source || "") });
+}
+
+export async function saveAutoSync(enabled) {
+  await chrome.storage.local.set({ [STORAGE_KEYS.autoSync]: enabled === true });
 }
 
 export async function saveWorkspaceLabels(map) {

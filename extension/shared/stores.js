@@ -8,12 +8,10 @@
 // in exactly one store, and each managed store maps to exactly one clear
 // message. Adding a store means adding it here (see the invariant test).
 
-export const OPFS_STORE_KEY = "opfs";
 export const LOCAL_STORE_KEY = "local";
 export const VENDOR_STORE_PREFIX = "vendor:";
 
-// The message that clears a managed store, or null for a read-only store
-// (OPFS crawl data is owned by the page crawler and cannot be deleted here).
+// The message that clears a managed store, or null when there is none.
 export function clearMessageFor(storeKey) {
   if (storeKey === LOCAL_STORE_KEY) return { type: "clear-local-data" };
   if (typeof storeKey === "string" && storeKey.startsWith(VENDOR_STORE_PREFIX)) {

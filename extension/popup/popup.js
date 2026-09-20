@@ -22,10 +22,10 @@ const $ = (sel) => document.querySelector(sel);
 
 const statusEl = $("#status");
 
-// ===== Crawl button label =====
-// The main crawl button mirrors the provider chosen as default in Settings ->
-// General, so the label reads "Crawl <Provider>". Holding Shift flips it to
-// "Full Scan <Provider>" so the user can see the click will re-crawl everything.
+// ===== Sync button label =====
+// The main sync button mirrors the provider chosen as default in Settings ->
+// General, so the label reads "Sync <Provider>". Holding Shift flips it to
+// "Full Sync <Provider>" so the user can see the click will re-fetch everything.
 let defaultCrawlLabel = "OpenCode";
 let shiftHeld = false;
 
@@ -70,7 +70,7 @@ function renderUsageLink(workspaceID) {
   const link = $("#usage-link");
   const empty = $("#usage-link-empty");
   if (!link || !empty) return;
-  if (workspaceID && /^wrk_/.test(workspaceID)) {
+  if (workspaceID && /^(?:org_|wrk_)/.test(workspaceID)) {
     const url = usageUrl(workspaceID);
     link.href = url;
     link.textContent = "Open Usage ↗";
@@ -137,7 +137,7 @@ async function loadStatus() {
   if (stored.lastSyncCount !== undefined) $("#last-sync-count").textContent = stored.lastSyncCount;
   if (stored.totalRecords !== undefined) $("#total-records").textContent = stored.totalRecords;
   renderLastRecord(stored.cachedMeta && stored.cachedMeta.lastRecord);
-  // Usage link: auto-build https://opencode.ai/workspace/<wrk_...>/usage
+  // Usage link: auto-build https://opencode.ai/console/<org>/usage
   renderUsageLink(pickUsageWorkspace(stored));
 
   // While a crawl is running the progress ticks already arrive via storage;
@@ -204,7 +204,7 @@ $("#btn-sync").addEventListener("click", async (e) => {
     if (n) note = `\n\nCurrently stored: ${Number(n).toLocaleString()} records.`;
   } catch (err) {}
   const full = e.shiftKey;
-  if (full && !confirm(`Re-crawl ALL ${vendor} data from scratch?${note}\n\nThis re-fetches the full history (more server requests, can take several minutes) and overwrites existing records.`)) return;
+  if (full && !confirm(`Full sync ALL ${vendor} history?${note}\n\nThis re-fetches the full history (more server requests, can take several minutes).`)) return;
   send({ type: "start-crawl", vendor, full, rescan: full });
 });
 
@@ -234,7 +234,7 @@ async function renderCrawlMenu() {
     item.addEventListener("click", (e) => {
       menu.hidden = true;
       const full = e.shiftKey;
-      if (full && !confirm(`Re-crawl ALL ${v.label || v.source} data from scratch?\n\nThis re-fetches the full history (more server requests, can take several minutes) and overwrites existing records.`)) return;
+      if (full && !confirm(`Full sync ALL ${v.label || v.source} history?\n\nThis re-fetches the full history (more server requests, can take several minutes).`)) return;
       send({ type: "start-crawl", vendor: v.source, full, rescan: full });
     });
     menu.appendChild(item);

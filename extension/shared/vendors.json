@@ -51,9 +51,9 @@
       "mode": "crawl",
       "defaultEnabled": true,
       "crawl": true,
-      "crawlScript": "vendors/opencode/content.js",
+      "crawlScript": "vendors/opencode/api.js",
       "crawlRunAt": "document_start",
-      "crawlHome": "https://opencode.ai/",
+      "crawlHome": "https://opencode.ai/console",
       "crawlDefaultDays": 0,
       "costSource": "vendor",
       "import": [
