@@ -51,43 +51,53 @@ test("multi label: one pick shows its labelFor, several show a count", () => {
   assert.equal(s.multiLabel(), "2 selected");
 });
 
-test("selectAll and clear both collapse to 'all' (empty == no filter)", () => {
+test("selectAll checks every box; clear unchecks every box", () => {
   const s = state(["a", "b"]);
   s.setSelected(["a"]);
   s.selectAll();
   assert.equal(s.isAll(), true);
+  assert.equal(s.isChecked("a"), true);
+  assert.equal(s.isChecked("b"), true);
   assert.deepEqual(s.getSelected(), []);
   s.setSelected(["a"]);
   s.clear();
-  // Clear unchecks everything, which is "no filter": the boxes render checked.
-  assert.equal(s.isAll(), true);
-  assert.equal(s.isChecked("a"), true);
+  // Clear unchecks everything; still "no filter", but the boxes render clear.
+  assert.equal(s.isAll(), false);
+  assert.equal(s.isChecked("a"), false);
+  assert.equal(s.isChecked("b"), false);
   assert.deepEqual(s.getSelected(), []);
   assert.equal(s.multiLabel(), "All");
 });
 
-test("unchecking the last selected value collapses back to 'all'", () => {
+test("unchecking the last selected value leaves every box clear", () => {
   const s = state(["a", "b"]);
   s.setSelected(["a"]);
   s.toggle("a");
-  assert.equal(s.isAll(), true);
-  assert.equal(s.isChecked("a"), true);
-  assert.equal(s.isChecked("b"), true);
+  assert.equal(s.isAll(), false);
+  assert.equal(s.isChecked("a"), false);
+  assert.equal(s.isChecked("b"), false);
   assert.deepEqual(s.getSelected(), []);
 });
 
-test("invariant: an empty selection is always 'all'", () => {
-  const s = state(["a", "b", "c"]);
+test("invariant: getSelected() is empty whenever every box is checked or none is", () => {
+  const options = ["a", "b", "c"];
+  const s = state(options);
   const ops = [
     () => s.setSelected(["a"]),
-    () => s.toggle("a"),
+    () => s.toggle("a"), // -> nothing selected
     () => s.clear(),
-    () => s.toggle("b"),
-    () => s.setSelected([]),
+    () => s.toggle("b"), // -> {b}
+    () => s.setSelected([]), // -> all
+    () => s.selectAll(),
   ];
   for (const op of ops) {
     op();
-    assert.equal(s.isAll(), s.getSelected().length === 0, "all flag and empty selection must agree");
+    const checked = options.filter((v) => s.isChecked(v)).length;
+    assert.equal(
+      s.getSelected().length === 0,
+      checked === 0 || checked === options.length,
+      "empty getSelected() iff every box is checked or none is"
+    );
   }
 });
 
