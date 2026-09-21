@@ -1,3 +1,5 @@
+
+
 # Opencode Token Usage
 
 [![Version](https://img.shields.io/github/manifest-json/v/xhang1108/opencode-usage?filename=extension%2Fmanifest.json&label=version&color=blue)](https://github.com/xhang1108/opencode-usage)
@@ -12,7 +14,7 @@ A Chrome extension that aggregates token usage from several AI vendors into one 
 |---|---|---|---|
 | opencode | sync (Console Usage API) | local DB JSON | on |
 | OpenRouter | crawl (analytics) | — | off |
-| DeepSeek | crawl (API key) | — | off |
+| DeepSeek | crawl (signed-in session) | — | off |
 | CommandCode | crawl (charts) | — | off |
 | MiMo | XLSX import | XLSX | off |
 
