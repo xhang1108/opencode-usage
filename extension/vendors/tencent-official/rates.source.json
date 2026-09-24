@@ -1,0 +1,39 @@
+{
+  "source": "tencent-official",
+  "models": [
+    {
+      "model": "hy3",
+      "label": "hy3",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.132,
+              "output": 0.528,
+              "cacheRead": 0.033,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "hy4-preview",
+      "label": "hy4-preview",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.834,
+              "output": 2.501,
+              "cacheRead": 0.042,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

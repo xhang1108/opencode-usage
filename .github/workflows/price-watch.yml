@@ -21,13 +21,31 @@ jobs:
           node-version: "22"
 
       - name: Fetch price snapshots + rebuild presets
-        run: node tools/price-watch.mjs
+        run: |
+          set -o pipefail
+          status=0
+          node tools/price-watch.mjs 2>&1 | tee "$RUNNER_TEMP/price-watch.log" || status=$?
+          {
+            echo "### price-watch"
+            echo '```'
+            cat "$RUNNER_TEMP/price-watch.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      # A rates change makes extension/shared/unified.preset.json stale; without
+      # this rebuild the next push turns CI's preset-sync test red. npm test
+      # guards the commit (fail-closed: never push a broken tree).
+      - name: Rebuild unified preset + run tests
+        run: |
+          node tools/build-unified-preset.mjs
+          npm test
 
       - name: Commit changes
         run: |
           git config user.name "price-watch"
           git config user.email "price-watch@users.noreply.github.com"
-          git add extension/vendors/*/price-snapshots extension/vendors/*/rates.preset.json extension/vendors/*/rates.source.json
+          git add extension/vendors/*/price-snapshots extension/vendors/*/rates.preset.json extension/vendors/*/rates.source.json extension/shared/unified.preset.json
           if git diff --cached --quiet; then
             echo "no price changes"
           else

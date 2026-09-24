@@ -1,0 +1,820 @@
+{
+  "presetVersion": 2,
+  "source": "openai-official",
+  "modelMap": {
+    "openai-official:babbage-002": "openai-official:babbage-002",
+    "openai-official:davinci-002": "openai-official:davinci-002",
+    "openai-official:gpt-3.5-turbo": "openai-official:gpt-3.5-turbo",
+    "openai-official:gpt-3.5-turbo-0125": "openai-official:gpt-3.5-turbo-0125",
+    "openai-official:gpt-3.5-turbo-1106": "openai-official:gpt-3.5-turbo-1106",
+    "openai-official:gpt-3.5-turbo-instruct": "openai-official:gpt-3.5-turbo-instruct",
+    "openai-official:gpt-4-0613": "openai-official:gpt-4-0613",
+    "openai-official:gpt-4-turbo-2024-04-09": "openai-official:gpt-4-turbo-2024-04-09",
+    "openai-official:gpt-4.1": "openai-official:gpt-4.1",
+    "openai-official:gpt-4.1-mini": "openai-official:gpt-4.1-mini",
+    "openai-official:gpt-4.1-nano": "openai-official:gpt-4.1-nano",
+    "openai-official:gpt-4o": "openai-official:gpt-4o",
+    "openai-official:gpt-4o-2024-05-13": "openai-official:gpt-4o-2024-05-13",
+    "openai-official:gpt-4o-mini": "openai-official:gpt-4o-mini",
+    "openai-official:gpt-5": "openai-official:gpt-5",
+    "openai-official:gpt-5-mini": "openai-official:gpt-5-mini",
+    "openai-official:gpt-5-nano": "openai-official:gpt-5-nano",
+    "openai-official:gpt-5-pro": "openai-official:gpt-5-pro",
+    "openai-official:gpt-5.1": "openai-official:gpt-5.1",
+    "openai-official:gpt-5.2": "openai-official:gpt-5.2",
+    "openai-official:gpt-5.2-pro": "openai-official:gpt-5.2-pro",
+    "openai-official:gpt-5.4": "openai-official:gpt-5.4",
+    "openai-official:gpt-5.4-mini": "openai-official:gpt-5.4-mini",
+    "openai-official:gpt-5.4-nano": "openai-official:gpt-5.4-nano",
+    "openai-official:gpt-5.4-pro": "openai-official:gpt-5.4-pro",
+    "openai-official:gpt-5.5": "openai-official:gpt-5.5",
+    "openai-official:gpt-5.5-pro": "openai-official:gpt-5.5-pro",
+    "openai-official:gpt-5.6-luna": "openai-official:gpt-5.6-luna",
+    "openai-official:gpt-5.6-sol": "openai-official:gpt-5.6-sol",
+    "openai-official:gpt-5.6-terra": "openai-official:gpt-5.6-terra",
+    "openai-official:gpt-6-astra": "openai-official:gpt-6-astra",
+    "openai-official:gpt-6-luna": "openai-official:gpt-6-luna",
+    "openai-official:gpt-6-sol": "openai-official:gpt-6-sol",
+    "openai-official:o1": "openai-official:o1",
+    "openai-official:o1-pro": "openai-official:o1-pro",
+    "openai-official:o3": "openai-official:o3",
+    "openai-official:o3-mini": "openai-official:o3-mini",
+    "openai-official:o3-pro": "openai-official:o3-pro",
+    "openai-official:o4-mini": "openai-official:o4-mini"
+  },
+  "targets": {
+    "openai-official:babbage-002": {
+      "label": "babbage-002",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 0.4,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:davinci-002": {
+      "label": "davinci-002",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 2,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-3.5-turbo": {
+      "label": "gpt-3.5-turbo",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.5,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-3.5-turbo-0125": {
+      "label": "gpt-3.5-turbo-0125",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.5,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-3.5-turbo-1106": {
+      "label": "gpt-3.5-turbo-1106",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1,
+              "output": 2,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-3.5-turbo-instruct": {
+      "label": "gpt-3.5-turbo-instruct",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 2,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4-0613": {
+      "label": "gpt-4-0613",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 30,
+              "output": 60,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4-turbo-2024-04-09": {
+      "label": "gpt-4-turbo-2024-04-09",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 10,
+              "output": 30,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4.1": {
+      "label": "gpt-4.1",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 8,
+              "cacheRead": 0.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4.1-mini": {
+      "label": "gpt-4.1-mini",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 1.6,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4.1-nano": {
+      "label": "gpt-4.1-nano",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.4,
+              "cacheRead": 0.025,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4o": {
+      "label": "gpt-4o",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 10,
+              "cacheRead": 1.25,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4o-2024-05-13": {
+      "label": "gpt-4o-2024-05-13",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 5,
+              "output": 15,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-4o-mini": {
+      "label": "gpt-4o-mini",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5": {
+      "label": "gpt-5",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.25,
+              "output": 10,
+              "cacheRead": 0.125,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5-mini": {
+      "label": "gpt-5-mini",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.25,
+              "output": 2,
+              "cacheRead": 0.025,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5-nano": {
+      "label": "gpt-5-nano",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.05,
+              "output": 0.4,
+              "cacheRead": 0.005,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5-pro": {
+      "label": "gpt-5-pro",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 15,
+              "output": 120,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.1": {
+      "label": "gpt-5.1",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.25,
+              "output": 10,
+              "cacheRead": 0.125,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.2": {
+      "label": "gpt-5.2",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.75,
+              "output": 14,
+              "cacheRead": 0.175,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.2-pro": {
+      "label": "gpt-5.2-pro",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 21,
+              "output": 168,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.4": {
+      "label": "gpt-5.4",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2.5,
+                  "output": 15,
+                  "cacheRead": 0.25,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 5,
+                  "output": 22.5,
+                  "cacheRead": 0.5,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.4-mini": {
+      "label": "gpt-5.4-mini",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.75,
+              "output": 4.5,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.4-nano": {
+      "label": "gpt-5.4-nano",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 1.25,
+              "cacheRead": 0.02,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.4-pro": {
+      "label": "gpt-5.4-pro",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 30,
+                  "output": 180,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 60,
+                  "output": 270,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.5": {
+      "label": "gpt-5.5",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 5,
+                  "output": 30,
+                  "cacheRead": 0.5,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 10,
+                  "output": 45,
+                  "cacheRead": 1,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.5-pro": {
+      "label": "gpt-5.5-pro",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 30,
+                  "output": 180,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 60,
+                  "output": 270,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.6-luna": {
+      "label": "gpt-5.6-luna",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 0.2,
+                  "output": 1.2,
+                  "cacheRead": 0.02,
+                  "cacheWrite": 0.25
+                },
+                "high": {
+                  "input": 0.4,
+                  "output": 1.8,
+                  "cacheRead": 0.04,
+                  "cacheWrite": 0.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.6-sol": {
+      "label": "gpt-5.6-sol",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 4,
+                  "output": 20,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 5
+                },
+                "high": {
+                  "input": 8,
+                  "output": 30,
+                  "cacheRead": 0.8,
+                  "cacheWrite": 10
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-5.6-terra": {
+      "label": "gpt-5.6-terra",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2,
+                  "output": 12,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 2.5
+                },
+                "high": {
+                  "input": 4,
+                  "output": 18,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-6-astra": {
+      "label": "gpt-6-astra",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 10,
+                  "output": 50,
+                  "cacheRead": 1,
+                  "cacheWrite": 12.5
+                },
+                "high": {
+                  "input": 20,
+                  "output": 75,
+                  "cacheRead": 2,
+                  "cacheWrite": 25
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-6-luna": {
+      "label": "gpt-6-luna",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 0.1,
+                  "output": 0.5,
+                  "cacheRead": 0.01,
+                  "cacheWrite": 0.125
+                },
+                "high": {
+                  "input": 0.2,
+                  "output": 0.75,
+                  "cacheRead": 0.02,
+                  "cacheWrite": 0.25
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-6-sol": {
+      "label": "gpt-6-sol",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2,
+                  "output": 10,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 2.5
+                },
+                "high": {
+                  "input": 4,
+                  "output": 15,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:o1": {
+      "label": "o1",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 15,
+              "output": 60,
+              "cacheRead": 7.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:o1-pro": {
+      "label": "o1-pro",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 150,
+              "output": 600,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:o3": {
+      "label": "o3",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 8,
+              "cacheRead": 0.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:o3-mini": {
+      "label": "o3-mini",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.1,
+              "output": 4.4,
+              "cacheRead": 0.55,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:o3-pro": {
+      "label": "o3-pro",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 20,
+              "output": 80,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:o4-mini": {
+      "label": "o4-mini",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.1,
+              "output": 4.4,
+              "cacheRead": 0.275,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  }
+}

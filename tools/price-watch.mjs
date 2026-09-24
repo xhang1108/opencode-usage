@@ -9,18 +9,9 @@ import { VENDORS, loadParser, listSnapshots, modelsKey, loadSnapshots, writeSnap
 
 async function watchOne(source, cfg) {
   const parser = await loadParser(cfg);
-  let snapshot;
-  if (cfg.bundleSource) {
-    const shell = await (await fetch(cfg.page)).text();
-    const rel = parser.extractBundleUrl(shell);
-    if (!rel) throw new Error(`${source}: bundle URL not found`);
-    const bundle = await (await fetch(new URL(rel, cfg.page).toString())).text();
-    snapshot = parser.snapshotFromBundle(bundle, new Date().toISOString(), { source });
-  } else {
-    const res = await fetch(cfg.url);
-    if (!res.ok) throw new Error(`${source}: fetch failed ${res.status}`);
-    snapshot = parser.snapshotFromPage(await res.text(), new Date().toISOString(), { source });
-  }
+  const res = await fetch(cfg.url);
+  if (!res.ok) throw new Error(`${source}: fetch failed ${res.status}`);
+  const snapshot = parser.snapshotFromPage(await res.text(), new Date().toISOString(), { source });
 
   const files = listSnapshots(cfg);
   let wrote = false;

@@ -1174,6 +1174,65 @@
       ]
     },
     {
+      "id": "mimo-2-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.3,
+              "cacheRead": 0.01,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mimo-2-omni",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 2,
+              "cacheRead": 0.08,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mimo-2-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 1,
+                  "output": 3,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2,
+                  "output": 6,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "mimo-2.5",
       "rates": [
         {
@@ -1199,6 +1258,54 @@
               "input": 0.435,
               "output": 0.87,
               "cacheRead": 0.0036,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mimo-2.6-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.14,
+              "output": 0.28,
+              "cacheRead": 0.0028,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mimo-2.6-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.435,
+              "output": 0.87,
+              "cacheRead": 0.0036,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mimo-2.6-pro-ultraspeed",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 4.35,
+              "output": 8.7,
+              "cacheRead": 0.036,
               "cacheWrite": 0
             }
           }
@@ -1594,8 +1701,14 @@
     "deepseek-official:deepseek-v4.1-flash-expires-on-0910": "deepseek-4-flash",
     "deepseek-official:deepseek-v4-pro-free": "deepseek-4-pro",
     "deepseek-official:deepseek-chat & deepseek-reasoner": "deepseek-chat",
+    "mimo:mimo-v2-flash": "mimo-2-flash",
+    "mimo:mimo-v2-omni": "mimo-2-omni",
+    "mimo:mimo-v2-pro": "mimo-2-pro",
     "mimo:mimo-v2.5": "mimo-2.5",
     "mimo:mimo-v2.5-pro": "mimo-2.5-pro",
+    "mimo:mimo-v2.6-flash": "mimo-2.6-flash",
+    "mimo:mimo-v2.6-pro": "mimo-2.6-pro",
+    "mimo:mimo-v2.6-pro-ultraspeed": "mimo-2.6-pro-ultraspeed",
     "mimo:MiMo-V2.5-Pro": "mimo-2.5-pro",
     "mimo:MiMo-V2.5 Pro": "mimo-2.5-pro",
     "mimo:MiMo-V2.5": "mimo-2.5",
@@ -1647,6 +1760,12 @@
     "fp:deepseek:4:base:flash-0731": "deepseek-4-flash",
     "fp:deepseek:4.1:base:flash-expires-on-0910": "deepseek-4-flash",
     "fp:deepseek:0:base:chat-&-deepseek-reasoner": "deepseek-chat",
+    "fp:mimo:2:flash:": "mimo-2-flash",
+    "fp:mimo:2:base:omni": "mimo-2-omni",
+    "fp:mimo:2:pro:": "mimo-2-pro",
+    "fp:mimo:2.6:flash:": "mimo-2.6-flash",
+    "fp:mimo:2.6:pro:": "mimo-2.6-pro",
+    "fp:mimo:2.6:base:pro-ultraspeed": "mimo-2.6-pro-ultraspeed",
     "fp:muse:0:base:spark-contributor": "muse-1.2-spark-contributor",
     "fp:gpt:5:base:nano": "gpt-5-nano",
     "fp:gpt:20:base:ossb": "gpt-20-ossb",

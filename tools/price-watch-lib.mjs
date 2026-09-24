@@ -21,14 +21,37 @@ export const VENDORS = {
     },
   },
   mimo: {
-    page: "https://platform.xiaomimimo.com",
+    // Official public catalog (OpenRouter-style, per-token USD); the SPA shell
+    // and bundle no longer embed prices since the 2026-09 platform revamp.
+    url: "https://platform.xiaomimimo.com/api/v1/models",
     dir: "extension/vendors/mimo",
     parser: "extension/vendors/mimo/pricing-page.js",
-    bundleSource: true, // shell -> main bundle -> USD prices
     aliasTo: {
       "mimo-v2.5-pro": ["MiMo-V2.5-Pro", "MiMo-V2.5 Pro"],
       "mimo-v2.5": ["MiMo-V2.5"],
     },
+  },
+  // Official (non-resale) USD price sources. Price-only vendors: no vendor.json,
+  // so build-manifest skips them — snapshots feed the daily price history only.
+  "xai-official": {
+    url: "https://docs.x.ai/docs/pricing",
+    dir: "extension/vendors/xai-official",
+    parser: "extension/vendors/xai-official/pricing-page.js",
+  },
+  "openai-official": {
+    url: "https://developers.openai.com/api/docs/pricing.md",
+    dir: "extension/vendors/openai-official",
+    parser: "extension/vendors/openai-official/pricing-page.js",
+  },
+  "qwen-official": {
+    url: "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+    dir: "extension/vendors/qwen-official",
+    parser: "extension/vendors/qwen-official/pricing-page.js",
+  },
+  "tencent-official": {
+    url: "https://www.tencentcloud.com/act/pro/tokenhub",
+    dir: "extension/vendors/tencent-official",
+    parser: "extension/vendors/tencent-official/pricing-page.js",
   },
 };
 

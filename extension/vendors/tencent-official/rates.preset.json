@@ -1,0 +1,44 @@
+{
+  "presetVersion": 2,
+  "source": "tencent-official",
+  "modelMap": {
+    "tencent-official:hy3": "tencent-official:hy3",
+    "tencent-official:hy4-preview": "tencent-official:hy4-preview"
+  },
+  "targets": {
+    "tencent-official:hy3": {
+      "label": "hy3",
+      "scope": "tencent-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.132,
+              "output": 0.528,
+              "cacheRead": 0.033,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "tencent-official:hy4-preview": {
+      "label": "hy4-preview",
+      "scope": "tencent-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.834,
+              "output": 2.501,
+              "cacheRead": 0.042,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  }
+}
