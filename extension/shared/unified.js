@@ -44,7 +44,9 @@ export function normalizeUnifiedPricing(value) {
       assign[key] = groupId;
     }
   }
-  return { enabled: src.enabled === true, groups, assign };
+  // Unified pricing ships ON: it is the only price source now (official tables
+  // only), so an absent flag means enabled and only an explicit false opts out.
+  return { enabled: src.enabled !== false, groups, assign };
 }
 
 export function makeGroupId(existing = new Set()) {

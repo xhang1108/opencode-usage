@@ -30,16 +30,15 @@ test("unified preset is in sync with its builder", () => {
 });
 
 // The builder reports groups that fold different series/versions/variants so a
-// risky merge is visible instead of silent. The only PRICED one left is the
-// deepseek flash version fold — the glm stealth and muse contributor folds sit
-// on families with no official price source, so those groups are never built
-// (opencode is structure-only) and cannot surface as merges.
+// risky merge is visible instead of silent. All three folds are now priced:
+// deepseek flash by its official parser, glm stealth and muse contributor by
+// the hand-transcribed official overrides (both families have no daily parser).
 test("unified builder reports cross-boundary merges for review", () => {
   const out = runCheck("tools/build-unified-preset.mjs");
   assert.match(out, /merge across a structural boundary/);
   assert.match(out, /deepseek-4-flash {2}\[version\]/);
-  assert.doesNotMatch(out, /glm-5\.3-flash/);
-  assert.doesNotMatch(out, /muse-1\.2-spark-contributor/);
+  assert.match(out, /glm-5\.3-flash {2}\[series\]/);
+  assert.match(out, /muse-1\.2-spark-contributor {2}\[version\]/);
 });
 
 // `until` only retires a model from the peak/off-peak picker. A unified group
@@ -57,8 +56,8 @@ test("unified preset retires a group only when every source has ended", () => {
   assert.equal(hasUntil("grok-4.5"), false);
   // deepseek-official discontinued chat/coder/reasoner -> stays retired.
   assert.equal(hasUntil("deepseek-chat"), true);
-  // No official source of record: glm-5 has no group at all (unpriced),
-  // so it can neither be picked nor resurrected by a stale `until`.
+  // glm-5 is on sale at z.ai and priced by its official override, so it has a
+  // group and no `until` (the retired go.mdx stamp is not reused).
   assert.equal(hasUntil("glm-5"), false);
-  assert.ok(!preset.groups.some((g) => g.id === "glm-5"));
+  assert.ok(preset.groups.some((g) => g.id === "glm-5"));
 });

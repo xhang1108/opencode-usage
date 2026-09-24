@@ -154,6 +154,59 @@ const OVERRIDE_RATES = {
   "gemini-2.5-flash-lite": [{ from: null, pricing: { flat: { input: 0.1, output: 0.4, cacheRead: 0.01, cacheWrite: 0 } } }],
   "gemini-2.0-flash": [{ from: null, pricing: { flat: { input: 0.15, output: 0.6, cacheRead: 0, cacheWrite: 0 } } }],
   "gemini-2.0-flash-lite": [{ from: null, pricing: { flat: { input: 0.075, output: 0.3, cacheRead: 0, cacheWrite: 0 } } }],
+
+  // --- The17 groups no daily parser covers: hand-transcribed OFFICIAL list ---
+  // prices (USD per 1M tokens), one comment block per vendor with its URL.
+  // GLM — z.ai official pricing (https://docs.z.ai/guides/overview/pricing).
+  // Cache write stays 0 (official storage promo is free); glm-5 is still on
+  // sale, so no `until` (the old go.mdx retirement stamp is not reused).
+  "glm-5": [{ from: null, pricing: { flat: { input: 1, output: 3.2, cacheRead: 0.2, cacheWrite: 0 } } }],
+  "glm-5.1": [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }],
+  "glm-5.2": [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }],
+  "glm-5.3": [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }],
+  "glm-5.3-flash": [{ from: null, pricing: { flat: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 } } }],
+
+  // Kimi — Moonshot official pricing (https://platform.kimi.ai/docs/pricing/chat).
+  // k2.6/k2.7/k3 are current list prices (K2 series lists no cache-write
+  // column; k3 cacheWrite is the default TTL-5min rate, the 1h rate is 6 but
+  // the schema has a single cacheWrite column). kimi-k2.5 was retired across
+  // all platforms in 2026-08 (official changelog, calls 404), so its LAST
+  // official price comes from the archived official pricing page
+  // (https://web.archive.org/web/20260330194820/https://platform.moonshot.ai/docs/pricing/chat)
+  // and carries `until` at end of the retirement month.
+  "kimi-2.5-k": [{ from: null, pricing: { flat: { input: 0.6, output: 3, cacheRead: 0.1, cacheWrite: 0 } }, until: "2026-08-31T23:59:59.999Z" }],
+  "kimi-2.6-k": [{ from: null, pricing: { flat: { input: 0.95, output: 4, cacheRead: 0.16, cacheWrite: 0 } } }],
+  "kimi-2.7-k-code": [{ from: null, pricing: { flat: { input: 0.95, output: 4, cacheRead: 0.19, cacheWrite: 0 } } }],
+  "kimi-3-k": [{ from: null, pricing: { flat: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3 } } }],
+  // No official kimi-k3-7-24-2x SKU exists (the K3 table lists only
+  // kimi-k3); priced as the underlying k3 model per author decision.
+  "kimi-3-k-7-24-2x": [{ from: null, pricing: { flat: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3 } } }],
+
+  // MiniMax — official pay-as-you-go pricing
+  // (https://platform.minimax.io/docs/guides/pricing-paygo). m3 is tiered by
+  // context length (<=512k permanently half price); cache write is not listed
+  // for m3, so 0.
+  "minimax-2.5-m": [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.03, cacheWrite: 0.375 } } }],
+  "minimax-2.7-m": [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } }],
+  "minimax-3-m": [{ from: null, pricing: { flat: { tier: { limit: 512000, low: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 }, high: { input: 0.6, output: 2.4, cacheRead: 0.12, cacheWrite: 0 } } } } }],
+
+  // Muse Spark — Meta AI official rates (https://dev.meta.ai/docs/pricing-rate-limits).
+  // Spark standard price (the group previously carried the contributor price);
+  // contributor is a cheaper tier of the same table.
+  "muse-1.2-spark": [{ from: null, pricing: { flat: { input: 1.25, output: 4.25, cacheRead: 0.15, cacheWrite: 0 } } }],
+  "muse-1.2-spark-contributor": [{ from: null, pricing: { flat: { input: 0.1, output: 0.2, cacheRead: 0.002, cacheWrite: 0 } } }],
+
+  // LongCat-2.0 — official limited-time discount (current pay price; the
+  // standard list 0.75/2.95/0.015 is not used, no discount end date is
+  // published — re-verify when the promo ends).
+  // (https://longcat.ai/platform/docs/pricing/longcat-2.0)
+  "longcat-2.0": [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0 } } }],
+
+  // Omen Alpha — deprecated; last official price from the anomalyco repo
+  // (https://github.com/anomalyco/models.dev/blob/dev/providers/opencode-go/models/omen-alpha.toml).
+  // No official retirement date was published, so `until` keeps the previous
+  // table's retirement stamp (metadata, not a price).
+  "omen-alpha": [{ from: null, pricing: { flat: { input: 0.2, output: 0.66, cacheRead: 0.04, cacheWrite: 0 } }, until: "2026-09-10T04:22:43.000Z" }],
 };
 
 // Gemini Flash: promo in/out until 2027-01-01, then the regular list price
@@ -380,7 +433,7 @@ for (const [root, id] of rootToGroupId) {
   if (flags.length) mergeNotes.push({ id, flags, fps: fps.slice().sort() });
 }
 
-const preset = { enabled: false, groups, assign: finalAssign };
+const preset = { enabled: true, groups, assign: finalAssign };
 const serialized = JSON.stringify(preset, null, 2) + "\n";
 const outPath = resolve(root, "extension/shared/unified.preset.json");
 const stats = `groups=${groups.length} assign=${Object.keys(finalAssign).length} fingerprints=${parent.size}`;

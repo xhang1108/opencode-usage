@@ -7,7 +7,7 @@ test("normalizeSettings fills safe defaults for an empty store", () => {
   const s = normalizeSettings({});
   assert.deepEqual(s.registry, { vendors: [] });
   assert.deepEqual(s.vendorSettings, {});
-  assert.deepEqual(s.unifiedPricing, { enabled: false, groups: [], assign: {} });
+  assert.deepEqual(s.unifiedPricing, { enabled: true, groups: [], assign: {} });
   assert.equal(s.unifiedStored, false);
   assert.equal(s.defaultCrawl, "");
   assert.deepEqual(s.workspaceLabels, {});

@@ -38,7 +38,7 @@ test("normalizeUnifiedPricing coerces the shape and drops dangling assignments",
 });
 
 test("normalizeUnifiedPricing handles null/empty", () => {
-  assert.deepEqual(normalizeUnifiedPricing(null), { enabled: false, groups: [], assign: {} });
+  assert.deepEqual(normalizeUnifiedPricing(null), { enabled: true, groups: [], assign: {} });
 });
 
 test("buildUnifiedIndex maps source:model to its group rates", () => {
@@ -93,6 +93,11 @@ test("validateUnifiedPricing flags bad groups, duplicate ids, dangling assign an
 test("shipped unified preset is valid and folds vendors together", () => {
   const preset = JSON.parse(fs.readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
   assert.deepEqual(validateUnifiedPricing(preset), []);
+  // The shipped default is ON: unified is the only price source (official
+  // tables), so the vendorCost / go.mdx fallback path is never reached by
+  // default and only an explicit toggle-off opts into it.
+  assert.equal(preset.enabled, true);
+  assert.equal(normalizeUnifiedPricing(preset).enabled, true);
   const index = buildUnifiedIndex(normalizeUnifiedPricing(preset));
   // Same underlying model from two vendors resolves to the same group rates.
   assert.deepEqual(index.get("opencode:deepseek-v4.1-flash"), index.get("deepseek-official:deepseek-v4-flash"));
@@ -163,13 +168,13 @@ test("the board agrees with pricing: structurally-priced vendor ids are assigned
     const priced = priceUnified({ ...rec, source, model }, index);
     assert.equal(priced.unpriced, false, `${key} should be priced`);
   }
-  // Structurally known but has no official price source: deliberately unpriced
-  // (its group only ever existed because go.mdx carried a resale price).
+  // Structurally known, has no daily parser, but is priced by the hand-
+  // transcribed official LongCat limited-time-discount override.
   const longcat = groupIdForKey(unified.assign, "commandcode:meituan/LongCat-2.0:free");
-  assert.equal(longcat, null, "LongCat has no official source -> no group");
+  assert.equal(longcat, "longcat-2.0", "LongCat resolves via fingerprint fallback");
   assert.equal(
     priceUnified({ ...rec, source: "commandcode", model: "meituan/LongCat-2.0:free" }, index).unpriced,
-    true,
+    false,
   );
 });
 
@@ -186,18 +191,19 @@ test("vendor alias folds cover display labels the parser cannot resolve", () => 
   const flash = groupIdForKey(unified.assign, "deepseek-official:deepseek-v4-flash");
   assert.equal(groupIdForKey(unified.assign, "deepseek-official:deepseek-v4.1-flash-expires-on-0910"), flash);
 
-  // Muse Spark contributor generations (and their free variant) fold together,
-  // but Muse has no official price source, so the whole family is deliberately
-  // unpriced: the fold lives in AUTHORED_FOLDS yet resolves to no group.
+  // Muse Spark contributor generations (and their free variant) fold together;
+  // both that fold and the standard Spark are priced by official Meta overrides,
+  // so every key resolves to a group.
+  const contributor = "muse-1.2-spark-contributor";
   for (const key of [
     "opencode:muse-spark-1.3-contributor",
     "opencode:muse-spark-1.2-contributor",
     "opencode:muse-spark-1.2-contributor-free",
     "opencode:muse-spark-1.3-contributor-free",
-    "opencode:muse-spark-1.2",
   ]) {
-    assert.equal(groupIdForKey(unified.assign, key), null, `${key} has no official source -> no group`);
+    assert.equal(groupIdForKey(unified.assign, key), contributor, `${key} folds into ${contributor}`);
   }
+  assert.equal(groupIdForKey(unified.assign, "opencode:muse-spark-1.2"), "muse-1.2-spark");
 
   // The legacy (unified-off) vendor table maps them too.
   const vendor = JSON.parse(fs.readFileSync(new URL("../../extension/vendors/deepseek-official/rates.preset.json", import.meta.url)));
