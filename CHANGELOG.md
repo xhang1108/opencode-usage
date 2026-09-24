@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.1 — 2026-09-25
+
+Official prices only: the unified list now takes every rate from the model maker's own published pricing, guarded by two daily watches.
+
+### Added
+
+- **model-watch**: a daily job diffs opencode and commandcode model-id snapshots and reports additions/removals in the job summary; the snapshot is committed only when it changes (tests run before the commit).
+- **price-watch** covers six sources — DeepSeek, MiMo (official models API), xAI, OpenAI, Qwen and Tencent — each with its own fail-closed parser and committed price history.
+- The unified price list ships **enabled by default**; the dashboard and Settings → Pricing toggles remain as opt-outs.
+
+### Changed
+
+- **Unified prices come only from official sources.** go.mdx resale prices drop out as a rate source; legacy go.mdx pricing survives only in the pre-unified path, reached when the unified list is switched off. 17 parser-less groups carry authored official overrides with citations.
+- price-watch is fail-closed: any source failing fails the whole run (no commit). On an actual diff it rebuilds the unified preset, runs the test suite, and commits the regenerated preset together with the snapshot.
+
+### Fixed
+
+- Three wrong override rates corrected against first-party evidence: `o1-mini` ($1.1 / $4.4, the stale value was the 2024-09 launch price), `gemini-2.0-flash` ($0.1 / $0.4 / $0.025 — the old $0.15 / $0.6 never appeared on any Google page), and `laguna-s-2.1` (official $0.10 / $0.20 / $0.01 instead of an OpenRouter promo price).
+- Removed the `gemini-2.5-flash-8b` override — that model id never existed; the rate was copied from Gemini 1.5 Flash-8B.
+- `big-pickle` prices as free (all-zero) instead of unknown: an authored all-zero override now counts as a price.
+- `nemotron-3-ultra` keeps a marked-provisional rate (NVIDIA publishes no per-token price yet), and its `-free` sibling is pinned to the same group and rate.
+
 ## 1.1.0 — 2026-09-20
 
 opencode now syncs from the Console Usage API instead of crawling the RSC `/_server` protocol.
