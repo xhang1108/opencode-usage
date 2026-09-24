@@ -1,0 +1,42 @@
+name: Model watch
+
+# Daily model-id watch: fetch the public models endpoints (opencode Go +
+# CommandCode), diff against the committed snapshots, and commit ONLY the two
+# snapshot files when the set changed. Git history of vendors/*/models.snapshot.json
+# is the dated model add/remove log. No pricing data is touched.
+on:
+  schedule:
+    - cron: "7 5 * * *" # daily 05:07 UTC (13:07 Taipei)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Tests
+        run: npm test
+
+      - name: Diff model snapshots
+        run: node tools/model-watch.mjs
+
+      # Fixed paths only — never `git add -A`, so this can only ever commit
+      # the two watcher state files.
+      - name: Commit changes
+        run: |
+          git config user.name "model-watch"
+          git config user.email "model-watch@users.noreply.github.com"
+          git add extension/vendors/opencode/models.snapshot.json extension/vendors/commandcode/models.snapshot.json
+          if git diff --cached --quiet; then
+            echo "no model changes"
+          else
+            git commit -m "chore(model-watch): update model snapshots"
+            git push
+          fi
