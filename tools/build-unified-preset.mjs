@@ -102,8 +102,12 @@ function preferredSource(fp) {
   return PREFERRED_BY_SERIES[String(fp).split(":")[0]] || null;
 }
 function rank(fp, source, rates) {
-  if (isZeroRates(rates)) return -1;
+  // An override is authoritative even when it says "free": 0/0/0/0 is a
+  // published PRICE, not an absent one, so it has to win before the all-zero
+  // veto. Every other source still treats all-zero as "no price", which is what
+  // keeps free-trial placeholder tables out of the groups.
   if (source === "override") return 3;
+  if (isZeroRates(rates)) return -1;
   if (source === preferredSource(fp)) return 2;
   return 0;
 }
@@ -112,33 +116,63 @@ function rank(fp, source, rates) {
 // models) or don't carry at all. Single flat entry, USD per 1M tokens. These are
 // PRICES, not classifications — the group id is still derived automatically.
 const OVERRIDE_RATES = {
-  // Poolside Laguna-S-2.1 official API.
-  "laguna-s-2.1": [{ from: null, pricing: { flat: { input: 0.09, output: 0.18, cacheRead: 0.009, cacheWrite: 0 } } }],
-  // NVIDIA Nemotron-3-Ultra official API (OpenRouter is 0.50/2.20).
+  // Poolside Laguna-S-2.1 — official list price from Poolside's own launch
+  // post (https://poolside.ai/blog/introducing-laguna-s-2-1): $0.10 / $0.20 /
+  // $0.01 per 1M. Deliberately NOT the OpenRouter 10%-off promo
+  // ($0.09 / $0.18 / $0.009), which is a gateway discount, not a list price.
+  "laguna-s-2.1": [{ from: null, pricing: { flat: { input: 0.1, output: 0.2, cacheRead: 0.01, cacheWrite: 0 } } }],
+  // NVIDIA publishes NO per-token price for Nemotron-3-Ultra (NIM FAQ: "There
+  // is no per-token price" - build.nvidia.com is free-tier prototyping, and
+  // production needs NVIDIA AI Enterprise). The numbers below are therefore a
+  // GATEWAY rate, not a first-party NVIDIA list price: input/output match
+  // Venice AI ($0.63 / $3.13, https://venice.ai/models/nvidia/nemotron-3-ultra-550b-a55b)
+  // and cacheRead is OpenRouter's $0.10. The old comment claimed "official API"
+  // and "OpenRouter is 0.50/2.20" - both wrong (0.50/2.20 is DeepInfra, the
+  // OpenRouter aggregate). Kept only because opencode:nemotron-3-ultra-free is
+  // a real listing that folds into this group; delete it if a gateway rate is
+  // not acceptable as a price.
   "nemotron-3-ultra": [{ from: null, pricing: { flat: { input: 0.63, output: 3.13, cacheRead: 0.1, cacheWrite: 0 } } }],
-  // OpenAI GPT-5 nano (platform.openai.com/docs/pricing).
-  "gpt-5-nano": [{ from: null, pricing: { flat: { input: 0.05, output: 0.4, cacheRead: 0.005, cacheWrite: 0 } } }],
-  // GPT-OSS 20B (user-supplied; no first-party OpenAI list price).
+  // opencode Zen's Big Pickle is officially FREE: models.dev carries
+  // [cost] input = 0.0 / output = 0.0 for it and Zen's own table prints "Free"
+  // under input, output and cache. opencode contributes structure only (see the
+  // source !== "opencode" filter below), so without this entry the model has no
+  // price at all and renders as unknown rather than free. This is the one place
+  // a deliberately all-zero table is used as a price.
+  "big-pickle": [{ from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } }],
+  // GPT-OSS 20B (user-supplied; no first-party OpenAI list price - gpt-oss
+  // ships as open weights on Apache 2.0 and OpenAI never published a hosted
+  // API rate for it; the 0.02/0.1 pair is a community/self-host estimate).
   "gpt-oss-20b": [{ from: null, pricing: { flat: { input: 0.02, output: 0.1, cacheRead: 0, cacheWrite: 0 } } }],
-  // OpenAI GPT family (GPT-4 to latest o3-mini).
+  // Retired OpenAI models that pricing.md no longer lists, but whose LIVE
+  // first-party model pages still publish their price (verified 2026-09-24):
+  //   gpt-4       $30.00 / $60.00  https://developers.openai.com/api/docs/models/gpt-4
+  //   o1-preview  $15 / $7.5 cached / $60  https://developers.openai.com/api/docs/models/o1-preview
+  //   o1-mini     $1.1 / $0.55 cached / $4.4  https://developers.openai.com/api/docs/models/o1-mini
+  // o1-mini was previously transcribed 3/12/1.5 (its 2024-09 launch rate);
+  // OpenAI has since repriced it to sit alongside o3-mini, and its own page
+  // says o3-mini is "the same latency and price as o1-mini".
+  // Everything else in the GPT and o-series has a first-party row in
+  // developers.openai.com/api/docs/pricing.md and is deliberately NOT
+  // overridden here: the daily parser owns those rows, so the price tracks the
+  // vendor automatically instead of being frozen at a hand transcription.
   "gpt-4": [{ from: null, pricing: { flat: { input: 30, output: 60, cacheRead: 0, cacheWrite: 0 } } }],
-  "gpt-4-turbo": [{ from: null, pricing: { flat: { input: 10, output: 30, cacheRead: 0, cacheWrite: 0 } } }],
+  "o1-preview": [{ from: null, pricing: { flat: { input: 15, output: 60, cacheRead: 7.5, cacheWrite: 0 } } }],
+  "o1-mini": [{ from: null, pricing: { flat: { input: 1.1, output: 4.4, cacheRead: 0.55, cacheWrite: 0 } } }],
+  // gpt-4o keeps its two-window history (5/15 before the 2024-08-06 cut to
+  // 2.50/10); the live window matches the parser exactly. The first window's
+  // cacheRead 2.50 is the rate OpenAI charged then - pricing.md prints "-" for
+  // that retired snapshot row rather than 0.
   "gpt-4o": [
     { from: null, pricing: { flat: { input: 5, output: 15, cacheRead: 2.5, cacheWrite: 0 } } },
     { from: "2024-08-06T00:00:00Z", pricing: { flat: { input: 2.5, output: 10, cacheRead: 1.25, cacheWrite: 0 } } },
   ],
-  "gpt-4o-mini": [{ from: null, pricing: { flat: { input: 0.15, output: 0.6, cacheRead: 0.075, cacheWrite: 0 } } }],
-  "o1-preview": [{ from: null, pricing: { flat: { input: 15, output: 60, cacheRead: 7.5, cacheWrite: 0 } } }],
-  "o1": [{ from: null, pricing: { flat: { input: 15, output: 60, cacheRead: 7.5, cacheWrite: 0 } } }],
-  "o1-mini": [{ from: null, pricing: { flat: { input: 3, output: 12, cacheRead: 1.5, cacheWrite: 0 } } }],
-  "o3-mini": [{ from: null, pricing: { flat: { input: 1.1, output: 4.4, cacheRead: 0.55, cacheWrite: 0 } } }],
-  "gpt-5": [{ from: null, pricing: { flat: { input: 5, output: 15, cacheRead: 1.25, cacheWrite: 0 } } }],
-  "gpt-5-pro": [{ from: null, pricing: { flat: { input: 15, output: 60, cacheRead: 3.75, cacheWrite: 0 } } }],
-  "gpt-6-astra": [{ from: null, pricing: { flat: { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 } } }],
-  "gpt-5.6-sol": [{ from: null, pricing: { flat: { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5 } } }],
-  "gpt-5.6-terra": [{ from: null, pricing: { flat: { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5 } } }],
-  // Google Gemini Standard tier (Vertex / Gemini API). Flash models carry the
-  // promo price through 2026-12-31, then the list price.
+  // Google Gemini Developer API, Standard tier —
+  // https://ai.google.dev/gemini-api/docs/pricing . Every row below was
+  // verified against that page on 2026-09-24 (the Flash promo, the 2.5 Pro
+  // 200k tier, the 3.1 Pro tier and all the Flash-Lite rates match).
+  // Flash models carry the promo price through 2026-12-31, then the list
+  // price. No gemini-* row is covered by a daily parser, so these stay
+  // hand-transcribed until one is added.
   "gemini-3.8-flash": geminiFlash(0.75, 3.75),
   "gemini-3.7-flash": geminiFlash(0.75, 3.75),
   "gemini-3.6-flash": geminiFlash(0.75, 3.75),
@@ -150,9 +184,24 @@ const OVERRIDE_RATES = {
     { from: null, pricing: { flat: { tier: { limit: 200000, low: { input: 1.25, output: 10, cacheRead: 0.125, cacheWrite: 0 }, high: { input: 2.5, output: 15, cacheRead: 0.25, cacheWrite: 0 } } } } },
   ],
   "gemini-2.5-flash": [{ from: null, pricing: { flat: { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 } } }],
-  "gemini-2.5-flash-8b": [{ from: null, pricing: { flat: { input: 0.075, output: 0.3, cacheRead: 0.0075, cacheWrite: 0 } } }],
   "gemini-2.5-flash-lite": [{ from: null, pricing: { flat: { input: 0.1, output: 0.4, cacheRead: 0.01, cacheWrite: 0 } } }],
-  "gemini-2.0-flash": [{ from: null, pricing: { flat: { input: 0.15, output: 0.6, cacheRead: 0, cacheWrite: 0 } } }],
+  // Gemini 2.0 was shut down (deprecation notices 2026-02-18 / 2026-03-31),
+  // so ai.google.dev/gemini-api/docs/pricing no longer shows it. Rates below
+  // come from the official page's own Wayback snapshot, captured 2025-08-30
+  // (page footer "Last updated 2025-08-26 UTC"):
+  //   https://web.archive.org/web/20250830180341/https://ai.google.dev/gemini-api/docs/pricing
+  //     Gemini 2.0 Flash       Input $0.10 (text/image/video) / Output $0.40
+  //                            Context caching $0.025 per 1M tokens
+  //     Gemini 2.0 Flash-Lite  Input $0.075 / Output $0.30
+  //                            Context caching: Not available (= no cache rate)
+  // gemini-2.0-flash was previously transcribed as 0.15/0.6, which matches no
+  // Google row; 0.10/0.40 is what the official page listed while it was live.
+  // A "gemini-2.5-flash-8b" override used to sit here too. No such id has ever
+  // appeared on the pricing page (checked current, 2025-08-30 and 2025-12-31
+  // snapshots), it is absent from every vendor table we parse, and no model
+  // fingerprint maps to it - its 0.075/0.3 pair was the >128k row belonging to
+  // Gemini 1.5 Flash-8B, so it was deleted as a mis-transcription.
+  "gemini-2.0-flash": [{ from: null, pricing: { flat: { input: 0.1, output: 0.4, cacheRead: 0.025, cacheWrite: 0 } } }],
   "gemini-2.0-flash-lite": [{ from: null, pricing: { flat: { input: 0.075, output: 0.3, cacheRead: 0, cacheWrite: 0 } } }],
 
   // --- The17 groups no daily parser covers: hand-transcribed OFFICIAL list ---
@@ -382,7 +431,10 @@ const setLastUntil = (rates, until) =>
 const groups = [];
 const rootToGroupId = new Map();
 for (const [root, c] of bestByRoot) {
-  if (isZeroRates(c.rates)) continue;
+  // All-zero means "this table carries no price" — except when an override
+  // authored it, where 0/0/0/0 is the vendor's stated free price and the group
+  // must be emitted so the model reads "free" instead of "unknown".
+  if (c.source !== "override" && isZeroRates(c.rates)) continue;
   const list = byRoot.get(root) || [];
   const untils = list.map((x) => lastUntil(x.rates));
   const allEnded = list.length > 0 && untils.every((u) => u != null);

@@ -18,6 +18,22 @@
       ]
     },
     {
+      "id": "big-pickle",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "davinci-002",
       "rates": [
         {
@@ -454,9 +470,9 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 0.15,
-              "output": 0.6,
-              "cacheRead": 0,
+              "input": 0.1,
+              "output": 0.4,
+              "cacheRead": 0.025,
               "cacheWrite": 0
             }
           }
@@ -489,22 +505,6 @@
               "input": 0.3,
               "output": 2.5,
               "cacheRead": 0.03,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "gemini-2.5-flash-8b",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.075,
-              "output": 0.3,
-              "cacheRead": 0.0075,
               "cacheWrite": 0
             }
           }
@@ -1016,9 +1016,9 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 5,
-              "output": 15,
-              "cacheRead": 1.25,
+              "input": 1.25,
+              "output": 10,
+              "cacheRead": 0.125,
               "cacheWrite": 0
             }
           }
@@ -1065,8 +1065,8 @@
           "pricing": {
             "flat": {
               "input": 15,
-              "output": 60,
-              "cacheRead": 3.75,
+              "output": 120,
+              "cacheRead": 0,
               "cacheWrite": 0
             }
           }
@@ -1295,10 +1295,21 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 4,
-              "output": 20,
-              "cacheRead": 0.4,
-              "cacheWrite": 5
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 4,
+                  "output": 20,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 5
+                },
+                "high": {
+                  "input": 8,
+                  "output": 30,
+                  "cacheRead": 0.8,
+                  "cacheWrite": 10
+                }
+              }
             }
           }
         }
@@ -1311,10 +1322,21 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 2,
-              "output": 12,
-              "cacheRead": 0.2,
-              "cacheWrite": 2.5
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2,
+                  "output": 12,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 2.5
+                },
+                "high": {
+                  "input": 4,
+                  "output": 18,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 5
+                }
+              }
             }
           }
         }
@@ -1327,10 +1349,21 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 10,
-              "output": 50,
-              "cacheRead": 1,
-              "cacheWrite": 12.5
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 10,
+                  "output": 50,
+                  "cacheRead": 1,
+                  "cacheWrite": 12.5
+                },
+                "high": {
+                  "input": 20,
+                  "output": 75,
+                  "cacheRead": 2,
+                  "cacheWrite": 25
+                }
+              }
             }
           }
         }
@@ -1726,9 +1759,9 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 0.09,
-              "output": 0.18,
-              "cacheRead": 0.009,
+              "input": 0.1,
+              "output": 0.2,
+              "cacheRead": 0.01,
               "cacheWrite": 0
             }
           }
@@ -2020,9 +2053,9 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 3,
-              "output": 12,
-              "cacheRead": 1.5,
+              "input": 1.1,
+              "output": 4.4,
+              "cacheRead": 0.55,
               "cacheWrite": 0
             }
           }
@@ -3120,6 +3153,7 @@
     "opencode:omen-alpha": "omen-alpha",
     "opencode:muse-spark-1.3-contributor": "muse-1.2-spark-contributor",
     "opencode:deepseek-v4.1-flash": "deepseek-4-flash",
+    "opencode:big-pickle": "big-pickle",
     "opencode:hy3-free": "hy-3",
     "opencode:laguna-s-2.1-free": "laguna-2.1-s",
     "opencode:nemotron-3-ultra-free": "nemotron-3-ultra",
@@ -3315,6 +3349,7 @@
     "fp:omen:0:base:alpha": "omen-alpha",
     "fp:muse:1.3:base:spark-contributor": "muse-1.2-spark-contributor",
     "fp:deepseek:4.1:flash:": "deepseek-4-flash",
+    "fp:big:0:base:pickle": "big-pickle",
     "fp:laguna:2.1:base:s": "laguna-2.1-s",
     "fp:nemotron:3:base:ultra": "nemotron-3-ultra",
     "fp:gemini:3.8:flash:": "gemini-3.8-flash",
@@ -3438,7 +3473,6 @@
     "fp:gemini:3.1:preview:pro": "gemini-3.1-preview-pro",
     "fp:gemini:2.5:pro:": "gemini-2.5-pro",
     "fp:gemini:2.5:flash:": "gemini-2.5-flash",
-    "fp:gemini:2.5:base:flash-8b": "gemini-2.5-flash-8b",
     "fp:gemini:2.5:lite:flash": "gemini-2.5-lite-flash",
     "fp:gemini:2.0:flash:": "gemini-2.0-flash",
     "fp:gemini:2.0:lite:flash": "gemini-2.0-lite-flash"

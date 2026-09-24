@@ -105,6 +105,41 @@ test("shipped unified preset is valid and folds vendors together", () => {
   assert.deepEqual(index.get("opencode:hy3-free"), index.get("opencode:hy3"));
 });
 
+// An all-zero rate table is normally a free-trial PLACEHOLDER carrying no price,
+// and the builder drops it (isZeroRates -> rank -1 -> skipped group). opencode
+// Zen's Big Pickle is the opposite case: its official price genuinely IS $0, so
+// the authored override has to win before that veto. Otherwise the model has no
+// group at all and the dashboard shows "unknown" instead of "free".
+test("an all-zero override prices as free, not as unknown", () => {
+  const preset = JSON.parse(fs.readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
+  const unified = normalizeUnifiedPricing(preset);
+  const index = buildUnifiedIndex(unified);
+
+  const group = preset.groups.find((g) => g.id === "big-pickle");
+  assert.ok(group, "the free override keeps its group instead of being dropped");
+  assert.deepEqual(group.rates, [
+    { from: null, pricing: { flat: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } } },
+  ]);
+  assert.equal(unified.assign["opencode:big-pickle"], "big-pickle");
+
+  const priced = priceUnified(
+    { input: 1_000_000, output: 1_000_000, cacheRead: 0, cacheWrite: 0, time: "2026-09-15T12:00:00Z", source: "opencode", model: "big-pickle" },
+    index,
+  );
+  assert.equal(priced.unpriced, false, "free is a price, not an unmapped model");
+  assert.equal(priced.cost, 0);
+
+  // The veto still holds for every other source: vendor tables that ship a
+  // free-trial 0 row must not turn into priced groups. big-pickle is the only
+  // all-zero group in the shipped preset.
+  const allZero = (rates) =>
+    rates.every((r) => {
+      const flat = r.pricing && r.pricing.flat;
+      return flat && Object.values(flat).every((v) => v === 0);
+    });
+  assert.deepEqual(preset.groups.filter((g) => allZero(g.rates)).map((g) => g.id), ["big-pickle"]);
+});
+
 test("unifiedRateModels emits one rule per group, not per alias", () => {
   const unified = normalizeUnifiedPricing({
     groups: [{ id: "g", rates: [RATE_A] }, { id: "other", rates: [RATE_B] }],
