@@ -121,16 +121,18 @@ const OVERRIDE_RATES = {
   // $0.01 per 1M. Deliberately NOT the OpenRouter 10%-off promo
   // ($0.09 / $0.18 / $0.009), which is a gateway discount, not a list price.
   "laguna-s-2.1": [{ from: null, pricing: { flat: { input: 0.1, output: 0.2, cacheRead: 0.01, cacheWrite: 0 } } }],
-  // NVIDIA publishes NO per-token price for Nemotron-3-Ultra (NIM FAQ: "There
-  // is no per-token price" - build.nvidia.com is free-tier prototyping, and
-  // production needs NVIDIA AI Enterprise). The numbers below are therefore a
-  // GATEWAY rate, not a first-party NVIDIA list price: input/output match
-  // Venice AI ($0.63 / $3.13, https://venice.ai/models/nvidia/nemotron-3-ultra-550b-a55b)
-  // and cacheRead is OpenRouter's $0.10. The old comment claimed "official API"
-  // and "OpenRouter is 0.50/2.20" - both wrong (0.50/2.20 is DeepInfra, the
-  // OpenRouter aggregate). Kept only because opencode:nemotron-3-ultra-free is
-  // a real listing that folds into this group; delete it if a gateway rate is
-  // not acceptable as a price.
+  // PROVISIONAL — NVIDIA still publishes no per-token price (NIM FAQ: "There is
+  // no per-token price": build.nvidia.com is free-tier prototyping, and
+  // production needs NVIDIA AI Enterprise), so there is no first-party USD row
+  // to transcribe yet. Until NVIDIA quotes one, this carries the best available
+  // hosted rate: input/output from Venice AI ($0.63 / $3.13,
+  // https://venice.ai/models/nvidia-nemotron-3-ultra-550b-a55b) and cacheRead
+  // from OpenRouter ($0.10). REPLACE with the official row the moment NVIDIA
+  // publishes a per-token price.
+  // opencode:nemotron-3-ultra-free folds into this same group, so the free
+  // listing is billed at exactly these rates instead of showing as unpriced.
+  // (An earlier comment claimed "official API / OpenRouter is 0.50/2.20" — both
+  // were wrong: NVIDIA has no per-token price, and 0.50/2.20 is DeepInfra.)
   "nemotron-3-ultra": [{ from: null, pricing: { flat: { input: 0.63, output: 3.13, cacheRead: 0.1, cacheWrite: 0 } } }],
   // opencode Zen's Big Pickle is officially FREE: models.dev carries
   // [cost] input = 0.0 / output = 0.0 for it and Zen's own table prints "Free"

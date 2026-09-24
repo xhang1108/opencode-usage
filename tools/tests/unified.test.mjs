@@ -140,6 +140,31 @@ test("an all-zero override prices as free, not as unknown", () => {
   assert.deepEqual(preset.groups.filter((g) => allZero(g.rates)).map((g) => g.id), ["big-pickle"]);
 });
 
+// A "-free" listing must share its paid sibling's group, so the free variant is
+// billed at the same rate rather than falling out as unpriced. Nemotron-3-Ultra
+// has no first-party price yet (NVIDIA quotes none per token), so this also
+// pins the PROVISIONAL hosted rate — swap both assertions when the official row
+// lands.
+test("the free Nemotron listing shares its paid sibling's group and rate", () => {
+  const preset = JSON.parse(fs.readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
+  const unified = normalizeUnifiedPricing(preset);
+  const index = buildUnifiedIndex(unified);
+
+  const group = preset.groups.find((g) => g.id === "nemotron-3-ultra");
+  assert.ok(group, "nemotron-3-ultra group exists");
+  assert.deepEqual(group.rates, [
+    { from: null, pricing: { flat: { input: 0.63, output: 3.13, cacheRead: 0.1, cacheWrite: 0 } } },
+  ]);
+  assert.equal(unified.assign["opencode:nemotron-3-ultra-free"], "nemotron-3-ultra");
+
+  const rec = { input: 1_000_000, output: 1_000_000, cacheRead: 1_000_000, cacheWrite: 0, time: "2026-09-24T12:00:00Z" };
+  const paid = priceUnified({ ...rec, source: "opencode", model: "nemotron-3-ultra" }, index);
+  const free = priceUnified({ ...rec, source: "opencode", model: "nemotron-3-ultra-free" }, index);
+  assert.equal(free.unpriced, false, "the free listing is priced, not unknown");
+  assert.equal(free.cost, paid.cost, "free and paid bill at the same rate");
+  assert.equal(free.cost, 0.63 + 3.13 + 0.1);
+});
+
 test("unifiedRateModels emits one rule per group, not per alias", () => {
   const unified = normalizeUnifiedPricing({
     groups: [{ id: "g", rates: [RATE_A] }, { id: "other", rates: [RATE_B] }],
