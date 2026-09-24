@@ -2,6 +2,38 @@
   "enabled": false,
   "groups": [
     {
+      "id": "babbage-002",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 0.4,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "davinci-002",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 2,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "deepseek-4-flash",
       "rates": [
         {
@@ -679,87 +711,6 @@
       ]
     },
     {
-      "id": "glm-5",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1,
-              "output": 3.2,
-              "cacheRead": 0.2,
-              "cacheWrite": 0
-            }
-          },
-          "until": "2026-06-17T11:04:33.000Z"
-        }
-      ]
-    },
-    {
-      "id": "glm-5.1",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1.4,
-              "output": 4.4,
-              "cacheRead": 0.26,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "glm-5.2",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1.4,
-              "output": 4.4,
-              "cacheRead": 0.26,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "glm-5.3",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 1.4,
-              "output": 4.4,
-              "cacheRead": 0.26,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "glm-5.3-flash",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.15,
-              "output": 0.5,
-              "cacheRead": 0.03,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": "gpt-20-ossb",
       "rates": [
         {
@@ -776,7 +727,87 @@
       ]
     },
     {
+      "id": "gpt-3.5-turbo",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.5,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-3.5-turbo-0125",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.5,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-3.5-turbo-1106",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1,
+              "output": 2,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-3.5-turbo-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 2,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "gpt-4",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 30,
+              "output": 60,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-4-0613",
       "rates": [
         {
           "from": null,
@@ -851,6 +882,54 @@
       ]
     },
     {
+      "id": "gpt-4.1",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 8,
+              "cacheRead": 0.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-4.1-mini",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 1.6,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-4.1-nano",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.4,
+              "cacheRead": 0.025,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "gpt-5",
       "rates": [
         {
@@ -860,6 +939,22 @@
               "input": 5,
               "output": 15,
               "cacheRead": 1.25,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5-mini",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.25,
+              "output": 2,
+              "cacheRead": 0.025,
               "cacheWrite": 0
             }
           }
@@ -893,6 +988,194 @@
               "output": 60,
               "cacheRead": 3.75,
               "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.1",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.25,
+              "output": 10,
+              "cacheRead": 0.125,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.2",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.75,
+              "output": 14,
+              "cacheRead": 0.175,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.2-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 21,
+              "output": 168,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.4",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2.5,
+                  "output": 15,
+                  "cacheRead": 0.25,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 5,
+                  "output": 22.5,
+                  "cacheRead": 0.5,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.75,
+              "output": 4.5,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.4-nano",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 1.25,
+              "cacheRead": 0.02,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.4-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 30,
+                  "output": 180,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 60,
+                  "output": 270,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.5",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 5,
+                  "output": 30,
+                  "cacheRead": 0.5,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 10,
+                  "output": 45,
+                  "cacheRead": 1,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.5-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 30,
+                  "output": 180,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 60,
+                  "output": 270,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                }
+              }
             }
           }
         }
@@ -974,35 +1257,250 @@
       ]
     },
     {
+      "id": "gpt-6-luna",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 0.1,
+                  "output": 0.5,
+                  "cacheRead": 0.01,
+                  "cacheWrite": 0.125
+                },
+                "high": {
+                  "input": 0.2,
+                  "output": 0.75,
+                  "cacheRead": 0.02,
+                  "cacheWrite": 0.25
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-6-sol",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2,
+                  "output": 10,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 2.5
+                },
+                "high": {
+                  "input": 4,
+                  "output": 15,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grok-0.1-build",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 1,
+                  "output": 2,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2,
+                  "output": 4,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grok-4.20-0309-non-reasoning",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 1.25,
+                  "output": 2.5,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2.5,
+                  "output": 5,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grok-4.20-0309-reasoning",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 1.25,
+                  "output": 2.5,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2.5,
+                  "output": 5,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grok-4.20-multi-agent-0309",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 1.25,
+                  "output": 2.5,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2.5,
+                  "output": 5,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grok-4.3",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 1.25,
+                  "output": 2.5,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 2.5,
+                  "output": 5,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "grok-4.5",
       "rates": [
         {
           "from": null,
           "pricing": {
             "flat": {
-              "input": 2,
-              "output": 6,
-              "cacheRead": 0.5,
-              "cacheWrite": 0
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 2,
+                  "output": 6,
+                  "cacheRead": 0.3,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 4,
+                  "output": 12,
+                  "cacheRead": 0.6,
+                  "cacheWrite": 0
+                }
+              }
             }
           }
-        },
-        {
-          "from": "2026-07-19T06:08:05.000Z",
-          "pricing": {
-            "flat": {
-              "input": 2,
-              "output": 6,
-              "cacheRead": 0.3,
-              "cacheWrite": 0
-            }
-          },
-          "until": "2026-08-25T17:27:48.000Z"
         }
       ]
     },
     {
       "id": "grok-4.6",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 200000,
+                "low": {
+                  "input": 2,
+                  "output": 6,
+                  "cacheRead": 0.5,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 4,
+                  "output": 12,
+                  "cacheRead": 1,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "grok-4.7",
       "rates": [
         {
           "from": null,
@@ -1035,9 +1533,9 @@
           "from": null,
           "pricing": {
             "flat": {
-              "input": 0.14,
-              "output": 0.58,
-              "cacheRead": 0.035,
+              "input": 0.132,
+              "output": 0.528,
+              "cacheRead": 0.033,
               "cacheWrite": 0
             }
           }
@@ -1061,87 +1559,6 @@
       ]
     },
     {
-      "id": "kimi-2.5-k",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.6,
-              "output": 3,
-              "cacheRead": 0.1,
-              "cacheWrite": 0
-            }
-          },
-          "until": "2026-06-12T19:57:13.000Z"
-        }
-      ]
-    },
-    {
-      "id": "kimi-2.6-k",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.95,
-              "output": 4,
-              "cacheRead": 0.16,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "kimi-2.7-k-code",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.95,
-              "output": 4,
-              "cacheRead": 0.19,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "kimi-3-k",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 3,
-              "output": 15,
-              "cacheRead": 0.3,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "kimi-3-k-7-24-2x",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 3,
-              "output": 15,
-              "cacheRead": 0.3,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": "laguna-2.1-s",
       "rates": [
         {
@@ -1151,22 +1568,6 @@
               "input": 0.09,
               "output": 0.18,
               "cacheRead": 0.009,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "longcat-2.0",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.006,
               "cacheWrite": 0
             }
           }
@@ -1313,109 +1714,6 @@
       ]
     },
     {
-      "id": "minimax-2.5-m",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.03,
-              "cacheWrite": 0
-            }
-          }
-        },
-        {
-          "from": "2026-05-31T17:59:44.000Z",
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.06,
-              "cacheWrite": 0.375
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "minimax-2.7-m",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.06,
-              "cacheWrite": 0.375
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "minimax-3-m",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.6,
-              "output": 2.4,
-              "cacheRead": 0.12,
-              "cacheWrite": 0.75
-            }
-          }
-        },
-        {
-          "from": "2026-06-08T11:16:19.000Z",
-          "pricing": {
-            "flat": {
-              "input": 0.3,
-              "output": 1.2,
-              "cacheRead": 0.06,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "muse-1.2-spark",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.1,
-              "output": 0.2,
-              "cacheRead": 0.002,
-              "cacheWrite": 0
-            }
-          },
-          "until": "2026-08-19T06:30:23.000Z"
-        }
-      ]
-    },
-    {
-      "id": "muse-1.2-spark-contributor",
-      "rates": [
-        {
-          "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.1,
-              "output": 0.2,
-              "cacheRead": 0.002,
-              "cacheWrite": 0
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": "nemotron-3-ultra",
       "rates": [
         {
@@ -1480,6 +1778,38 @@
       ]
     },
     {
+      "id": "o-1-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 150,
+              "output": 600,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "o-3",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 8,
+              "cacheRead": 0.5,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "o-3-mini",
       "rates": [
         {
@@ -1496,19 +1826,520 @@
       ]
     },
     {
-      "id": "omen-alpha",
+      "id": "o-3-pro",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 20,
+              "output": 80,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "o-4-mini",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.1,
+              "output": 4.4,
+              "cacheRead": 0.275,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-14b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.35,
+              "output": 1.4,
+              "cacheRead": 0.035,
+              "cacheWrite": 0.4375
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-235b-a22b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.7,
+              "output": 2.8,
+              "cacheRead": 0.07,
+              "cacheWrite": 0.875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-235b-a22b-instruct-2507",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.23,
+              "output": 0.92,
+              "cacheRead": 0.023,
+              "cacheWrite": 0.2875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-235b-a22b-thinking-2507",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.23,
+              "output": 2.3,
+              "cacheRead": 0.023,
+              "cacheWrite": 0.2875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-30b-a3b",
       "rates": [
         {
           "from": null,
           "pricing": {
             "flat": {
               "input": 0.2,
-              "output": 0.66,
-              "cacheRead": 0.04,
-              "cacheWrite": 0
+              "output": 0.8,
+              "cacheRead": 0.02,
+              "cacheWrite": 0.25
             }
-          },
-          "until": "2026-09-10T04:22:43.000Z"
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-30b-a3b-instruct-2507",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 0.8,
+              "cacheRead": 0.02,
+              "cacheWrite": 0.25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-30b-a3b-thinking-2507",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 2.4,
+              "cacheRead": 0.02,
+              "cacheWrite": 0.25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-32b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.64,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-8b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.18,
+              "output": 0.7,
+              "cacheRead": 0.018,
+              "cacheWrite": 0.225
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-next-80b-a3b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 1.2,
+              "cacheRead": 0.015,
+              "cacheWrite": 0.1875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-next-80b-a3b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 1.2,
+              "cacheRead": 0.015,
+              "cacheWrite": 0.1875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-omni-30b-a3b-captioner",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3.81,
+              "output": 3.06,
+              "cacheRead": 0.381,
+              "cacheWrite": 4.7625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-235b-a22b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 1.6,
+              "cacheRead": 0.04,
+              "cacheWrite": 0.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-235b-a22b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 4,
+              "cacheRead": 0.04,
+              "cacheWrite": 0.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-30b-a3b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 0.8,
+              "cacheRead": 0.02,
+              "cacheWrite": 0.25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-30b-a3b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 2.4,
+              "cacheRead": 0.02,
+              "cacheWrite": 0.25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-32b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.64,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-32b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.64,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-8b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.18,
+              "output": 0.7,
+              "cacheRead": 0.018,
+              "cacheWrite": 0.225
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3-vl-8b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.18,
+              "output": 2.1,
+              "cacheRead": 0.018,
+              "cacheWrite": 0.225
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.5-122b-a10b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 3.2,
+              "cacheRead": 0.04,
+              "cacheWrite": 0.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.5-27b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 2.4,
+              "cacheRead": 0.03,
+              "cacheWrite": 0.375
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.5-35b-a3b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.25,
+              "output": 2,
+              "cacheRead": 0.025,
+              "cacheWrite": 0.3125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.5-397b-a17b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 3.6,
+              "cacheRead": 0.06,
+              "cacheWrite": 0.75
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.5-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.4,
+              "cacheRead": 0.01,
+              "cacheWrite": 0.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.5-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.4,
+                  "output": 2.4,
+                  "cacheRead": 0.04,
+                  "cacheWrite": 0.5
+                },
+                "high": {
+                  "input": 0.5,
+                  "output": 3,
+                  "cacheRead": 0.05,
+                  "cacheWrite": 0.625
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.6-27b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 3.6,
+              "cacheRead": 0.06,
+              "cacheWrite": 0.75
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.6-35b-a3b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.375,
+              "output": 2.25,
+              "cacheRead": 0.0375,
+              "cacheWrite": 0.46875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.6-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.25,
+                  "output": 1.5,
+                  "cacheRead": 0.025,
+                  "cacheWrite": 0.3125
+                },
+                "high": {
+                  "input": 1,
+                  "output": 4,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 1.25
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -1517,17 +2348,6 @@
       "rates": [
         {
           "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.5,
-              "output": 3,
-              "cacheRead": 0.05,
-              "cacheWrite": 0.625
-            }
-          }
-        },
-        {
-          "from": "2026-06-05T11:21:46Z",
           "pricing": {
             "flat": {
               "tier": {
@@ -1551,6 +2371,33 @@
       ]
     },
     {
+      "id": "qwen-3.6-preview-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 128000,
+                "low": {
+                  "input": 1.3,
+                  "output": 7.8,
+                  "cacheRead": 0.13,
+                  "cacheWrite": 1.625
+                },
+                "high": {
+                  "input": 2,
+                  "output": 12,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 2.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "qwen-3.7-max",
       "rates": [
         {
@@ -1559,7 +2406,7 @@
             "flat": {
               "input": 2.5,
               "output": 7.5,
-              "cacheRead": 0.5,
+              "cacheRead": 0.25,
               "cacheWrite": 3.125
             }
           }
@@ -1571,17 +2418,6 @@
       "rates": [
         {
           "from": null,
-          "pricing": {
-            "flat": {
-              "input": 0.4,
-              "output": 1.6,
-              "cacheRead": 0.04,
-              "cacheWrite": 0.5
-            }
-          }
-        },
-        {
-          "from": "2026-06-05T11:21:46Z",
           "pricing": {
             "flat": {
               "tier": {
@@ -1605,6 +2441,54 @@
       ]
     },
     {
+      "id": "qwen-3.7-preview-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.25,
+              "cacheWrite": 3.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.8-2.4t-a95b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.2,
+              "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.8-27b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 3,
+              "cacheRead": 0.05,
+              "cacheWrite": 0.625
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "qwen-3.8-flash",
       "rates": [
         {
@@ -1613,8 +2497,8 @@
             "flat": {
               "input": 0.15,
               "output": 0.47,
-              "cacheRead": 0.016,
-              "cacheWrite": 0.2
+              "cacheRead": 0.015,
+              "cacheWrite": 0.1875
             }
           }
         }
@@ -1629,8 +2513,286 @@
             "flat": {
               "input": 2,
               "output": 6,
-              "cacheRead": 0.25,
+              "cacheRead": 0.2,
               "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-3.8-max-0902",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.2,
+              "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.05,
+                  "output": 0.4,
+                  "cacheRead": 0.005,
+                  "cacheWrite": 0.0625
+                },
+                "high": {
+                  "input": 0.25,
+                  "output": 2,
+                  "cacheRead": 0.025,
+                  "cacheWrite": 0.3125
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-flash-character",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.05,
+              "output": 0.4,
+              "cacheRead": 0.005,
+              "cacheWrite": 0.0625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-flash-mt",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.49,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-lite-mt",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.12,
+              "output": 0.36,
+              "cacheRead": 0.012,
+              "cacheWrite": 0.15
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.6,
+              "output": 6.4,
+              "cacheRead": 0.16,
+              "cacheWrite": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-max-vl",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.8,
+              "output": 3.2,
+              "cacheRead": 0.08,
+              "cacheWrite": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.4,
+                  "output": 1.2,
+                  "cacheRead": 0.04,
+                  "cacheWrite": 0.5
+                },
+                "high": {
+                  "input": 1.2,
+                  "output": 3.6,
+                  "cacheRead": 0.12,
+                  "cacheWrite": 1.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-plus-character",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.4,
+              "cacheRead": 0.05,
+              "cacheWrite": 0.625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-plus-character-ja",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.4,
+              "cacheRead": 0.05,
+              "cacheWrite": 0.625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-plus-mt",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.46,
+              "output": 7.37,
+              "cacheRead": 0.246,
+              "cacheWrite": 3.075
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-plus-vl",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.21,
+              "output": 0.63,
+              "cacheRead": 0.021,
+              "cacheWrite": 0.2625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-turbo",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.05,
+              "output": 0.2,
+              "cacheRead": 0.005,
+              "cacheWrite": 0.0625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-turbo-mt",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.49,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen-vl-ocr",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.07,
+              "output": 0.16,
+              "cacheRead": 0.007,
+              "cacheWrite": 0.0875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwq-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.8,
+              "output": 2.4,
+              "cacheRead": 0.08,
+              "cacheWrite": 1
             }
           }
         }
@@ -1638,40 +2800,22 @@
     }
   ],
   "assign": {
-    "opencode:glm-5.3-flash": "glm-5.3-flash",
     "opencode:grok-4.6": "grok-4.6",
-    "opencode:longcat-2.0": "longcat-2.0",
     "opencode:deepseek-v4-flash-vision-exp": "deepseek-4-flash",
-    "opencode:muse-spark-1.2-contributor": "muse-1.2-spark-contributor",
-    "opencode:muse-spark-1.2": "muse-1.2-spark",
     "opencode:deepseek-v4-flash": "deepseek-4-flash",
     "opencode:deepseek-v4-pro": "deepseek-4-pro",
-    "opencode:glm-5.3": "glm-5.3",
     "opencode:gemini-3.7-flash": "gemini-3.7-flash",
     "opencode:qwen3.8-max": "qwen-3.8-max",
     "opencode:gpt-5.6-luna": "gpt-5.6-luna",
     "opencode:hy3": "hy-3",
     "opencode:grok-4.5": "grok-4.5",
     "opencode:mimo-v2.5-pro": "mimo-2.5-pro",
-    "opencode:kimi-k3": "kimi-3-k",
-    "opencode:kimi-k3-7-24-2x": "kimi-3-k-7-24-2x",
-    "opencode:glm-5.2": "glm-5.2",
-    "opencode:kimi-k2.7-code": "kimi-2.7-k-code",
-    "opencode:minimax-m3": "minimax-3-m",
     "opencode:qwen3.6-plus": "qwen-3.6-plus",
     "opencode:qwen3.7-plus": "qwen-3.7-plus",
-    "opencode:glm-5": "glm-5",
-    "opencode:glm-5.1": "glm-5.1",
-    "opencode:kimi-k2.5": "kimi-2.5-k",
-    "opencode:kimi-k2.6": "kimi-2.6-k",
     "opencode:mimo-v2.5": "mimo-2.5",
-    "opencode:minimax-m2.5": "minimax-2.5-m",
-    "opencode:minimax-m2.7": "minimax-2.7-m",
     "opencode:qwen3.7-max": "qwen-3.7-max",
     "opencode:hy4-preview": "hy-4-preview",
     "opencode:qwen3.8-flash": "qwen-3.8-flash",
-    "opencode:omen-alpha": "omen-alpha",
-    "opencode:muse-spark-1.3-contributor": "muse-1.2-spark-contributor",
     "opencode:deepseek-v4.1-flash": "deepseek-4-flash",
     "opencode:hy3-free": "hy-3",
     "opencode:laguna-s-2.1-free": "laguna-2.1-s",
@@ -1682,11 +2826,7 @@
     "opencode:qwen-3.7-max": "qwen-3.7-max",
     "opencode:qwen-3.7-plus": "qwen-3.7-plus",
     "opencode:qwen-3.6-plus": "qwen-3.6-plus",
-    "opencode:muse-spark-1.2-contributor-free": "muse-1.2-spark-contributor",
-    "opencode:muse-spark-1.3-contributor-free": "muse-1.2-spark-contributor",
     "opencode:gemini-3.8-flash": "gemini-3.8-flash",
-    "opencode:ox-alpha-free": "glm-5.3-flash",
-    "opencode:x-preview-f-free": "glm-5.3-flash",
     "deepseek-official:deepseek-chat": "deepseek-chat",
     "deepseek-official:deepseek-coder": "deepseek-coder",
     "deepseek-official:deepseek-reasoner": "deepseek-reasoner",
@@ -1712,47 +2852,146 @@
     "mimo:MiMo-V2.5-Pro": "mimo-2.5-pro",
     "mimo:MiMo-V2.5 Pro": "mimo-2.5-pro",
     "mimo:MiMo-V2.5": "mimo-2.5",
-    "openrouter:stealth/ox-alpha": "glm-5.3-flash",
-    "fp:glm:5.3:flash:": "glm-5.3-flash",
+    "xai-official:grok-4.20-0309-non-reasoning": "grok-4.20-0309-non-reasoning",
+    "xai-official:grok-4.20-0309-reasoning": "grok-4.20-0309-reasoning",
+    "xai-official:grok-4.20-multi-agent-0309": "grok-4.20-multi-agent-0309",
+    "xai-official:grok-4.3": "grok-4.3",
+    "xai-official:grok-4.5": "grok-4.5",
+    "xai-official:grok-4.6": "grok-4.6",
+    "xai-official:grok-4.7": "grok-4.7",
+    "xai-official:grok-build-0.1": "grok-0.1-build",
+    "openai-official:babbage-002": "babbage-002",
+    "openai-official:davinci-002": "davinci-002",
+    "openai-official:gpt-3.5-turbo": "gpt-3.5-turbo",
+    "openai-official:gpt-3.5-turbo-0125": "gpt-3.5-turbo-0125",
+    "openai-official:gpt-3.5-turbo-1106": "gpt-3.5-turbo-1106",
+    "openai-official:gpt-3.5-turbo-instruct": "gpt-3.5-turbo-instruct",
+    "openai-official:gpt-4-0613": "gpt-4-0613",
+    "openai-official:gpt-4-turbo-2024-04-09": "gpt-4-turbo",
+    "openai-official:gpt-4.1": "gpt-4.1",
+    "openai-official:gpt-4.1-mini": "gpt-4.1-mini",
+    "openai-official:gpt-4.1-nano": "gpt-4.1-nano",
+    "openai-official:gpt-4o": "gpt-4-o",
+    "openai-official:gpt-4o-2024-05-13": "gpt-4-o",
+    "openai-official:gpt-4o-mini": "gpt-4-mini-o",
+    "openai-official:gpt-5": "gpt-5",
+    "openai-official:gpt-5-mini": "gpt-5-mini",
+    "openai-official:gpt-5-nano": "gpt-5-nano",
+    "openai-official:gpt-5-pro": "gpt-5-pro",
+    "openai-official:gpt-5.1": "gpt-5.1",
+    "openai-official:gpt-5.2": "gpt-5.2",
+    "openai-official:gpt-5.2-pro": "gpt-5.2-pro",
+    "openai-official:gpt-5.4": "gpt-5.4",
+    "openai-official:gpt-5.4-mini": "gpt-5.4-mini",
+    "openai-official:gpt-5.4-nano": "gpt-5.4-nano",
+    "openai-official:gpt-5.4-pro": "gpt-5.4-pro",
+    "openai-official:gpt-5.5": "gpt-5.5",
+    "openai-official:gpt-5.5-pro": "gpt-5.5-pro",
+    "openai-official:gpt-5.6-luna": "gpt-5.6-luna",
+    "openai-official:gpt-5.6-sol": "gpt-5.6-sol",
+    "openai-official:gpt-5.6-terra": "gpt-5.6-terra",
+    "openai-official:gpt-6-astra": "gpt-6-astra",
+    "openai-official:gpt-6-luna": "gpt-6-luna",
+    "openai-official:gpt-6-sol": "gpt-6-sol",
+    "openai-official:o1": "o-1",
+    "openai-official:o1-pro": "o-1-pro",
+    "openai-official:o3": "o-3",
+    "openai-official:o3-mini": "o-3-mini",
+    "openai-official:o3-pro": "o-3-pro",
+    "openai-official:o4-mini": "o-4-mini",
+    "qwen-official:qwen-flash": "qwen-flash",
+    "qwen-official:qwen-flash-2025-07-28": "qwen-flash",
+    "qwen-official:qwen-flash-character": "qwen-flash-character",
+    "qwen-official:qwen-max": "qwen-max",
+    "qwen-official:qwen-mt-flash": "qwen-flash-mt",
+    "qwen-official:qwen-mt-lite": "qwen-lite-mt",
+    "qwen-official:qwen-mt-plus": "qwen-plus-mt",
+    "qwen-official:qwen-mt-turbo": "qwen-turbo-mt",
+    "qwen-official:qwen-plus": "qwen-plus",
+    "qwen-official:qwen-plus-2025-01-25": "qwen-plus",
+    "qwen-official:qwen-plus-2025-04-28": "qwen-plus",
+    "qwen-official:qwen-plus-2025-07-14": "qwen-plus",
+    "qwen-official:qwen-plus-2025-07-28": "qwen-plus",
+    "qwen-official:qwen-plus-2025-09-11": "qwen-plus",
+    "qwen-official:qwen-plus-2025-12-01": "qwen-plus",
+    "qwen-official:qwen-plus-character": "qwen-plus-character",
+    "qwen-official:qwen-plus-character-ja": "qwen-plus-character-ja",
+    "qwen-official:qwen-plus-latest": "qwen-plus",
+    "qwen-official:qwen-turbo": "qwen-turbo",
+    "qwen-official:qwen-vl-max": "qwen-max-vl",
+    "qwen-official:qwen-vl-ocr": "qwen-vl-ocr",
+    "qwen-official:qwen-vl-plus": "qwen-plus-vl",
+    "qwen-official:qwen3-14b": "qwen-3-14b",
+    "qwen-official:qwen3-235b-a22b": "qwen-3-235b-a22b",
+    "qwen-official:qwen3-235b-a22b-instruct-2507": "qwen-3-235b-a22b-instruct-2507",
+    "qwen-official:qwen3-235b-a22b-thinking-2507": "qwen-3-235b-a22b-thinking-2507",
+    "qwen-official:qwen3-30b-a3b": "qwen-3-30b-a3b",
+    "qwen-official:qwen3-30b-a3b-instruct-2507": "qwen-3-30b-a3b-instruct-2507",
+    "qwen-official:qwen3-30b-a3b-thinking-2507": "qwen-3-30b-a3b-thinking-2507",
+    "qwen-official:qwen3-32b": "qwen-3-32b",
+    "qwen-official:qwen3-8b": "qwen-3-8b",
+    "qwen-official:qwen3-next-80b-a3b-instruct": "qwen-3-next-80b-a3b-instruct",
+    "qwen-official:qwen3-next-80b-a3b-thinking": "qwen-3-next-80b-a3b-thinking",
+    "qwen-official:qwen3-omni-30b-a3b-captioner": "qwen-3-omni-30b-a3b-captioner",
+    "qwen-official:qwen3-vl-235b-a22b-instruct": "qwen-3-vl-235b-a22b-instruct",
+    "qwen-official:qwen3-vl-235b-a22b-thinking": "qwen-3-vl-235b-a22b-thinking",
+    "qwen-official:qwen3-vl-30b-a3b-instruct": "qwen-3-vl-30b-a3b-instruct",
+    "qwen-official:qwen3-vl-30b-a3b-thinking": "qwen-3-vl-30b-a3b-thinking",
+    "qwen-official:qwen3-vl-32b-instruct": "qwen-3-vl-32b-instruct",
+    "qwen-official:qwen3-vl-32b-thinking": "qwen-3-vl-32b-thinking",
+    "qwen-official:qwen3-vl-8b-instruct": "qwen-3-vl-8b-instruct",
+    "qwen-official:qwen3-vl-8b-thinking": "qwen-3-vl-8b-thinking",
+    "qwen-official:qwen3.5-122b-a10b": "qwen-3.5-122b-a10b",
+    "qwen-official:qwen3.5-27b": "qwen-3.5-27b",
+    "qwen-official:qwen3.5-35b-a3b": "qwen-3.5-35b-a3b",
+    "qwen-official:qwen3.5-397b-a17b": "qwen-3.5-397b-a17b",
+    "qwen-official:qwen3.5-flash": "qwen-3.5-flash",
+    "qwen-official:qwen3.5-flash-2026-02-23": "qwen-3.5-flash",
+    "qwen-official:qwen3.5-plus": "qwen-3.5-plus",
+    "qwen-official:qwen3.5-plus-2026-02-15": "qwen-3.5-plus",
+    "qwen-official:qwen3.5-plus-2026-04-20": "qwen-3.5-plus",
+    "qwen-official:qwen3.6-27b": "qwen-3.6-27b",
+    "qwen-official:qwen3.6-35b-a3b": "qwen-3.6-35b-a3b",
+    "qwen-official:qwen3.6-flash": "qwen-3.6-flash",
+    "qwen-official:qwen3.6-flash-2026-04-16": "qwen-3.6-flash",
+    "qwen-official:qwen3.6-max-preview": "qwen-3.6-preview-max",
+    "qwen-official:qwen3.6-plus": "qwen-3.6-plus",
+    "qwen-official:qwen3.6-plus-2026-04-02": "qwen-3.6-plus",
+    "qwen-official:qwen3.7-max": "qwen-3.7-max",
+    "qwen-official:qwen3.7-max-2026-05-17": "qwen-3.7-max",
+    "qwen-official:qwen3.7-max-2026-05-20": "qwen-3.7-max",
+    "qwen-official:qwen3.7-max-2026-06-08": "qwen-3.7-max",
+    "qwen-official:qwen3.7-max-preview": "qwen-3.7-preview-max",
+    "qwen-official:qwen3.7-plus": "qwen-3.7-plus",
+    "qwen-official:qwen3.7-plus-2026-05-26": "qwen-3.7-plus",
+    "qwen-official:qwen3.8-2.4t-a95b": "qwen-3.8-2.4t-a95b",
+    "qwen-official:qwen3.8-27b": "qwen-3.8-27b",
+    "qwen-official:qwen3.8-flash": "qwen-3.8-flash",
+    "qwen-official:qwen3.8-max": "qwen-3.8-max",
+    "qwen-official:qwen3.8-max-0902": "qwen-3.8-max-0902",
+    "qwen-official:qwq-plus": "qwq-plus",
+    "tencent-official:hy3": "hy-3",
+    "tencent-official:hy4-preview": "hy-4-preview",
     "fp:grok:4.6:base:": "grok-4.6",
-    "fp:longcat:2.0:base:": "longcat-2.0",
     "fp:deepseek:4:base:flash-vision-exp": "deepseek-4-flash",
-    "fp:muse:1.2:base:spark-contributor": "muse-1.2-spark-contributor",
-    "fp:muse:1.2:base:spark": "muse-1.2-spark",
     "fp:deepseek:4:flash:": "deepseek-4-flash",
     "fp:deepseek:4:pro:": "deepseek-4-pro",
-    "fp:glm:5.3:base:": "glm-5.3",
     "fp:gemini:3.7:flash:": "gemini-3.7-flash",
     "fp:qwen:3.8:max:": "qwen-3.8-max",
     "fp:gpt:5.6:base:luna": "gpt-5.6-luna",
     "fp:hy:3:base:": "hy-3",
     "fp:grok:4.5:base:": "grok-4.5",
     "fp:mimo:2.5:pro:": "mimo-2.5-pro",
-    "fp:kimi:3:base:k": "kimi-3-k",
-    "fp:kimi:3:base:k-7-24-2x": "kimi-3-k-7-24-2x",
-    "fp:glm:5.2:base:": "glm-5.2",
-    "fp:kimi:2.7:base:k-code": "kimi-2.7-k-code",
-    "fp:minimax:3:base:m": "minimax-3-m",
     "fp:qwen:3.6:plus:": "qwen-3.6-plus",
     "fp:qwen:3.7:plus:": "qwen-3.7-plus",
-    "fp:glm:5:base:": "glm-5",
-    "fp:glm:5.1:base:": "glm-5.1",
-    "fp:kimi:2.5:base:k": "kimi-2.5-k",
-    "fp:kimi:2.6:base:k": "kimi-2.6-k",
     "fp:mimo:2.5:base:": "mimo-2.5",
-    "fp:minimax:2.5:base:m": "minimax-2.5-m",
-    "fp:minimax:2.7:base:m": "minimax-2.7-m",
     "fp:qwen:3.7:max:": "qwen-3.7-max",
     "fp:hy:4:preview:": "hy-4-preview",
     "fp:qwen:3.8:flash:": "qwen-3.8-flash",
-    "fp:omen:0:base:alpha": "omen-alpha",
-    "fp:muse:1.3:base:spark-contributor": "muse-1.2-spark-contributor",
     "fp:deepseek:4.1:flash:": "deepseek-4-flash",
     "fp:laguna:2.1:base:s": "laguna-2.1-s",
     "fp:nemotron:3:base:ultra": "nemotron-3-ultra",
     "fp:gemini:3.8:flash:": "gemini-3.8-flash",
-    "fp:ox:0:base:alpha": "glm-5.3-flash",
-    "fp:x:0:base:preview-f": "glm-5.3-flash",
     "fp:deepseek:0:base:chat": "deepseek-chat",
     "fp:deepseek:0:base:coder": "deepseek-coder",
     "fp:deepseek:0:base:reasoner": "deepseek-reasoner",
@@ -1766,22 +3005,103 @@
     "fp:mimo:2.6:flash:": "mimo-2.6-flash",
     "fp:mimo:2.6:pro:": "mimo-2.6-pro",
     "fp:mimo:2.6:base:pro-ultraspeed": "mimo-2.6-pro-ultraspeed",
-    "fp:muse:0:base:spark-contributor": "muse-1.2-spark-contributor",
-    "fp:gpt:5:base:nano": "gpt-5-nano",
-    "fp:gpt:20:base:ossb": "gpt-20-ossb",
-    "fp:gpt:4:base:": "gpt-4",
+    "fp:grok:4.20:base:0309-non-reasoning": "grok-4.20-0309-non-reasoning",
+    "fp:grok:4.20:base:0309-reasoning": "grok-4.20-0309-reasoning",
+    "fp:grok:4.20:base:multi-agent-0309": "grok-4.20-multi-agent-0309",
+    "fp:grok:4.3:base:": "grok-4.3",
+    "fp:grok:4.7:base:": "grok-4.7",
+    "fp:grok:0.1:base:build": "grok-0.1-build",
+    "fp:babbage:002:base:": "babbage-002",
+    "fp:davinci:002:base:": "davinci-002",
+    "fp:gpt:3.5:turbo:": "gpt-3.5-turbo",
+    "fp:gpt:3.5:base:turbo-0125": "gpt-3.5-turbo-0125",
+    "fp:gpt:3.5:base:turbo-1106": "gpt-3.5-turbo-1106",
+    "fp:gpt:3.5:base:turbo-instruct": "gpt-3.5-turbo-instruct",
+    "fp:gpt:4:base:0613": "gpt-4-0613",
     "fp:gpt:4:turbo:": "gpt-4-turbo",
+    "fp:gpt:4.1:base:": "gpt-4.1",
+    "fp:gpt:4.1:mini:": "gpt-4.1-mini",
+    "fp:gpt:4.1:base:nano": "gpt-4.1-nano",
     "fp:gpt:4:base:o": "gpt-4-o",
     "fp:gpt:4:mini:o": "gpt-4-mini-o",
-    "fp:o:1:preview:": "o-1-preview",
-    "fp:o:1:base:": "o-1",
-    "fp:o:1:mini:": "o-1-mini",
-    "fp:o:3:mini:": "o-3-mini",
     "fp:gpt:5:base:": "gpt-5",
+    "fp:gpt:5:mini:": "gpt-5-mini",
+    "fp:gpt:5:base:nano": "gpt-5-nano",
     "fp:gpt:5:pro:": "gpt-5-pro",
-    "fp:gpt:6:base:astra": "gpt-6-astra",
+    "fp:gpt:5.1:base:": "gpt-5.1",
+    "fp:gpt:5.2:base:": "gpt-5.2",
+    "fp:gpt:5.2:pro:": "gpt-5.2-pro",
+    "fp:gpt:5.4:base:": "gpt-5.4",
+    "fp:gpt:5.4:mini:": "gpt-5.4-mini",
+    "fp:gpt:5.4:base:nano": "gpt-5.4-nano",
+    "fp:gpt:5.4:pro:": "gpt-5.4-pro",
+    "fp:gpt:5.5:base:": "gpt-5.5",
+    "fp:gpt:5.5:pro:": "gpt-5.5-pro",
     "fp:gpt:5.6:base:sol": "gpt-5.6-sol",
     "fp:gpt:5.6:base:terra": "gpt-5.6-terra",
+    "fp:gpt:6:base:astra": "gpt-6-astra",
+    "fp:gpt:6:base:luna": "gpt-6-luna",
+    "fp:gpt:6:base:sol": "gpt-6-sol",
+    "fp:o:1:base:": "o-1",
+    "fp:o:1:pro:": "o-1-pro",
+    "fp:o:3:base:": "o-3",
+    "fp:o:3:mini:": "o-3-mini",
+    "fp:o:3:pro:": "o-3-pro",
+    "fp:o:4:mini:": "o-4-mini",
+    "fp:qwen:0:flash:": "qwen-flash",
+    "fp:qwen:0:base:flash-character": "qwen-flash-character",
+    "fp:qwen:0:max:": "qwen-max",
+    "fp:qwen:0:flash:mt": "qwen-flash-mt",
+    "fp:qwen:0:lite:mt": "qwen-lite-mt",
+    "fp:qwen:0:plus:mt": "qwen-plus-mt",
+    "fp:qwen:0:turbo:mt": "qwen-turbo-mt",
+    "fp:qwen:0:plus:": "qwen-plus",
+    "fp:qwen:0:base:plus-character": "qwen-plus-character",
+    "fp:qwen:0:base:plus-character-ja": "qwen-plus-character-ja",
+    "fp:qwen:0:base:plus-latest": "qwen-plus",
+    "fp:qwen:0:turbo:": "qwen-turbo",
+    "fp:qwen:0:max:vl": "qwen-max-vl",
+    "fp:qwen:0:base:vl-ocr": "qwen-vl-ocr",
+    "fp:qwen:0:plus:vl": "qwen-plus-vl",
+    "fp:qwen:3:base:14b": "qwen-3-14b",
+    "fp:qwen:3:base:235b-a22b": "qwen-3-235b-a22b",
+    "fp:qwen:3:base:235b-a22b-instruct-2507": "qwen-3-235b-a22b-instruct-2507",
+    "fp:qwen:3:base:235b-a22b-thinking-2507": "qwen-3-235b-a22b-thinking-2507",
+    "fp:qwen:3:base:30b-a3b": "qwen-3-30b-a3b",
+    "fp:qwen:3:base:30b-a3b-instruct-2507": "qwen-3-30b-a3b-instruct-2507",
+    "fp:qwen:3:base:30b-a3b-thinking-2507": "qwen-3-30b-a3b-thinking-2507",
+    "fp:qwen:3:base:32b": "qwen-3-32b",
+    "fp:qwen:3:base:8b": "qwen-3-8b",
+    "fp:qwen:3:base:next-80b-a3b-instruct": "qwen-3-next-80b-a3b-instruct",
+    "fp:qwen:3:base:next-80b-a3b-thinking": "qwen-3-next-80b-a3b-thinking",
+    "fp:qwen:3:base:omni-30b-a3b-captioner": "qwen-3-omni-30b-a3b-captioner",
+    "fp:qwen:3:base:vl-235b-a22b-instruct": "qwen-3-vl-235b-a22b-instruct",
+    "fp:qwen:3:base:vl-235b-a22b-thinking": "qwen-3-vl-235b-a22b-thinking",
+    "fp:qwen:3:base:vl-30b-a3b-instruct": "qwen-3-vl-30b-a3b-instruct",
+    "fp:qwen:3:base:vl-30b-a3b-thinking": "qwen-3-vl-30b-a3b-thinking",
+    "fp:qwen:3:base:vl-32b-instruct": "qwen-3-vl-32b-instruct",
+    "fp:qwen:3:base:vl-32b-thinking": "qwen-3-vl-32b-thinking",
+    "fp:qwen:3:base:vl-8b-instruct": "qwen-3-vl-8b-instruct",
+    "fp:qwen:3:base:vl-8b-thinking": "qwen-3-vl-8b-thinking",
+    "fp:qwen:3.5:base:122b-a10b": "qwen-3.5-122b-a10b",
+    "fp:qwen:3.5:base:27b": "qwen-3.5-27b",
+    "fp:qwen:3.5:base:35b-a3b": "qwen-3.5-35b-a3b",
+    "fp:qwen:3.5:base:397b-a17b": "qwen-3.5-397b-a17b",
+    "fp:qwen:3.5:flash:": "qwen-3.5-flash",
+    "fp:qwen:3.5:plus:": "qwen-3.5-plus",
+    "fp:qwen:3.6:base:27b": "qwen-3.6-27b",
+    "fp:qwen:3.6:base:35b-a3b": "qwen-3.6-35b-a3b",
+    "fp:qwen:3.6:flash:": "qwen-3.6-flash",
+    "fp:qwen:3.6:preview:max": "qwen-3.6-preview-max",
+    "fp:qwen:3.7:preview:max": "qwen-3.7-preview-max",
+    "fp:qwen:3.8:base:2.4t-a95b": "qwen-3.8-2.4t-a95b",
+    "fp:qwen:3.8:base:27b": "qwen-3.8-27b",
+    "fp:qwen:3.8:base:max-0902": "qwen-3.8-max-0902",
+    "fp:qwq:0:plus:": "qwq-plus",
+    "fp:gpt:20:base:ossb": "gpt-20-ossb",
+    "fp:gpt:4:base:": "gpt-4",
+    "fp:o:1:preview:": "o-1-preview",
+    "fp:o:1:mini:": "o-1-mini",
     "fp:gemini:3.6:flash:": "gemini-3.6-flash",
     "fp:gemini:3.5:flash:": "gemini-3.5-flash",
     "fp:gemini:3.5:lite:flash": "gemini-3.5-lite-flash",

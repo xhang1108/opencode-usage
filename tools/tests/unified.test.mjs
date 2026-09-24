@@ -151,7 +151,6 @@ test("the board agrees with pricing: structurally-priced vendor ids are assigned
   // Never enumerated in any preset table, yet structurally known.
   const ids = [
     ["commandcode", "poolside/laguna-s-2.1-free"],
-    ["commandcode", "meituan/LongCat-2.0:free"],
     ["openrouter", "google/gemini-2.5-flash-lite"],
     ["openrouter", "openai/gpt-5-nano-2025-08-07"],
     ["commandcode", "tencent/hy3-paid"],
@@ -164,6 +163,14 @@ test("the board agrees with pricing: structurally-priced vendor ids are assigned
     const priced = priceUnified({ ...rec, source, model }, index);
     assert.equal(priced.unpriced, false, `${key} should be priced`);
   }
+  // Structurally known but has no official price source: deliberately unpriced
+  // (its group only ever existed because go.mdx carried a resale price).
+  const longcat = groupIdForKey(unified.assign, "commandcode:meituan/LongCat-2.0:free");
+  assert.equal(longcat, null, "LongCat has no official source -> no group");
+  assert.equal(
+    priceUnified({ ...rec, source: "commandcode", model: "meituan/LongCat-2.0:free" }, index).unpriced,
+    true,
+  );
 });
 
 test("vendor alias folds cover display labels the parser cannot resolve", () => {
@@ -179,18 +186,18 @@ test("vendor alias folds cover display labels the parser cannot resolve", () => 
   const flash = groupIdForKey(unified.assign, "deepseek-official:deepseek-v4-flash");
   assert.equal(groupIdForKey(unified.assign, "deepseek-official:deepseek-v4.1-flash-expires-on-0910"), flash);
 
-  // Muse Spark contributor generations (and their free variant) are one group.
-  const contributor = groupIdForKey(unified.assign, "opencode:muse-spark-1.3-contributor");
-  assert.ok(contributor);
+  // Muse Spark contributor generations (and their free variant) fold together,
+  // but Muse has no official price source, so the whole family is deliberately
+  // unpriced: the fold lives in AUTHORED_FOLDS yet resolves to no group.
   for (const key of [
+    "opencode:muse-spark-1.3-contributor",
     "opencode:muse-spark-1.2-contributor",
     "opencode:muse-spark-1.2-contributor-free",
     "opencode:muse-spark-1.3-contributor-free",
+    "opencode:muse-spark-1.2",
   ]) {
-    assert.equal(groupIdForKey(unified.assign, key), contributor, key);
+    assert.equal(groupIdForKey(unified.assign, key), null, `${key} has no official source -> no group`);
   }
-  // The non-contributor model stays a distinct group.
-  assert.notEqual(groupIdForKey(unified.assign, "opencode:muse-spark-1.2"), contributor);
 
   // The legacy (unified-off) vendor table maps them too.
   const vendor = JSON.parse(fs.readFileSync(new URL("../../extension/vendors/deepseek-official/rates.preset.json", import.meta.url)));

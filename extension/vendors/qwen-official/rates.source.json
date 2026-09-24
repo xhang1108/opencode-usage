@@ -2,6 +2,164 @@
   "source": "qwen-official",
   "models": [
     {
+      "model": "qwen-flash",
+      "label": "qwen-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.05,
+                  "output": 0.4,
+                  "cacheRead": 0.005,
+                  "cacheWrite": 0.0625
+                },
+                "high": {
+                  "input": 0.25,
+                  "output": 2,
+                  "cacheRead": 0.025,
+                  "cacheWrite": 0.3125
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-flash-2025-07-28",
+      "label": "qwen-flash-2025-07-28",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.05,
+                  "output": 0.4,
+                  "cacheRead": 0.005,
+                  "cacheWrite": 0.0625
+                },
+                "high": {
+                  "input": 0.25,
+                  "output": 2,
+                  "cacheRead": 0.025,
+                  "cacheWrite": 0.3125
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-flash-character",
+      "label": "qwen-flash-character",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.05,
+              "output": 0.4,
+              "cacheRead": 0.005,
+              "cacheWrite": 0.0625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-max",
+      "label": "qwen-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.6,
+              "output": 6.4,
+              "cacheRead": 0.16,
+              "cacheWrite": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-mt-flash",
+      "label": "qwen-mt-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.49,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-mt-lite",
+      "label": "qwen-mt-lite",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.12,
+              "output": 0.36,
+              "cacheRead": 0.012,
+              "cacheWrite": 0.15
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-mt-plus",
+      "label": "qwen-mt-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.46,
+              "output": 7.37,
+              "cacheRead": 0.246,
+              "cacheWrite": 3.075
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-mt-turbo",
+      "label": "qwen-mt-turbo",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.49,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "qwen-plus",
       "label": "qwen-plus",
       "rates": [
@@ -165,6 +323,40 @@
       ]
     },
     {
+      "model": "qwen-plus-character",
+      "label": "qwen-plus-character",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.4,
+              "cacheRead": 0.05,
+              "cacheWrite": 0.625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-plus-character-ja",
+      "label": "qwen-plus-character-ja",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 1.4,
+              "cacheRead": 0.05,
+              "cacheWrite": 0.625
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "qwen-plus-latest",
       "label": "qwen-plus-latest",
       "rates": [
@@ -204,6 +396,57 @@
               "output": 0.2,
               "cacheRead": 0.005,
               "cacheWrite": 0.0625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-vl-max",
+      "label": "qwen-vl-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.8,
+              "output": 3.2,
+              "cacheRead": 0.08,
+              "cacheWrite": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-vl-ocr",
+      "label": "qwen-vl-ocr",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.07,
+              "output": 0.16,
+              "cacheRead": 0.007,
+              "cacheWrite": 0.0875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen-vl-plus",
+      "label": "qwen-vl-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.21,
+              "output": 0.63,
+              "cacheRead": 0.021,
+              "cacheWrite": 0.2625
             }
           }
         }
@@ -397,6 +640,159 @@
       ]
     },
     {
+      "model": "qwen3-omni-30b-a3b-captioner",
+      "label": "qwen3-omni-30b-a3b-captioner",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3.81,
+              "output": 3.06,
+              "cacheRead": 0.381,
+              "cacheWrite": 4.7625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-235b-a22b-instruct",
+      "label": "qwen3-vl-235b-a22b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 1.6,
+              "cacheRead": 0.04,
+              "cacheWrite": 0.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-235b-a22b-thinking",
+      "label": "qwen3-vl-235b-a22b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.4,
+              "output": 4,
+              "cacheRead": 0.04,
+              "cacheWrite": 0.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-30b-a3b-instruct",
+      "label": "qwen3-vl-30b-a3b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 0.8,
+              "cacheRead": 0.02,
+              "cacheWrite": 0.25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-30b-a3b-thinking",
+      "label": "qwen3-vl-30b-a3b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 2.4,
+              "cacheRead": 0.02,
+              "cacheWrite": 0.25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-32b-instruct",
+      "label": "qwen3-vl-32b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.64,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-32b-thinking",
+      "label": "qwen3-vl-32b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.16,
+              "output": 0.64,
+              "cacheRead": 0.016,
+              "cacheWrite": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-8b-instruct",
+      "label": "qwen3-vl-8b-instruct",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.18,
+              "output": 0.7,
+              "cacheRead": 0.018,
+              "cacheWrite": 0.225
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-vl-8b-thinking",
+      "label": "qwen3-vl-8b-thinking",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.18,
+              "output": 2.1,
+              "cacheRead": 0.018,
+              "cacheWrite": 0.225
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "qwen3.5-122b-a10b",
       "label": "qwen3.5-122b-a10b",
       "rates": [
@@ -459,6 +855,40 @@
               "output": 3.6,
               "cacheRead": 0.06,
               "cacheWrite": 0.75
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.5-flash",
+      "label": "qwen3.5-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.4,
+              "cacheRead": 0.01,
+              "cacheWrite": 0.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.5-flash-2026-02-23",
+      "label": "qwen3.5-flash-2026-02-23",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.4,
+              "cacheRead": 0.01,
+              "cacheWrite": 0.125
             }
           }
         }
@@ -583,6 +1013,90 @@
       ]
     },
     {
+      "model": "qwen3.6-flash",
+      "label": "qwen3.6-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.25,
+                  "output": 1.5,
+                  "cacheRead": 0.025,
+                  "cacheWrite": 0.3125
+                },
+                "high": {
+                  "input": 1,
+                  "output": 4,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 1.25
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.6-flash-2026-04-16",
+      "label": "qwen3.6-flash-2026-04-16",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 256000,
+                "low": {
+                  "input": 0.25,
+                  "output": 1.5,
+                  "cacheRead": 0.025,
+                  "cacheWrite": 0.3125
+                },
+                "high": {
+                  "input": 1,
+                  "output": 4,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 1.25
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.6-max-preview",
+      "label": "qwen3.6-max-preview",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 128000,
+                "low": {
+                  "input": 1.3,
+                  "output": 7.8,
+                  "cacheRead": 0.13,
+                  "cacheWrite": 1.625
+                },
+                "high": {
+                  "input": 2,
+                  "output": 12,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 2.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "qwen3.6-plus",
       "label": "qwen3.6-plus",
       "rates": [
@@ -639,6 +1153,91 @@
       ]
     },
     {
+      "model": "qwen3.7-max",
+      "label": "qwen3.7-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.25,
+              "cacheWrite": 3.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.7-max-2026-05-17",
+      "label": "qwen3.7-max-2026-05-17",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.25,
+              "cacheWrite": 3.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.7-max-2026-05-20",
+      "label": "qwen3.7-max-2026-05-20",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.25,
+              "cacheWrite": 3.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.7-max-2026-06-08",
+      "label": "qwen3.7-max-2026-06-08",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.25,
+              "cacheWrite": 3.125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.7-max-preview",
+      "label": "qwen3.7-max-preview",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.5,
+              "output": 7.5,
+              "cacheRead": 0.25,
+              "cacheWrite": 3.125
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "qwen3.7-plus",
       "label": "qwen3.7-plus",
       "rates": [
@@ -689,6 +1288,108 @@
                   "cacheWrite": 1.5
                 }
               }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.8-2.4t-a95b",
+      "label": "qwen3.8-2.4t-a95b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.2,
+              "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.8-27b",
+      "label": "qwen3.8-27b",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.5,
+              "output": 3,
+              "cacheRead": 0.05,
+              "cacheWrite": 0.625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.8-flash",
+      "label": "qwen3.8-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.47,
+              "cacheRead": 0.015,
+              "cacheWrite": 0.1875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.8-max",
+      "label": "qwen3.8-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.2,
+              "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3.8-max-0902",
+      "label": "qwen3.8-max-0902",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 6,
+              "cacheRead": 0.2,
+              "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwq-plus",
+      "label": "qwq-plus",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.8,
+              "output": 2.4,
+              "cacheRead": 0.08,
+              "cacheWrite": 1
             }
           }
         }

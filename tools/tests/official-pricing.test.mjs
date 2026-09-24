@@ -217,7 +217,98 @@ const QWEN_FLAT = `<table>
 <tr><td><p>qwen-vl-max</p></td><td><p>International</p></td><td><p>$0.8</p></td><td><p>$4</p></td><td><p>$4</p></td><td><p>1 million tokens</p></td></tr>
 </table>`;
 
+// Layout D: SINGLE header row (max/flash families), ONE output column —
+// quota text sits at col+2 and is never validated; continuation rows are 3
+// cells [tier, in, out]; rows[1] carries money, which is what tells the
+// parser there is no second header row.
+const QWEN_D_MAX = `<table>
+<tr><th>Model ID</th><th>Deployment scope</th><th>Mode</th><th>Input tokens per request</th><th>Input price (per 1 million tokens)</th><th>Output price (per 1 million tokens) Chain of thought + answer</th><th>Free quota</th></tr>
+<tr><td><p>qwen3.8-max</p></td><td><p>International</p></td><td><p>Non-Thinking and Thinking modes</p></td><td><p>0&lt;Token&le;1M</p></td><td><p>$2</p></td><td><p>$6</p></td><td><p>1 million tokens</p></td></tr>
+<tr><td><p>qwen3.7-max context caching discount</p></td><td><p>International</p></td><td><p>Non-Thinking and Thinking modes</p></td><td><p>0&lt;Token&le;1M</p></td><td><p>$2.5</p></td><td><p>$7.5</p></td><td><p>1 million tokens</p></td></tr>
+<tr><td><p>qwen3.6-max-preview</p></td><td><p>International</p></td><td><p>Non-Thinking and Thinking modes</p></td><td><p>0&lt;Token&le;32K</p></td><td><p>$1.3</p></td><td><p>$7.8</p></td><td rowspan="2"><p>1 million tokens</p></td></tr>
+<tr><td><p>32K&lt;Token&le;128K</p></td><td><p>$2</p></td><td><p>$12</p></td></tr>
+<tr><td><p>qwen3-max</p></td><td><p>International</p></td><td><p>Non-Thinking and Thinking modes</p></td><td><p>0&lt;Token&le;32K</p></td><td><p>$1.2</p></td><td><p>$6</p></td><td rowspan="3"><p>1 million tokens</p></td></tr>
+<tr><td><p>32K&lt;Token&le;128K</p></td><td><p>$2.4</p></td><td><p>$12</p></td></tr>
+<tr><td><p>128K&lt;Token&le;256K</p></td><td><p>$3</p></td><td><p>$15</p></td></tr>
+<tr><td><p>qwen3.8-max</p></td><td><p>Global</p></td><td><p>Non-Thinking and Thinking modes</p></td><td><p>0&lt;Token&le;1M</p></td><td><p>$2.2</p></td><td><p>$6.6</p></td><td><p>1 million tokens</p></td></tr>
+</table>`;
+
+// Layout D, no Mode column: 6 header cells, col = 3
+const QWEN_D_FLASH = `<table>
+<tr><th>Model ID</th><th>Deployment scope</th><th>Input tokens per request</th><th>Input price (per 1 million tokens)</th><th>Output price (per 1 million tokens) Chain of thought + answer</th><th>Free quota</th></tr>
+<tr><td><p>qwen3.8-flash</p></td><td><p>International</p></td><td><p>0&lt;Token&le;32K</p></td><td><p>$0.15</p></td><td><p>$0.47</p></td><td><p>1 million tokens</p></td></tr>
+<tr><td><p>qwen3.6-flash</p></td><td><p>International</p></td><td><p>0&lt;Token&le;32K</p></td><td><p>$0.05</p></td><td><p>$0.25</p></td><td rowspan="2"><p>1 million tokens</p></td></tr>
+<tr><td><p>32K&lt;Token&le;256K</p></td><td><p>$0.4</p></td><td><p>$1.6</p></td></tr>
+<tr><td><p>qwen3.7-flash</p></td><td><p>International</p></td><td><p>0&lt;Token&le;32K</p></td><td><p>$0.1</p></td><td><p>$0.4</p></td><td rowspan="3"><p>1 million tokens</p></td></tr>
+<tr><td><p>32K&lt;Token&le;128K</p></td><td><p>$0.4</p></td><td><p>$1.6</p></td></tr>
+<tr><td><p>128K&lt;Token&le;256K</p></td><td><p>$0.8</p></td><td><p>$3.2</p></td></tr>
+</table>`;
+
+// Layout D, no tier column either (live table 84: captioner, output < input)
+const QWEN_D_NOTIER = `<table>
+<tr><th>Model ID</th><th>Deployment scope</th><th>Input price (per 1 million tokens)</th><th>Output price (per 1 million tokens)</th><th>Free quota</th></tr>
+<tr><td><p>qwen3-omni-30b-a3b-captioner</p></td><td><p>International</p></td><td><p>$3.81</p></td><td><p>$3.06</p></td><td><p>1 million tokens</p></td></tr>
+</table>`;
+
 const QWEN_HTML = QWEN_MAIN + QWEN_MODE + QWEN_FLAT;
+const QWEN_HTML_D = QWEN_HTML + QWEN_D_MAX + QWEN_D_FLASH + QWEN_D_NOTIER;
+
+test("qwen parser: layout D single-header tables, one output column, 3-cell tiers", () => {
+  const models = parseQwen(QWEN_HTML_D);
+  // 12 + qwen3.8-max + qwen3.7-max + qwen3.6-max-preview + qwen3.8-flash +
+  // qwen3.6-flash + captioner; qwen3-max / qwen3.7-flash have 3 tiers ->
+  // skipped, the Global row -> skipped
+  assert.equal(Object.keys(models).length, 18);
+
+  // output MAY be below input on the official page (captioner) — accepted
+  assert.deepEqual(models["qwen3-omni-30b-a3b-captioner"].entry.pricing.flat, {
+    input: 3.81,
+    output: 3.06,
+    cacheRead: 0.381,
+    cacheWrite: 4.7625,
+  });
+
+  // ONE output column: quota text at col+2 must never be read as a price
+  assert.deepEqual(models["qwen3.8-max"].entry.pricing.flat, {
+    input: 2,
+    output: 6,
+    cacheRead: 0.2,
+    cacheWrite: 2.5,
+  });
+  // model id survives a trailing note ("... context caching discount")
+  assert.deepEqual(models["qwen3.7-max"].entry.pricing.flat, {
+    input: 2.5,
+    output: 7.5,
+    cacheRead: 0.25,
+    cacheWrite: 3.125,
+  });
+  // a Global-scope repeat on the same table never overwrites the USD price
+  assert.equal(models["qwen3.8-max"].entry.pricing.flat.input, 2);
+
+  // 3-cell continuation row builds the second tier (limit = its lower bound)
+  assert.deepEqual(models["qwen3.6-max-preview"].entry.pricing.flat.tier, {
+    limit: 32000,
+    low: { input: 1.3, output: 7.8, cacheRead: 0.13, cacheWrite: 1.625 },
+    high: { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5 },
+  });
+
+  // no-Mode variant: input at col 3 (never the quota/output columns)
+  assert.deepEqual(models["qwen3.8-flash"].entry.pricing.flat, {
+    input: 0.15,
+    output: 0.47,
+    cacheRead: 0.015,
+    cacheWrite: 0.1875,
+  });
+  assert.deepEqual(models["qwen3.6-flash"].entry.pricing.flat.tier, {
+    limit: 32000,
+    low: { input: 0.05, output: 0.25, cacheRead: 0.005, cacheWrite: 0.0625 },
+    high: { input: 0.4, output: 1.6, cacheRead: 0.04, cacheWrite: 0.5 },
+  });
+
+  // >2 tiers: that model drops out of the snapshot instead of failing it
+  assert.ok(!("qwen3-max" in models));
+  assert.ok(!("qwen3.7-flash" in models));
+});
 
 test("qwen parser: derives columns per layout, International-only, canonical output", () => {
   const models = parseQwen(QWEN_HTML);
@@ -307,6 +398,8 @@ test("qwen parser: derives columns per layout, International-only, canonical out
 });
 
 test("qwen parser fails closed: signature / anchor / min count / dashes / >2 tiers", () => {
+  // signature / anchor / count assertions unchanged — see below; the >2-tier
+  // case is now a per-model skip, so it is asserted after the dashes case.
   assert.throws(() => parseQwen("<table><tr><td>nothing here</td></tr></table>"), /signature not found/);
   assert.throws(() => parseQwen(QWEN_HTML.replace("qwen3.5-plus", "qwen4.0-plus")), /anchor model qwen3.5-plus missing/);
 
@@ -321,10 +414,21 @@ test("qwen parser fails closed: signature / anchor / min count / dashes / >2 tie
   assert.notEqual(bothDash, QWEN_HTML, "fixture replacement must have matched");
   assert.throws(() => parseQwen(bothDash), /insane prices for qwen3-next-80b-a3b-instruct/);
 
-  const thirdTier = `<tr><td><p>1M&lt;Token&le;4M</p></td><td><p>$1</p></td><td><p>$6</p></td><td><p>$6</p></td></tr>`;
-  const threeTier = QWEN_HTML.replace(QWEN_35_CONT, `${QWEN_35_CONT}\n${thirdTier}`);
+  // A third tier on a NON-anchor model: that model is skipped, the snapshot
+  // still parses (3 tiers are not expressible as limit/low/high).
+  const q37cont = `<tr><td><p>256K&lt;Token&le;1M</p></td><td><p>$1.2</p></td><td><p>$4.8</p></td><td><p>$4.8</p></td></tr>`;
+  const thirdTier = `<tr><td><p>1M&lt;Token&le;4M</p></td><td><p>$1.2</p></td><td><p>$4.8</p></td><td><p>$4.8</p></td></tr>`;
+  const threeTier = QWEN_HTML.replace(q37cont, `${q37cont}\n${thirdTier}`);
   assert.notEqual(threeTier, QWEN_HTML, "fixture replacement must have matched");
-  assert.throws(() => parseQwen(threeTier), /3 tiers not expressible/);
+  const skipped = parseQwen(threeTier);
+  assert.ok(!("qwen3.7-plus" in skipped), ">2 tiers -> the model drops out of the snapshot");
+  assert.equal(Object.keys(skipped).length, 11, "every other model still parses");
+
+  // On the ANCHOR the same skip surfaces through the anchor assertion — the
+  // page changed shape, so the snapshot still refuses to write.
+  const threeTierAnchor = QWEN_HTML.replace(QWEN_35_CONT, `${QWEN_35_CONT}\n${thirdTier}`);
+  assert.notEqual(threeTierAnchor, QWEN_HTML, "fixture replacement must have matched");
+  assert.throws(() => parseQwen(threeTierAnchor), /anchor model qwen3.5-plus missing/);
 });
 
 test("qwen snapshot carries source and capturedAt", () => {

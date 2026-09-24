@@ -47,6 +47,20 @@ export const VENDORS = {
     url: "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
     dir: "extension/vendors/qwen-official",
     parser: "extension/vendors/qwen-official/pricing-page.js",
+    // Dated snapshots of one model. Their fingerprint is identical (the date
+    // normalizes away) while the page can price two rows differently — that is
+    // an ambiguous group price, so declare them one model here.
+    aliasTo: {
+      "qwen-plus": [
+        "qwen-plus-latest",
+        "qwen-plus-2025-12-01",
+        "qwen-plus-2025-09-11",
+        "qwen-plus-2025-07-28",
+        "qwen-plus-2025-07-14",
+        "qwen-plus-2025-04-28",
+        "qwen-plus-2025-01-25",
+      ],
+    },
   },
   "tencent-official": {
     url: "https://www.tencentcloud.com/act/pro/tokenhub",
@@ -105,7 +119,11 @@ export async function rebuildPreset(source, cfg) {
     if (!target) continue;
     for (const id of ids) {
       const key = `${source}:${id}`;
-      if (!preset.modelMap[key]) preset.modelMap[key] = target;
+      // The authored equivalence wins even when the id is itself a live model
+      // with its own row (qwen-plus-2025-12-01): they are one model, so they
+      // must share one target/rate table, or the unified builder sees two
+      // rate signatures in one fingerprint group and fails closed.
+      preset.modelMap[key] = target;
     }
   }
 

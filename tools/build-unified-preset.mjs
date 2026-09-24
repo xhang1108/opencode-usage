@@ -15,9 +15,11 @@
 //
 // Usage: node tools/build-unified-preset.mjs
 //
-// Rate source per component: the vendor that owns it
-// (deepseek-* -> deepseek-official, mimo-* -> mimo, otherwise opencode);
-// OVERRIDE_RATES win over any vendor table.
+// Rate sources: official vendor tables only. opencode (go.mdx) is read for
+// STRUCTURE — id equivalences, group unions, assign keys — but never as a price
+// authority (go.mdx resale prices are not a source anymore). OVERRIDE_RATES win
+// over any vendor table; they are official list prices transcribed by hand for
+// models no daily parser covers (Gemini, legacy GPT, …).
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -27,7 +29,15 @@ import { parse } from "../extension/shared/model-fingerprint.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 
-const SOURCES = ["opencode", "deepseek-official", "mimo"];
+const SOURCES = [
+  "opencode", // structure only — its rates never become candidates
+  "deepseek-official",
+  "mimo",
+  "xai-official",
+  "openai-official",
+  "qwen-official",
+  "tencent-official",
+];
 const FINGERPRINT_PREFIX = "fp:";
 
 const PRESETS = {};
@@ -79,18 +89,23 @@ function groupIdFor(fp) {
 }
 
 // Rate source preference: a zero-rate table (free trial) never wins over a real
-// one; the owning vendor beats opencode, and authored overrides beat everyone.
+// one; the owning official vendor wins; authored overrides beat everyone.
+const PREFERRED_BY_SERIES = {
+  deepseek: "deepseek-official",
+  mimo: "mimo",
+  grok: "xai-official",
+  gpt: "openai-official",
+  qwen: "qwen-official",
+  hy: "tencent-official",
+};
 function preferredSource(fp) {
-  const series = String(fp).split(":")[0];
-  if (series === "deepseek") return "deepseek-official";
-  if (series === "mimo") return "mimo";
-  return "opencode";
+  return PREFERRED_BY_SERIES[String(fp).split(":")[0]] || null;
 }
 function rank(fp, source, rates) {
   if (isZeroRates(rates)) return -1;
   if (source === "override") return 3;
   if (source === preferredSource(fp)) return 2;
-  return source === "opencode" ? 1 : 0;
+  return 0;
 }
 
 // Official list prices for models the fallback tables ship as 0 (free-trial
@@ -216,7 +231,9 @@ for (const source of SOURCES) {
     union(kf, tf);
     const target = (preset.targets || {})[targetId];
     const rates = target && Array.isArray(target.rates) && target.rates.length ? target.rates : null;
-    if (rates && !AUTHORED_UNPRICED.has(modelName(key))) candidates.push({ key, fp: kf, rates, source });
+    // opencode (go.mdx) contributes structure only — its rates are never
+    // candidates, so a group that only an opencode table prices becomes unpriced.
+    if (rates && source !== "opencode" && !AUTHORED_UNPRICED.has(modelName(key))) candidates.push({ key, fp: kf, rates, source });
   }
 }
 

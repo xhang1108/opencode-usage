@@ -1,15 +1,22 @@
 // extension/vendors/qwen-official/pricing-page.js
 // Parse Alibaba Cloud Model Studio's official pricing (EN page, USD). Pure (P9).
 //
-// The page holds SEVERAL chat tables that share one signature (h0 contains
-// "Model ID" + "Deployment scope" + "Input price", h1 is "Non-Thinking mode |
-// Thinking mode ..."). Live layouts (2026-09, ~33 International ids total):
+// The page holds SEVERAL chat tables that share one h0 signature (h0 contains
+// "Model ID" + "Deployment scope" + "Input price"). Live layouts (2026-09,
+// ~48 International ids total):
 //   A. tiered  7 cells: model, scope, tier("0<Token≤256K"), in, nt, th, quota
 //            (h0 has "Input tokens per request"; 4-cell continuation rows
 //                 add upper tiers)
 //   B. flat      6 cells: model, scope, in, nt, th, quota (no tier column)
 //   C. mode      7 cells: model, scope, Mode, in, nt, th, quota — thinking-only
 //                 models carry "-" in the Non-Thinking output column
+//      A–C carry a SECOND header row ("Non-Thinking mode | Thinking mode …")
+//      with no money in it, and TWO output columns (nt, th).
+//   D. single    max/flash families: ONE header row, ONE output column
+//                ("chain of thought + answer"), optional Mode column, quota
+//                text at col+2 (never validated); continuation rows are 3
+//                cells [tier, in, out]. Detected by money in rows[1] — a data
+//                row always carries $, a header row never does.
 // Column indexes are DERIVED from h0 (never hard-coded) and a row is only
 // accepted when the derived cells actually look like prices, so column drift
 // lands on the count/anchor assertions instead of silently writing a
@@ -25,11 +32,15 @@
 //   * cache  — no cache columns; the page's own note bills cache creation at
 //              125% of input and cache hits at 10% (matches existing go.mdx
 //              groups), so cacheRead/cacheWrite are derived.
-//   * >2 tiers throws: the snapshot schema only expresses limit/low/high.
+//   * >2 tiers (qwen3-max, qwen3.7-flash): that MODEL is skipped — unpriced,
+//     never a wrong price — instead of throwing the whole snapshot away (the
+//     schema only expresses limit/low/high).
+//   * sanity — input/output must both be > 0; output MAY be below input (the
+//     captioner ships $3.81 in / $3.06 out), so parity is not asserted.
 
 export const QWEN_SOURCE = "qwen-official";
 
-const MIN_MODELS = 10; // live page: ~33 International ids across 5 tables
+const MIN_MODELS = 10; // live page: ~48 International ids across 7 tables
 const ANCHOR = "qwen3.5-plus"; // only the main tiered table has it
 const CACHE_READ_RATIO = 0.1; // "cache hits at 10%" (page note)
 const CACHE_WRITE_RATIO = 1.25; // "explicit cache creation ... 125%" (page note)
@@ -100,7 +111,10 @@ function lowerBound(tierCell) {
   return Number(m[1]) * (unit === "M" ? 1e6 : unit === "K" ? 1e3 : 1);
 }
 
-const isTierRow = (cells) => cells.length === 4 && /^[\d.]+[KM]?\s*<\s*Token\s*≤/i.test(textOf(cells[0] || ""));
+// A–C continuation rows are 4 cells [tier, in, nt, th]; D rows are 3 cells
+// [tier, in, out]. The tier text is distinctive enough that no data row's
+// model id can match it.
+const isTierRow = (cells) => cells.length >= 3 && /^[\d.]+[KM]?\s*<\s*Token\s*≤/i.test(textOf(cells[0] || ""));
 
 function cacheLegs(input) {
   return {
@@ -141,15 +155,24 @@ export function parsePricingModels(html) {
 
   for (const table of tables) {
     const rows = rowsOf(table);
-    if (rows.length < 3) continue;
+    if (rows.length < 2) continue;
     const h0cells = rows[0].map(textOf);
     const h0 = h0cells.join(" ");
     const h1 = (rows[1] || []).map(textOf).join(" ");
     if (!/Model ID/.test(h0) || !/Input price/.test(h0) || !/Deployment scope/.test(h0)) continue;
-    if (!/Non-Thinking mode/i.test(h1) || !/Thinking mode/i.test(h1)) continue;
+    // A–C: rows[1] is the second header ("Non-Thinking mode | Thinking mode",
+    // never money) and data starts at 2 with TWO output columns. D (max/flash):
+    // rows[1] is already a data row (it carries $) and there is ONE output
+    // column. Money decides, so a data row whose Mode cell reads "Non-Thinking
+    // mode only" can never masquerade as the header. Anything else is an
+    // unknown layout — skip it (count/anchor catch real loss).
+    const h1Money = /\$\s*\d/.test(h1);
+    const dual = !h1Money && /Non-Thinking mode/i.test(h1) && /Thinking mode/i.test(h1);
+    if (!dual && !h1Money) continue;
+    if (dual && rows.length < 3) continue;
     matched++;
 
-    // derive the input column: model, scope, [tier], [mode], input, nt, th, [quota]
+    // derive the input column: model, scope, [tier], [mode], input, [nt, th], [quota]
     const hasTier = /Input token/i.test(h0);
     const hasMode = h0cells.some((c) => /^mode$/i.test(c));
     const col = 2 + (hasTier ? 1 : 0) + (hasMode ? 1 : 0);
@@ -161,39 +184,55 @@ export function parsePricingModels(html) {
       cur = null;
       if (scope !== "International") return;
       if (!/^(qwen|qwq)/i.test(id)) return; // page also lists third-party models
+      // The schema is two-layer (limit/low/high). A model the page splits into
+      // 3+ tiers (qwen3-max, qwen3.7-flash) stays OUT of the snapshot —
+      // unpriced rather than mispriced, and never fatal to the whole page.
+      if (tiers.length > 2) return;
       out[id] = { label: id, entry: entryFor(tiers) };
     };
 
-    for (let i = 2; i < rows.length; i++) {
+    for (let i = dual ? 2 : 1; i < rows.length; i++) {
       const cells = rows[i];
       if (hasTier && isTierRow(cells)) {
         if (!cur) continue; // orphan continuation row — ignore
-        if (!looksLeg(cells[1]) || !looksLeg(cells[2]) || !looksLeg(cells[3])) {
-          throw new Error("Qwen pricing: tier continuation row no longer looks like prices");
+        if (dual) {
+          if (!looksLeg(cells[1]) || !looksLeg(cells[2]) || !looksLeg(cells[3])) {
+            throw new Error("Qwen pricing: tier continuation row no longer looks like prices");
+          }
+          cur.tiers.push({
+            in: price(cells[1]),
+            outNT: pickOutput(cells[2], cells[3]),
+            bound: lowerBound(cells[0]),
+          });
+        } else {
+          // single output layout: [tier, in, out]
+          if (cells.length < 3 || !looksLeg(cells[1]) || !looksLeg(cells[2])) {
+            throw new Error("Qwen pricing: tier continuation row no longer looks like prices");
+          }
+          cur.tiers.push({
+            in: price(cells[1]),
+            outNT: price(cells[2]),
+            bound: lowerBound(cells[0]),
+          });
         }
-        cur.tiers.push({
-          in: price(cells[1]),
-          outNT: pickOutput(cells[2], cells[3]),
-          bound: lowerBound(cells[0]),
-        });
         continue;
       }
       flush();
       const scope = textOf(cells[1] || "");
-      if (
-        cells.length >= col + 3 &&
-        /^(International|Global)$/.test(scope) &&
-        looksMoney(cells[col]) &&
-        looksLeg(cells[col + 1]) &&
-        looksLeg(cells[col + 2])
-      ) {
+      // Dual tables validate both output columns; single-output tables only
+      // have one, and col+2 there is the FREE QUOTA TEXT ("1 million
+      // tokens") — never prices, so it is not validated.
+      const rowOk = dual
+        ? cells.length >= col + 3 && looksMoney(cells[col]) && looksLeg(cells[col + 1]) && looksLeg(cells[col + 2])
+        : cells.length >= col + 2 && looksMoney(cells[col]) && looksLeg(cells[col + 1]);
+      if (/^(International|Global)$/.test(scope) && rowOk) {
         cur = {
           id: modelId(cells[0]),
           scope,
           tiers: [
             {
               in: price(cells[col]),
-              outNT: pickOutput(cells[col + 1], cells[col + 2]),
+              outNT: dual ? pickOutput(cells[col + 1], cells[col + 2]) : price(cells[col + 1]),
               bound: hasTier ? lowerBound(cells[col - 1]) : null,
             },
           ],
@@ -216,7 +255,10 @@ export function parsePricingModels(html) {
     const f = m.entry.pricing.flat;
     const legs = f.tier ? [f.tier.low, f.tier.high] : [f];
     for (const leg of legs) {
-      if (!(leg.input > 0 && leg.output > 0 && leg.output >= leg.input)) {
+      // Both legs must be real money. output >= input is NOT required: the
+      // official page has legit models below parity (qwen3-omni-30b-a3b-
+      // captioner $3.81 in / $3.06 out) — fail closed on zeros only.
+      if (!(leg.input > 0 && leg.output > 0)) {
         throw new Error(`Qwen pricing: insane prices for ${id}`);
       }
     }

@@ -65,7 +65,15 @@ test("shipped preset: valid, no dangling assign, every known id reachable", () =
   const index = buildUnifiedIndex(normalizeUnifiedPricing(preset));
   // Every fallback-preset model id is either priced or deliberately unpriced,
   // and none of them point at a missing group.
-  for (const source of ["opencode", "deepseek-official", "mimo"]) {
+  for (const source of [
+    "opencode",
+    "deepseek-official",
+    "mimo",
+    "xai-official",
+    "openai-official",
+    "qwen-official",
+    "tencent-official",
+  ]) {
     const p = JSON.parse(fs.readFileSync(new URL(`../../extension/vendors/${source}/rates.preset.json`, import.meta.url)));
     for (const key of Object.keys(p.modelMap || {})) {
       const groupId = preset.assign[key];
