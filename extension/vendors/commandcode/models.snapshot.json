@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-24T06:52:40.778Z",
+  "capturedAt": "2026-09-26T09:48:46.793Z",
   "models": [
     "MiniMaxAI/MiniMax-M2.5",
     "MiniMaxAI/MiniMax-M2.7",
@@ -59,6 +59,7 @@
     "nvidia/nemotron-3-ultra-550b-a55b",
     "poolside/laguna-s-2.1-free",
     "sakana/fugu-ultra",
+    "stealth/pixel-canary",
     "stealth/space-bunny-alpha",
     "stepfun/Step-3.5-Flash",
     "stepfun/Step-3.7-Flash",
