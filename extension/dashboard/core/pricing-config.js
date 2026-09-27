@@ -33,6 +33,21 @@ function vendorWindow(rec, pricing) {
 // using their own reported spend (`vendorCost`) as the primary cost instead of
 // deriving from token rates: `costSource[source] === "vendor"`. All other
 // sources derive cost from the rate tables ("derived", default).
+// `passthroughSources` (registry `unifiedPassthrough`) lists sources whose
+// billing has no token-rate expression (e.g. per-second audio) and must keep
+// their vendor spend even when unified pricing is on — the unified path asks
+// first via shouldPassthroughVendorCost.
+export function shouldPassthroughVendorCost(record, passthroughSources = {}) {
+  const rec = withDefaultSource(record);
+  const source = rec.source || "opencode";
+  return !!passthroughSources[source] && rec.vendorCost != null;
+}
+
+export function priceVendorCost(rec, pricing) {
+  const cost = (Number(rec.vendorCost) || 0) / (Number(rec.costScale) || 1);
+  return { cost, savings: 0, window: vendorWindow(rec, pricing), unpriced: false, targetId: null, priceBasis: "vendor-reported" };
+}
+
 export function priceWithConfig(record, pricing, costSource = {}) {
   const rec = withDefaultSource(record);
   const source = rec.source || "opencode";
@@ -41,8 +56,7 @@ export function priceWithConfig(record, pricing, costSource = {}) {
     // it into USD (opencode console = 1e8, local import = 1, other vendors omit
     // it). The conversion happens here — never at ingest, so stored data is
     // exactly what the vendor returned.
-    const cost = (Number(rec.vendorCost) || 0) / (Number(rec.costScale) || 1);
-    return { cost, savings: 0, window: vendorWindow(rec, pricing), unpriced: false, targetId: null, priceBasis: "vendor-reported" };
+    return priceVendorCost(rec, pricing);
   }
   // No vendor amount (server sent `cost: null`) or a non-vendor source:
   // estimate from the token rate table.

@@ -24,6 +24,7 @@ const RECORD_MAP_KEYS = [
   "cachedData",
   "commandcodeImportData",
   "deepseek-officialImportData",
+  "groq-officialImportData",
   "mimoImportData",
   "opencodeImportData",
   "openrouterImportData",

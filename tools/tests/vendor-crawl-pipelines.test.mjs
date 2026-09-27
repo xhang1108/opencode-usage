@@ -260,3 +260,70 @@ test("openrouter: splits a window the server reports as truncated", async () => 
   assert.equal(terminal.windows, 4); // 2 windows, first split into 2 halves
   assert.equal(terminal.records, 1);
 });
+
+// ==================================================================== Groq
+const GROQ_ROW = {
+  organization_id: "org_a",
+  organization_name: "Personal",
+  n_context_tokens_total: 1000,
+  n_non_cached_context_tokens_total: 700,
+  n_generated_tokens_total: 50,
+  project_id: "project_a",
+  api_key_id: "key_a",
+  api_key_name: "open",
+  api_key_redacted: "gsk_************************************************XXXX",
+  model: "whisper-large-v3",
+  timestamp: 1789171200,
+  user_id: "",
+  user: "",
+  num_requests: 2,
+  num_seconds: 10,
+  num_seconds_billed: 20,
+  plan_id: "",
+  subscription_id: "",
+  service_tier: "on_demand",
+  cost: 0.5,
+};
+
+function groqRoute() {
+  const requests = [];
+  const route = (req) => {
+    requests.push(req);
+    if (req.url.includes("/user/profile")) {
+      return { status: 200, text: JSON.stringify({ user: { orgs: { data: [{ id: "org_a" }] } } }) };
+    }
+    if (req.url.includes("/activity")) {
+      const auth = req.headers && (req.headers.authorization || req.headers.Authorization);
+      assert.match(auth || "", /^Bearer /);
+      assert.equal(req.headers["groq-organization"], "org_a");
+      return { status: 200, text: JSON.stringify({ object: "list", data: [GROQ_ROW] }) };
+    }
+    return undefined;
+  };
+  return { route, requests };
+}
+
+test("groq: discovers orgs, slices the range and streams mapped rows", async () => {
+  const { route, requests } = groqRoute();
+  const b = bootContent("vendors/groq-official/content.js", {
+    route,
+    sendMessage: (msg) => (msg.type === "vendor-crawl-data" ? { added: 1 } : {}),
+    extra: { document: { cookie: "stytch_session_jwt=jwt-test-value-that-is-long-enough-to-pass-the-length-guard-0123456789-abcdefghijklmnopqrstuvwxyz-0123456789-abcdefghijklmnopqrstuvwxyz", querySelector: () => null, querySelectorAll: () => [] } },
+  });
+  const { terminal } = await startVendor(b, { vendor: "groq-official", days: 62 });
+
+  assert.equal(terminal.type, "vendor-crawl-done");
+  assert.equal(terminal.windows, 2); // 62 days -> two 31-day windows
+  assert.equal(terminal.records, 1); // duplicate row across windows deduped by id
+  assert.equal(terminal.newRecords, 1);
+  assert.equal(requests.filter((r) => r.url.includes("/user/profile")).length, 1);
+  assert.equal(requests.filter((r) => r.url.includes("/activity")).length, 2);
+
+  const data = b.sent.find((m) => m.type === "vendor-crawl-data");
+  assert.equal(data.source, "groq-official");
+  assert.equal(data.records[0].input, 700);
+  assert.equal(data.records[0].cacheRead, 300);
+  assert.equal(data.records[0].output, 50);
+  assert.equal(data.records[0].requests, 2);
+  assert.equal(data.records[0].vendorCost, 0.5);
+});

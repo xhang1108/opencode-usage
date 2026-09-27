@@ -9,10 +9,11 @@ export function vendorMeta(v, { unifiedOn, hasPreset }) {
     .filter(Boolean)
     .join(" · ");
   const vendorCost = v.costSource === "vendor";
-  const basis = unifiedOn
+  const passthrough = !!(v && v.unifiedPassthrough);
+  const basis = unifiedOn && !passthrough
     ? "unified price"
-    : `cost ${vendorCost ? "vendor-reported" : "estimated"}${!vendorCost && !hasPreset ? " · no preset" : ""}`;
-  return { modes, basis, vendorCost };
+    : `cost ${vendorCost ? "vendor-reported" : "estimated"}${passthrough ? " · unified passthrough" : ""}${!vendorCost && !hasPreset ? " · no preset" : ""}`;
+  return { modes, basis, vendorCost, passthrough };
 }
 
 // Vendors with optional host permissions that must be granted on enable.

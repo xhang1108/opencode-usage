@@ -41,6 +41,16 @@
     },
     {
       "resources": [
+        "vendors/groq-official/mapper.js",
+        "shared/canonical.js"
+      ],
+      "matches": [
+        "https://console.groq.com/*",
+        "https://api.groq.com/*"
+      ]
+    },
+    {
+      "resources": [
         "vendors/opencode/mapper.js",
         "shared/canonical.js"
       ],
@@ -87,7 +97,9 @@
   "optional_host_permissions": [
     "https://*.commandcode.ai/*",
     "https://*.deepseek.com/*",
+    "https://api.groq.com/*",
     "https://commandcode.ai/*",
+    "https://console.groq.com/*",
     "https://openrouter.ai/*"
   ]
 }

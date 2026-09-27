@@ -35,6 +35,24 @@
       ]
     },
     {
+      "source": "groq-official",
+      "label": "Groq",
+      "mode": "crawl",
+      "defaultEnabled": false,
+      "crawl": true,
+      "crawlScript": "vendors/groq-official/content.js",
+      "crawlRunAt": "document_idle",
+      "crawlHome": "https://console.groq.com/dashboard/usage",
+      "crawlDefaultDays": 0,
+      "costSource": "vendor",
+      "unifiedPassthrough": true,
+      "import": [],
+      "origins": [
+        "https://console.groq.com/*",
+        "https://api.groq.com/*"
+      ]
+    },
+    {
       "source": "mimo",
       "label": "MiMo",
       "mode": "import",

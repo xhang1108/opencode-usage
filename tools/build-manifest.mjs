@@ -82,6 +82,7 @@ function buildRegistry(vendors) {
       ...(v.crawl && v.crawl.everyDays ? { crawlEveryDays: v.crawl.everyDays } : {}),
       ...(v.crawl ? { crawlScript: v.crawl.contentScript, crawlRunAt: v.crawl.runAt || "document_idle", crawlHome: v.crawl.home, crawlDefaultDays: v.crawl.defaultDays || 0 } : {}),
       ...(v.costSource ? { costSource: v.costSource } : {}),
+      ...(v.unifiedPassthrough ? { unifiedPassthrough: true } : {}),
       import: v.import || [],
       origins: v.origins || [],
     })),

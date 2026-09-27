@@ -4,7 +4,7 @@
 
 import { inclusiveDayDiff, localDateOf } from "./core/time.js";
 import { aggregate } from "./core/aggregate.js";
-import { priceWithConfig, legacyModelsFromPricing } from "./core/pricing-config.js";
+import { priceWithConfig, legacyModelsFromPricing, shouldPassthroughVendorCost, priceVendorCost } from "./core/pricing-config.js";
 import { createFilters } from "./views/filters.js";
 import { createCharts } from "./views/charts.js";
 import { wireTableSort, renderWorkspaceTable, renderModelTable } from "./views/tables.js";
@@ -38,7 +38,10 @@ let unifiedPricing = normalizeUnifiedPricing(null);
 let unifiedIndex = new Map();
 // Per-source cost basis: "vendor" uses the vendor-reported spend, "derived"
 // computes from token rates. Populated from the vendor registry.
+// `passthroughSources` (registry `unifiedPassthrough`) keeps a source's vendor
+// spend even when unified pricing is on (no token-rate expression exists).
 let costSource = {};
+let passthroughSources = {};
 
 // Table sort state. dir: 1 = ascending, -1 = descending.
 const sortState = {
@@ -60,7 +63,11 @@ const price = (rec) => {
     const hit = priceCache.get(key);
     if (hit) return hit;
   }
-  const out = unifiedPricing.enabled ? priceUnified(rec, unifiedIndex) : priceWithConfig(rec, pricing, costSource);
+  const out = unifiedPricing.enabled && !shouldPassthroughVendorCost(rec, passthroughSources)
+    ? priceUnified(rec, unifiedIndex)
+    : shouldPassthroughVendorCost(rec, passthroughSources)
+      ? priceVendorCost(rec, pricing)
+      : priceWithConfig(rec, pricing, costSource);
   if (key != null) priceCache.set(key, out);
   return out;
 };
@@ -156,8 +163,10 @@ async function reloadSettings() {
   pricing = await loadPricing(settings);
   priceCache = new Map();
   costSource = {};
+  passthroughSources = {};
   for (const v of (settings.registry && settings.registry.vendors) || []) {
     if (v && v.source) costSource[v.source] = v.costSource || "derived";
+    if (v && v.source && v.unifiedPassthrough) passthroughSources[v.source] = true;
   }
   presetSources = new Set(
     await Promise.all(

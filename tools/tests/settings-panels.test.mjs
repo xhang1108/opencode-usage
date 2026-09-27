@@ -48,10 +48,15 @@ test("vendorMeta composes the modes and cost-basis lines", () => {
     modes: "crawl · import xlsx",
     basis: "cost estimated",
     vendorCost: false,
+    passthrough: false,
   });
   assert.equal(vendorMeta(crawlImport, { unifiedOn: false, hasPreset: false }).basis, "cost estimated · no preset");
   assert.equal(vendorMeta({ source: "openrouter", costSource: "vendor" }, { unifiedOn: false, hasPreset: true }).basis, "cost vendor-reported");
   assert.equal(vendorMeta(crawlImport, { unifiedOn: true, hasPreset: true }).basis, "unified price");
+  assert.equal(
+    vendorMeta({ source: "groq-official", costSource: "vendor", unifiedPassthrough: true }, { unifiedOn: true, hasPreset: false }).basis,
+    "cost vendor-reported · unified passthrough"
+  );
 });
 
 test("hasOrigins flags vendors with optional host permissions", () => {

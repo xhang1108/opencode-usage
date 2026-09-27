@@ -7,6 +7,8 @@ import {
   priceWithConfig,
   legacyModelsFromPricing,
   makeTargetId,
+  shouldPassthroughVendorCost,
+  priceVendorCost,
 } from "../../extension/dashboard/core/pricing-config.js";
 import { buildPricing } from "../../extension/shared/preset.js";
 
@@ -136,4 +138,17 @@ test("priceWithConfig labels a vendor-cost record's window by its timestamp with
   // A model absent from the price map stays flat too.
   const unknown = priceWithConfig({ source: "opencode", model: "nope", time: "2026-09-01T02:00:00Z", input: 1, vendorCost: 5, costScale: 1 }, PRICING_PEAK, { opencode: "vendor" });
   assert.equal(unknown.window, "flat");
+});
+
+test("shouldPassthroughVendorCost flags unifiedPassthrough sources with a vendor amount", () => {
+  const groq = { source: "groq-official", model: "whisper-large-v3", time: "2026-09-12T00:00:00Z", vendorCost: 0.05 };
+  assert.equal(shouldPassthroughVendorCost(groq, { "groq-official": true }), true);
+  assert.equal(shouldPassthroughVendorCost(groq, {}), false);
+  assert.equal(shouldPassthroughVendorCost({ ...groq, vendorCost: undefined }, { "groq-official": true }), false);
+  assert.equal(shouldPassthroughVendorCost({ source: "opencode", model: "m", vendorCost: 1 }, { "groq-official": true }), false);
+  // priceVendorCost is the unified-off vendor path, reused verbatim.
+  const out = priceVendorCost(groq, PRICING);
+  assert.equal(out.cost, 0.05);
+  assert.equal(out.priceBasis, "vendor-reported");
+  assert.equal(out.unpriced, false);
 });
