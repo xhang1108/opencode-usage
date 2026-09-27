@@ -85,7 +85,7 @@ flowchart LR
     P2 --> D
 ```
 
-- **Sync (MANUAL):** open a signed-in `opencode.ai/console` page and click **Sync**. The extension calls the Console Usage API (`/console/api/usage/rows?range=all` — session cookie + `x-org-id`) for one record per request, paginated by cursor; hold **Shift** for a full-history sync. Other vendors sync from their own pages / APIs.
+- **Sync (MANUAL):** open a signed-in `opencode.ai/console` page and click **Sync**. The extension calls the Console request log (`/console/api/request-logs?category=inference` — session cookie + `x-org-id`) for one record per succeeded request, newest-first with cursor+until pagination (~30d retention); hold **Shift** for a full-window sync. Other vendors sync from their own pages / APIs.
 - **Pricing:** one user-authored price list (**Settings → Pricing**) bills every vendor; each model is mapped to a rate group and priced from tokens, so costs can be recomputed at any time.
 - **Free models:** export from the local database and import the JSON on the dashboard.
 - **View:** open **Dashboard** for charts, costs, and backup export.

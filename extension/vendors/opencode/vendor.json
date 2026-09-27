@@ -14,10 +14,10 @@
   },
   "import": ["json"],
   "notes": [
-    "Primary source: GET /console/api/usage/rows?range=all&pageSize=100&cursor=… from the signed-in Console tab (session cookie + x-org-id header). One record per inference request, cursor-paginated; range=all covers full history and an incremental sync stops once a page reaches the newest stored record.",
-    "Provides input, output, reasoning, cacheRead, cacheWrite5m, cacheWrite1h, provider, an optional API-key id and app, the billing source (free/byok/credit/…), and the Console-charged USD amount (cost_micro_cents / 1e8).",
-    "Missing: no session id — records carry the org id instead of a workspace id; free/BYOK usage is tagged via the billing source.",
-    "Cost: the Console-charged amount when present, otherwise estimated from the price table (or re-priced under unified pricing).",
+    "Primary source: GET /console/api/request-logs?category=inference&limit=100&since=<ms>&cursor=…&until=… from the signed-in Console tab (session cookie + x-org-id header). One record per succeeded inference request, newest-first; cursor must be sent with the previous page's until. Retention is ~30d, so a full sync covers the window, and an incremental sync stops once a page reaches the newest stored record.",
+    "Provides input, output, reasoning, cacheRead, cacheWrite (single bucket; no 5m/1h split), provider, an optional API-key id, app, session id, and the Console-charged amount (cost, microcents scale). No billing source — free rows are cost 0 and rejected rows carry no cost key; non-succeeded and non-inference rows are skipped.",
+    "Missing: no billing source — records carry the org id instead of a workspace id; free rows are cost 0 and there is no free/BYOK tag.",
+    "Cost: the Console-charged amount when present (costScale 1e8, unit to be pinned by a paid sample), otherwise estimated from the price table (or re-priced under unified pricing).",
     "Needs a signed-in Console tab; auto-sync (opencode only) reuses an open Console tab, or opens a background one, every 6h.",
     "A local DB import (tools/import-local.mjs) lands in localImportData and serves models the server no longer reports (e.g. free models)."
   ],

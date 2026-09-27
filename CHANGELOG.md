@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2 — 2026-09-27
+
+opencode removed `GET /console/api/usage/rows` (404), so the sync moves to the Console request log.
+
+### Fixed
+
+- **opencode data source**: `GET /console/api/request-logs?category=inference` (session cookie + `x-org-id`), `cursor` + `until` pagination, one record per succeeded inference request. Retention is ~30d, so a full sync covers the window instead of full history.
+- **opencode mapper**: request-log schema (`startedAt` ms epoch, single `cacheWriteTokens` bucket, numeric `cost`, no `billingSource`); non-succeeded and non-inference rows are skipped. Rejected rows carry no tokens/cost and never reach the store.
+
 ## 1.1.1 — 2026-09-25
 
 Official prices only: the unified list now takes every rate from the model maker's own published pricing, guarded by two daily watches.
