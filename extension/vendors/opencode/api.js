@@ -1,17 +1,17 @@
 // vendors/opencode/api.js
-// opencode Console Usage API client (isolated world on opencode.ai).
+// opencode Console Request Log client (isolated world on opencode.ai).
 //
-// Replaces the old RSC /_server crawl. The Console exposes the same per-request
-// usage records as JSON:
+// The old per-request endpoint GET /console/api/usage/rows was removed
+// (404, empty body). The replacement is the Console request log:
 //
-//   GET /console/api/usage/rows?range=all&pageSize=100&cursor=...&since=...
+//   GET /console/api/request-logs?category=inference&limit=100&since=<ms>&cursor=...&until=...
 //   headers: x-org-id: <org_|wrk_...>   (the first /console/<org>/ path segment)
 //   auth: the page's session cookie (credentials: include)
 //
-// range accepts 24h | 7d | 30d | all. "all" sends no lower bound (full history),
-// so a sync MUST use it — a 30d window would silently hide older records. The
-// response is newest-first with a keyset cursor {createdAt,id}; iterate
-// nextCursor until null. `since` (ISO Z) narrows an incremental run.
+// Response: {items, nextCursor, until, retentionDays:30}. items are newest-first;
+// iterate with cursor+until together (cursor alone 409s with
+// RequestLogCursorRestartRequired). `since`/`until` are ms epochs.
+// retentionDays is 30, so a full sync covers ~30d, not full history.
 //
 // Records are posted to background via the generic vendor protocol
 // (vendor-crawl-data / vendor-crawl-done) like the other vendor crawlers.
@@ -21,11 +21,14 @@
   window.__opencodeApiLoaded = true;
 
   const SOURCE = "opencode";
-  const ROWS_PATH = "/console/api/usage/rows";
-  const PAGE_SIZE = 100; // server max (the query schema caps it at 100)
+  const ROWS_PATH = "/console/api/request-logs";
+  const CATEGORY = "inference";
+  const PAGE_SIZE = 100; // server max (the query schema caps limit at 100)
   const MAX_PAGES = 10000; // guard against a bad cursor
   const MAX_RETRIES = 4; // on 429/503, honour Retry-After then retry
   const DELAY_MS = 0; // no fixed pacing; back off only when the server says so
+  const RETENTION_MS = 30 * 864e5;
+  const OVERLAP_MS = 864e5; // 1d overlap on incremental runs
 
   let crawling = false;
 
@@ -36,7 +39,7 @@
     } catch (e) {}
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  // Mirror lifecycle events to the page console so the chosen range / page
+  // Mirror lifecycle events to the page console so the chosen window / page
   // counts are visible in DevTools (the popup text is truncated).
   const clog = (...args) => { try { console.log("[opencode-usage]", ...args); } catch (e) {} };
 
@@ -81,9 +84,11 @@
     return 1000 * Math.pow(2, attempt);
   }
 
-  async function fetchPage({ org, cursor }) {
-    const p = new URLSearchParams({ range: "all", pageSize: String(PAGE_SIZE) });
+  async function fetchPage({ org, since, cursor, until }) {
+    const p = new URLSearchParams({ category: CATEGORY, limit: String(PAGE_SIZE) });
+    if (since != null) p.set("since", String(since));
     if (cursor) p.set("cursor", cursor);
+    if (until != null) p.set("until", String(until));
     const url = `${ROWS_PATH}?${p.toString()}`;
     for (let attempt = 0; ; attempt++) {
       const res = await fetch(url, {
@@ -126,15 +131,21 @@
     }
     // Rows are newest-first. For an incremental run, stop once a page reaches the
     // newest timestamp already stored (everything older is known), so one page is
-    // usually enough. `full` ignores the marker and walks the whole history.
+    // usually enough. `full` ignores the marker and walks the ~30d retention.
+    // `since`/`until` are ms epochs; overlap by a day so boundary rows aren't lost.
     const stopAt = full ? null : (knownNewest || null);
-    clog(`sync start: org=${org} stopAt=${stopAt || "(none, full scan)"}`);
+    const stopAtMs = stopAt ? Date.parse(stopAt) : null;
+    const sinceMs = full
+      ? Date.now() - RETENTION_MS
+      : (stopAtMs != null && !isNaN(stopAtMs) ? stopAtMs - OVERLAP_MS : Date.now() - RETENTION_MS);
+    clog(`sync start: org=${org} stopAt=${stopAt || "(none, full scan)"} since=${new Date(sinceMs).toISOString()}`);
     let cursor = null;
+    let until = null;
     let page = 0;
     let fetched = 0;
     let added = 0;
     while (page < MAX_PAGES) {
-      const json = await fetchPage({ org, cursor });
+      const json = await fetchPage({ org, since: sinceMs, cursor, until });
       const rows = json.items || [];
       const recs = mapper.mapUsageRows(rows);
       if (recs.length > 0) {
@@ -150,13 +161,15 @@
       page++;
       notify({ type: "progress", page, workspace: org, message: `page ${page}: ${fetched} rows (${added} new)` });
       clog(`page ${page}: fetched=${fetched} added=${added} cursor=${json.nextCursor ? "yes" : "end"}`);
-      const oldest = rows.length ? rows[rows.length - 1].createdAt : null;
+      const last = rows.length ? rows[rows.length - 1] : null;
+      const oldestMs = last ? Number(last.startedAt) : null;
       if (!json.nextCursor) break;
-      if (stopAt && oldest && oldest < stopAt) {
-        clog(`page ${page}: reached known data (${oldest} < ${stopAt}) — stopping`);
+      if (stopAtMs != null && !isNaN(stopAtMs) && oldestMs != null && oldestMs < stopAtMs) {
+        clog(`page ${page}: reached known data (${new Date(oldestMs).toISOString()} < ${stopAt}) — stopping`);
         break;
       }
       cursor = json.nextCursor || null;
+      until = json.until != null ? json.until : null;
       await sleep(DELAY_MS);
     }
     return { records: fetched, added };

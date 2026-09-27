@@ -13,31 +13,38 @@ import {
   USAGE_ROWS_MAX_PAGE_SIZE,
 } from "../../extension/vendors/opencode/mapper.js";
 
-// A real UsageSelect row captured from /console/api/usage/rows (range=all).
+// A real request-log item captured from /console/api/request-logs
+// (category=inference). Replaces the removed /console/api/usage/rows UsageSelect.
 const ROW = {
-  id: 2057997744,
-  orgId: "wrk_01KXPX7J0D7DGMQPRXWVK1QTZC",
-  userId: null,
-  principalType: "service-account",
-  serviceUserId: "svcacct_01KXPX7J0D7DGMQPRXWVK1QTZC_01KXPX7J0DNV205SXW1TPK2B6B",
-  serviceApiKeyId: "key_01KZX14YB34GH9ZSZ133HTQTJB",
-  appReferrer: null,
-  appTitle: null,
+  id: "386c0728-41ba-409f-835a-8a0a45c12536",
+  requestID: "386c0728-41ba-409f-835a-8a0a45c12536",
+  workspaceID: "wrk_01KXPX7J0D7DGMQPRXWVK1QTZC",
+  startedAt: 1790333660494,
+  finishedAt: 1790333663513,
+  durationMs: 3019,
+  outcome: "succeeded",
+  category: "inference",
+  protocol: "openai-chat",
+  product: "standard",
+  path: "/inference/openai/v1/chat/completions",
+  method: "POST",
+  stream: true,
+  app: "cli",
+  sessionID: "ses_f289296aaffeNTWFgGQ9ugBZCp",
+  userID: undefined,
+  serviceAccountID: "svcacct_01KXPX7J0D7DGMQPRXWVK1QTZC_01KXPX7J0DNV205SXW1TPK2B6B",
+  serviceAPIKeyID: "key_01KZX14YB34GH9ZSZ133HTQTJB",
+  requestedModel: "space-bunny-free",
+  model: "space-bunny-free",
   provider: "opencode",
-  model: "muse-spark-1.3-contributor-free",
-  inputTokens: 292,
-  outputTokens: 340,
-  reasoningTokens: 30,
-  cacheReadTokens: 97393,
-  cacheWrite5mTokens: 0,
-  cacheWrite1hTokens: 0,
-  reasoningMode: null,
-  reasoningEffort: null,
-  reasoningBudgetTokens: null,
-  reasoningSource: null,
-  billingSource: "credit",
-  costMicroCents: "0",
-  createdAt: "2026-09-12T10:58:14.000Z",
+  connectionID: null,
+  statusCode: 200,
+  inputTokens: 507,
+  outputTokens: 184,
+  reasoningTokens: 50,
+  cacheReadTokens: 199928,
+  cacheWriteTokens: 0,
+  cost: 0,
 };
 
 test("orgIdFromPath reads the org_/wrk_ segment of a /console route", () => {
@@ -49,58 +56,68 @@ test("orgIdFromPath reads the org_/wrk_ segment of a /console route", () => {
   assert.equal(orgIdFromPath(null), null);
 });
 
-test("buildRowsUrl always uses range=all, clamps pageSize, encodes since/cursor", () => {
+test("buildRowsUrl uses category=inference, clamps limit, encodes since/cursor/until", () => {
   const base = buildRowsUrl();
   assert.ok(base.startsWith(`${USAGE_ROWS_PATH}?`));
-  assert.match(base, /range=all/);
-  assert.match(base, new RegExp(`pageSize=${USAGE_ROWS_MAX_PAGE_SIZE}`));
+  assert.match(base, /category=inference/);
+  assert.match(base, new RegExp(`limit=${USAGE_ROWS_MAX_PAGE_SIZE}`));
 
-  assert.match(buildRowsUrl({ pageSize: 999 }), /pageSize=100/);
-  assert.match(buildRowsUrl({ pageSize: 0 }), /pageSize=1/);
+  assert.match(buildRowsUrl({ limit: 999 }), /limit=100/);
+  assert.match(buildRowsUrl({ limit: 0 }), /limit=1/);
 
-  const q = buildRowsUrl({ since: "2026-09-12T00:00:00.000Z", cursor: "abc=" });
-  assert.match(q, /since=2026-09-12T00%3A00%3A00\.000Z/);
+  const q = buildRowsUrl({ since: 1788220800000, until: 1790506236098, cursor: "abc=" });
+  assert.match(q, /since=1788220800000/);
+  assert.match(q, /until=1790506236098/);
   assert.match(q, /cursor=abc%3D/);
 });
 
-test("mapUsageRow maps a UsageSelect row to an exclusive-output canonical record", () => {
+test("mapUsageRow maps a request-log item to an exclusive-output canonical record", () => {
   const rec = mapUsageRow(ROW);
-  assert.equal(rec.id, "opencode:2057997744");
+  assert.equal(rec.id, "opencode:386c0728-41ba-409f-835a-8a0a45c12536");
   assert.equal(rec.source, "opencode");
-  assert.equal(rec.model, "muse-spark-1.3-contributor-free");
+  assert.equal(rec.model, "space-bunny-free");
   assert.equal(rec.provider, "opencode");
-  assert.equal(rec.input, 292);
-  // Console outputTokens is INCLUSIVE of reasoning; canonical output is exclusive.
-  assert.equal(rec.output, 310);
-  assert.equal(rec.reasoning, 30);
+  assert.equal(rec.input, 507);
+  // outputTokens is INCLUSIVE of reasoning; canonical output is exclusive.
+  assert.equal(rec.output, 134);
+  assert.equal(rec.reasoning, 50);
   assert.equal(rec.outputExcludesReasoning, true);
-  assert.equal(rec.cacheRead, 97393);
+  assert.equal(rec.cacheRead, 199928);
   assert.equal(rec.cacheWrite5m, 0);
   assert.equal(rec.cacheWrite1h, 0);
   assert.equal(rec.vendorCost, 0);
   assert.equal(rec.costScale, 1e8);
   assert.equal(rec.workspaceID, "wrk_01KXPX7J0D7DGMQPRXWVK1QTZC");
   assert.equal(rec.keyID, "key_01KZX14YB34GH9ZSZ133HTQTJB");
-  assert.equal(rec.billingSource, "credit");
+  assert.equal(rec.billingSource, null);
   assert.equal(rec.principalType, "service-account");
-  assert.equal(rec.time, "2026-09-12T10:58:14.000Z");
-  assert.equal(rec.date, "2026-09-12");
+  assert.equal(rec.sessionID, "ses_f289296aaffeNTWFgGQ9ugBZCp");
+  assert.equal(rec.time, new Date(1790333660494).toISOString());
+  assert.equal(rec.date, new Date(1790333660494).toISOString().slice(0, 10));
   assert.equal(rec.v, 1);
 });
 
-test("mapUsageRow coerces string microcent cost and tolerates missing fields", () => {
-  const rec = mapUsageRow({ ...ROW, id: 7, costMicroCents: "12345678" });
+test("mapUsageRow coerces numeric cost and skips non-succeeded/non-inference rows", () => {
+  const rec = mapUsageRow({ ...ROW, id: "paid-1", cost: 12345678 });
   assert.equal(rec.vendorCost, 12345678);
   assert.equal(mapUsageRow(null), null);
   assert.equal(mapUsageRow(undefined), null);
+  assert.equal(mapUsageRow({ ...ROW, id: "x1", category: "api" }), null);
+  assert.equal(mapUsageRow({ ...ROW, id: "x2", outcome: "rejected" }), null);
+  assert.equal(mapUsageRow({ ...ROW, id: "x3", outcome: "failed" }), null);
 });
 
-test("mapUsageRows filters non-objects and latestCreatedAt picks the newest", () => {
-  const rows = [{ ...ROW }, null, { ...ROW, id: 2, createdAt: "2026-09-12T11:00:00.000Z" }];
+test("mapUsageRows filters skipped rows and latestCreatedAt picks the newest", () => {
+  const rows = [
+    { ...ROW },
+    null,
+    { ...ROW, id: "newer", startedAt: 1790333723708 },
+    { ...ROW, id: "rej", outcome: "rejected" },
+  ];
   const recs = mapUsageRows(rows);
   assert.equal(recs.length, 2);
   assert.equal(recs.every((r) => r.source === "opencode"), true);
-  assert.equal(latestCreatedAt(rows), "2026-09-12T11:00:00.000Z");
+  assert.equal(latestCreatedAt(rows), new Date(1790333723708).toISOString());
   assert.equal(latestCreatedAt([]), null);
   assert.equal(mapUsageRows(null).length, 0);
 });
@@ -112,6 +129,6 @@ test("api.js content script compiles and speaks the generic vendor protocol", ()
   assert.match(src, /vendor-crawl-data/);
   assert.match(src, /vendor-crawl-done/);
   assert.match(src, /x-org-id/);
-  assert.match(src, /range/);
-  assert.match(src, /pageSize/);
+  assert.match(src, /category/);
+  assert.match(src, /request-logs/);
 });
