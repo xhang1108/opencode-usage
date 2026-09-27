@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-24T06:52:39.895Z",
+  "capturedAt": "2026-09-27T10:30:12.181Z",
   "models": [
     "deepseek-flash",
     "deepseek-v4-flash",
@@ -24,6 +24,7 @@
     "kimi-k2.7-code",
     "kimi-k3",
     "longcat-2.0",
+    "longcat-2.5-preview-free",
     "mimo-v2-omni",
     "mimo-v2-pro",
     "mimo-v2.5",
