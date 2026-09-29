@@ -78,7 +78,7 @@ export function crawlStatusText(msg, res) {
     return { text: "Sync requested", ok: true };
   }
   if (msg.type === "open-dashboard") {
-    return { text: `Dashboard opened (${res.fromCache ? "cached" : "latest"} data, ${res.count} records)`, ok: true };
+    return { text: `Dashboard opened (${res.count} records)`, ok: true };
   }
   return null;
 }

@@ -2,9 +2,8 @@
 // All Chart.js rendering + the hand-rolled yearly/hourly heatmaps. State
 // (chart instances, drill-down date, intraday view mode) lives in the closure.
 
-import { localDateOf } from "../core/time.js";
 import { compactTick } from "./format.js";
-import { heatOpacity, isoDate, yearlyGrid, hourlyBuckets, modelChartSeries } from "./chart-model.js";
+import { heatOpacity, isoDate, yearlyGrid, heatmapCells, hourlyBuckets, modelChartSeries } from "./chart-model.js";
 
 // Single desaturated brand blue (#6a8fc0) with opacity variants.
 const CHART_COLORS = {
@@ -116,9 +115,10 @@ const heatmapTipHTML = (heading, cost, tokens) =>
   `Cost: <strong>$${cost.toFixed(4)}</strong><br>` +
   `Tokens: <strong>${tokens.toLocaleString()}</strong>`;
 
-// `getRecords()` -> canonical records; `getPrice(rec)` -> { cost, savings, ... };
-// `getFilters()` -> { selectedWorkspace, selectedModel }.
-export function createCharts({ getRecords, getPrice, getFilters }) {
+// `isReady()` (optional) gates the view-toggle buttons until the first load has
+// completed, so a click can't drill into a chart built from a null map. Record
+// data is supplied per render (by the aggregate pass), not read from getters.
+export function createCharts({ isReady } = {}) {
   let dailyChartInst = null;
   let hourlyChartInst = null;
   let modelChartInst = null;
@@ -131,6 +131,8 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
   let lastHourlyMap = null;
   let lastHourlyDate = null;
   let lastFullHourlyMap = null; // full-range map for the yearly calendar drill-down
+  // Reused yearly-heatmap grid: { key, cells } from the last full build.
+  let yearlyCache = null;
 
   // Intraday drill-down: one day's cost/token curve. Clicking a point on the
   // daily chart pins that day; otherwise defaults to the range's last day.
@@ -151,17 +153,35 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
     const dateEl = document.getElementById("hourlyChartDate");
     if (dateEl) dateEl.textContent = hourlyDate || "—";
 
-    if (hourlyChartInst) hourlyChartInst.destroy();
-    hourlyChartInst = null;
     const wrap = document.getElementById("hourlyChartWrap");
     const canvas = document.getElementById("hourlyChart");
-    const oldGrid = wrap && wrap.querySelector(".heatmap");
-    if (oldGrid) oldGrid.remove();
-    if (canvas) canvas.style.display = "";
-    if (!hourlyDate) return;
+    const removeGrid = () => {
+      const oldGrid = wrap && wrap.querySelector(".heatmap");
+      if (oldGrid) oldGrid.remove();
+    };
 
-    if (hourlyView === "heatmap") renderHourlyHeatmap(hourlyMap, hourlyDate);
-    else renderHourlyHybrid(hourlyMap, hourlyDate);
+    if (!hourlyDate) {
+      if (hourlyChartInst) hourlyChartInst.destroy();
+      hourlyChartInst = null;
+      removeGrid();
+      if (canvas) canvas.style.display = "";
+      return;
+    }
+
+    if (hourlyView === "heatmap") {
+      // The heatmap is a DOM grid, not a canvas chart; drop the line chart if present.
+      if (hourlyChartInst) hourlyChartInst.destroy();
+      hourlyChartInst = null;
+      removeGrid();
+      if (canvas) canvas.style.display = "none";
+      renderHourlyHeatmap(hourlyMap, hourlyDate);
+      return;
+    }
+
+    // Hybrid view: keep the existing line chart and mutate its data in place.
+    removeGrid();
+    if (canvas) canvas.style.display = "";
+    renderHourlyHybrid(hourlyMap, hourlyDate);
   }
 
   // 24h x 60min grid, colored by cost intensity.
@@ -207,6 +227,13 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
   function renderHourlyHybrid(hourlyMap, date) {
     const dayData = hourlyMap[date] || {};
     const { labels, costs, tokens } = hourlyBuckets(dayData);
+    if (hourlyChartInst) {
+      hourlyChartInst.data.labels = labels;
+      hourlyChartInst.data.datasets[0].data = costs;
+      hourlyChartInst.data.datasets[1].data = tokens;
+      hourlyChartInst.update("none");
+      return;
+    }
     hourlyChartInst = new Chart(document.getElementById("hourlyChart"), {
       type: "line",
       data: {
@@ -229,11 +256,18 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
 
   // Daily cost + token trend; click a day to drill into the 24h chart.
   function renderDailyLine(dailyMap, dailyTokenMap, hourlyMap, endDate) {
-    if (dailyChartInst) dailyChartInst.destroy();
-    dailyChartInst = null;
     const dates = Object.keys(dailyMap).sort();
     const dailyCosts = dates.map((d) => dailyMap[d]);
     const dailyTokens = dates.map((d) => dailyTokenMap[d]);
+
+    if (dailyChartInst) {
+      dailyChartInst.data.labels = dates;
+      dailyChartInst.data.datasets[0].data = dailyCosts;
+      dailyChartInst.data.datasets[1].data = dailyTokens;
+      dailyChartInst.update("none");
+      return;
+    }
+
     dailyChartInst = new Chart(document.getElementById("dailyChart"), {
       type: "line",
       data: {
@@ -250,7 +284,9 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
             const date = chart.data.labels[elements[0].index];
             if (date) {
               selectedHourlyDate = date;
-              renderHourlyChart(hourlyMap, endDate);
+              // Use the latest drill-down map, not the one captured at creation:
+              // this chart is now updated in place, so its closure would be stale.
+              renderHourlyChart(lastHourlyMap, lastHourlyDate);
             }
           }
         },
@@ -261,8 +297,10 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
               minRotation: 0,
               autoSkip: true,
               maxTicksLimit: 12,
-              callback: (value, index) => {
-                const d = dates[index];
+              // Read labels off the chart so an in-place update keeps the
+              // formatted dates in sync (a captured array would go stale).
+              callback(value, index) {
+                const d = this.chart.data.labels[index];
                 if (!d) return "";
                 return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
               },
@@ -275,47 +313,37 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
     });
   }
 
+  // Apply a heatmapCells() plan to existing cell elements in place. Repaints the
+  // background only when the shade actually moved, and stores each cell's data on
+  // the element so the reused hover/click listeners always read current values.
+  function applyYearlyCells(cellEls, cells) {
+    for (let i = 0; i < cellEls.length; i++) {
+      const el = cellEls[i];
+      const c = cells[i];
+      el._hm = c;
+      if (el._hmOp !== c.opacity) {
+        el.style.background = `rgba(106,143,192,${c.opacity})`;
+        el._hmOp = c.opacity;
+      }
+      el.style.cursor = c.has ? "pointer" : "";
+    }
+  }
+
   // GitHub-style yearly calendar (365 days), filtered by ws/model but not by
-  // date range. Click a day to drill into the 24h chart.
-  function renderYearlyHeatmap() {
+  // date range. `dailyAll`/`hourlyAll` come from the aggregate pass (Step 9), so
+  // this no longer scans the records. The grid is expensive (~371 cells), so when
+  // the week layout is unchanged we reuse the cells and repaint only moved shades.
+  function renderYearlyHeatmap(dailyAll, hourlyAll) {
     const wrap = document.getElementById("yearlyHeatmapWrap");
     if (!wrap) return;
-    wrap.innerHTML = "";
 
-    const { selectedWorkspace, selectedModel } = getFilters();
-
-    const daily = {};
-    const hourly = {};
-    for (const rec of getRecords()) {
-      const wsID = rec.workspaceID || "wrk_unknown";
-      const wsKey = `${rec.source || "opencode"}:${wsID}`;
-      const modelName = rec.model || "Unknown";
-      if (selectedWorkspace.length && !selectedWorkspace.includes(wsKey)) continue;
-      if (selectedModel.length && !selectedModel.includes(modelName)) continue;
-      const date = localDateOf(rec);
-      if (!date) continue;
-      const { cost } = getPrice(rec);
-      const tokens =
-        (rec.input || 0) + (rec.output || 0) + (rec.reasoning || 0) + (rec.cacheRead || 0) + (rec.cacheWrite5m || 0) + (rec.cacheWrite1h || 0);
-      if (!daily[date]) daily[date] = { cost: 0, tokens: 0 };
-      daily[date].cost += cost;
-      daily[date].tokens += tokens;
-      if (rec.time) {
-        const t = new Date(rec.time);
-        if (!isNaN(t.getTime())) {
-          const min = t.getHours() * 60 + t.getMinutes();
-          if (!hourly[date]) hourly[date] = {};
-          const h = hourly[date][min] || (hourly[date][min] = { cost: 0, tokens: 0 });
-          h.cost += cost;
-          h.tokens += tokens;
-        }
-      }
-    }
-    lastFullHourlyMap = hourly;
+    const daily = dailyAll || {};
+    lastFullHourlyMap = hourlyAll || {};
 
     const dates = Object.keys(daily).sort();
     if (dates.length === 0) {
       wrap.innerHTML = '<div class="notice">No data for the current filters.</div>';
+      yearlyCache = null;
       return;
     }
 
@@ -324,9 +352,21 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
     let maxCost = 0;
     for (const d of dates) if (daily[d].cost > maxCost) maxCost = daily[d].cost;
 
-    const GAP = 2;
-    const iso = isoDate;
+    const cells = heatmapCells(daily, weeks, maxCost, 0.08);
+    const cacheKey = weeks.map((d) => d.getTime()).join(",") + "|" + monthGroups.map((g) => `${g.key}:${g.count}`).join(",");
 
+    const badge = document.getElementById("yearlyRange");
+    if (badge) badge.textContent = `${isoDate(firstDate)} → ${isoDate(lastDate)}`;
+
+    if (yearlyCache && yearlyCache.key === cacheKey) {
+      applyYearlyCells(yearlyCache.cells, cells);
+      return;
+    }
+
+    // Full rebuild: the week layout changed, so the grid, month header and
+    // tooltip are recreated too.
+    wrap.innerHTML = "";
+    const GAP = 2;
     const grid = document.createElement("div");
     grid.style.cssText =
       "display:grid; width:100%; gap:" +
@@ -345,31 +385,28 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
       grid.appendChild(el);
     }
 
-    for (let di = 0; di < 7; di++) {
-      for (let wi = 0; wi < weeks.length; wi++) {
-        const d = new Date(weeks[wi]);
-        d.setDate(d.getDate() + di);
-        const key = iso(d);
-        const has = Object.prototype.hasOwnProperty.call(daily, key);
-        const cell = document.createElement("div");
-        const opacity = heatOpacity(has ? daily[key].cost : null, maxCost, 0.08);
-        cell.style.cssText = `width:100%; aspect-ratio:1; background: rgba(106,143,192,${opacity}); border:1px solid rgba(255,255,255,0.05); border-radius:2px;`;
-        if (has) {
-          const cost = daily[key].cost;
-          const tokens = daily[key].tokens;
-          cell.style.cursor = "pointer";
-          cell.addEventListener("mouseenter", (e) => tooltip.show(heatmapTipHTML(key, cost, tokens), e.clientX, e.clientY));
-          cell.addEventListener("mousemove", (e) => tooltip.move(e.clientX, e.clientY));
-          cell.addEventListener("mouseleave", () => tooltip.hide());
-          cell.addEventListener("click", () => {
-            selectedHourlyDate = key;
-            renderHourlyChart(lastFullHourlyMap, key);
-          });
-        }
-        grid.appendChild(cell);
-      }
+    const cellEls = [];
+    for (let i = 0; i < cells.length; i++) {
+      const cell = document.createElement("div");
+      cell.style.cssText = "width:100%; aspect-ratio:1; border:1px solid rgba(255,255,255,0.05); border-radius:2px;";
+      // Listeners read the cell's current data at event time, so reusing a cell
+      // after an in-place update never shows stale values.
+      cell.addEventListener("mouseenter", (e) => {
+        const c = cell._hm;
+        if (c && c.has) tooltip.show(heatmapTipHTML(c.key, c.cost, c.tokens), e.clientX, e.clientY);
+      });
+      cell.addEventListener("mousemove", (e) => tooltip.move(e.clientX, e.clientY));
+      cell.addEventListener("mouseleave", () => tooltip.hide());
+      cell.addEventListener("click", () => {
+        const c = cell._hm;
+        if (!c || !c.has) return;
+        selectedHourlyDate = c.key;
+        renderHourlyChart(lastFullHourlyMap, c.key);
+      });
+      grid.appendChild(cell);
+      cellEls.push(cell);
     }
-
+    applyYearlyCells(cellEls, cells);
     wrap.appendChild(grid);
 
     const legend = document.createElement("div");
@@ -385,46 +422,65 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
     legend.appendChild(document.createTextNode("More"));
     wrap.appendChild(legend);
 
-    const badge = document.getElementById("yearlyRange");
-    if (badge) badge.textContent = `${iso(firstDate)} → ${iso(lastDate)}`;
+    yearlyCache = { key: cacheKey, cells: cellEls };
   }
 
   function renderModelCharts(modelMap) {
     // Same-named models from different sources are separate entries; label the
     // source only when the name is ambiguous.
     const { labels, costs: modelCosts, inputs, cacheReads, hitRates } = modelChartSeries(modelMap);
-    if (modelChartInst) modelChartInst.destroy();
-    modelChartInst = new Chart(document.getElementById("modelChart"), {
-      type: "doughnut",
-      data: {
-        labels,
-        datasets: [{ data: modelCosts, backgroundColor: monoTones(modelCosts.length), borderWidth: 0, hoverBorderWidth: 0 }],
-      },
-      options: chartOptions({ plugins: { legend: { position: "bottom" } } }),
-    });
 
-    if (tokenTypeChartInst) tokenTypeChartInst.destroy();
-    tokenTypeChartInst = new Chart(document.getElementById("tokenTypeChart"), {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          { label: "Real Input Tokens", data: inputs, backgroundColor: CHART_COLORS.blue },
-          { label: "Cache Read Tokens", data: cacheReads, backgroundColor: CHART_COLORS.blueDim },
-        ],
-      },
-      options: chartOptions({ scales: { x: axis({ stacked: true }), y: axis({ stacked: true }) } }),
-    });
+    if (modelChartInst) {
+      modelChartInst.data.labels = labels;
+      modelChartInst.data.datasets[0].data = modelCosts;
+      // A doughnut's slice colours are positional, so they must follow the new
+      // slice count whenever the label set changes.
+      modelChartInst.data.datasets[0].backgroundColor = monoTones(modelCosts.length);
+      modelChartInst.update("none");
+    } else {
+      modelChartInst = new Chart(document.getElementById("modelChart"), {
+        type: "doughnut",
+        data: {
+          labels,
+          datasets: [{ data: modelCosts, backgroundColor: monoTones(modelCosts.length), borderWidth: 0, hoverBorderWidth: 0 }],
+        },
+        options: chartOptions({ plugins: { legend: { position: "bottom" } } }),
+      });
+    }
 
-    if (hitRateChartInst) hitRateChartInst.destroy();
-    hitRateChartInst = new Chart(document.getElementById("hitRateChart"), {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [{ label: "Cache Hit Rate (%)", data: hitRates, backgroundColor: CHART_COLORS.blue }],
-      },
-      options: chartOptions({ scales: { x: axis(), y: axis({ max: 100 }) } }),
-    });
+    if (tokenTypeChartInst) {
+      tokenTypeChartInst.data.labels = labels;
+      tokenTypeChartInst.data.datasets[0].data = inputs;
+      tokenTypeChartInst.data.datasets[1].data = cacheReads;
+      tokenTypeChartInst.update("none");
+    } else {
+      tokenTypeChartInst = new Chart(document.getElementById("tokenTypeChart"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            { label: "Real Input Tokens", data: inputs, backgroundColor: CHART_COLORS.blue },
+            { label: "Cache Read Tokens", data: cacheReads, backgroundColor: CHART_COLORS.blueDim },
+          ],
+        },
+        options: chartOptions({ scales: { x: axis({ stacked: true }), y: axis({ stacked: true }) } }),
+      });
+    }
+
+    if (hitRateChartInst) {
+      hitRateChartInst.data.labels = labels;
+      hitRateChartInst.data.datasets[0].data = hitRates;
+      hitRateChartInst.update("none");
+    } else {
+      hitRateChartInst = new Chart(document.getElementById("hitRateChart"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{ label: "Cache Hit Rate (%)", data: hitRates, backgroundColor: CHART_COLORS.blue }],
+        },
+        options: chartOptions({ scales: { x: axis(), y: axis({ max: 100 }) } }),
+      });
+    }
   }
 
   function renderDashboardCharts({ dailyMap, dailyTokenMap, hourlyMap, modelMap, endDate }) {
@@ -434,8 +490,10 @@ export function createCharts({ getRecords, getPrice, getFilters }) {
   }
 
   function wire() {
+    const ready = typeof isReady === "function" ? isReady : () => true;
     document.querySelectorAll(".hourly-view-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
+        if (!ready()) return;
         hourlyView = btn.dataset.view;
         document.querySelectorAll(".hourly-view-btn").forEach((b) => {
           b.classList.toggle("btn-primary", b === btn);

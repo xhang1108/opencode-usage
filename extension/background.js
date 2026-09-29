@@ -800,14 +800,15 @@ async function handleLocalImport(msg) {
   } catch (e) {
     return { ok: false, error: `Storage quota exceeded - cannot keep ${totalLocal} local records (${e.message || e})` };
   }
-  // Refresh the merged snapshot so popup/dashboard pick it up immediately.
+  // Refresh the merged snapshot count so popup/dashboard pick it up immediately.
+  // Base is built by the SAME helper sendDashboardData uses, so the two paths can
+  // never disagree. `cachedData` is no longer persisted (derived; fetched live).
   let base = {};
   try {
-    const { cachedData } = await chrome.storage.local.get("cachedData");
-    if (cachedData) base = JSON.parse(cachedData) || {};
+    base = (await buildMergedSnapshot()).merged;
   } catch (e) {}
   const { merged } = mergeRecords(base, nextLocal);
-  // Store the deduped snapshot so cachedMeta counts match the dashboard.
+  // Derive the deduped snapshot so cachedMeta counts match the dashboard.
   const crawlerPart = {};
   const localPart = {};
   for (const [id, rec] of Object.entries(merged)) {
@@ -817,7 +818,6 @@ async function handleLocalImport(msg) {
   const snapshot = { ...dedupedSnap, ...localPart, ...nextLocal };
   const now = Date.now();
   await chrome.storage.local.set({
-    cachedData: JSON.stringify(snapshot),
     cachedMeta: {
       count: Object.keys(snapshot).length,
       lastRecord: computeLastRecord(snapshot),
@@ -850,8 +850,9 @@ async function sendLocalStatus() {
 
 // Merged snapshot for the dashboard/popup, rebuilt from chrome.storage only:
 // vendor records (<source>ImportData, opencode included) + the local SQLite
-// import. The old crawler snapshot is no longer a source of truth.
-async function sendDashboardData() {
+// import. This is the ONE place the dashboard's record set is assembled, so
+// every caller (live fetch, import base) builds it identically.
+async function buildMergedSnapshot() {
   const localMap = await getLocalImportMap();
   const vendorRecordsRaw = await getAllVendorRecords();
   const vendorRecords = hideDayAnchoredImportCopies(vendorRecordsRaw).map;
@@ -865,24 +866,38 @@ async function sendDashboardData() {
   }
   const { map: dedupedOpencode, dropped } = await hideCrawlerDuplicates(opencodePart, localMap);
   const { merged } = mergeRecords({ ...dedupedOpencode, ...otherPart }, localMap);
+  return { merged, dropped };
+}
+
+async function sendDashboardData() {
+  const { merged, dropped } = await buildMergedSnapshot();
   const mergedStr = JSON.stringify(merged);
+  const count = Object.keys(merged).length;
+  // `cachedData` (the full merged snapshot) is deliberately NOT persisted: it is
+  // derived, only the dashboard consumed it, and the dashboard fetches it live.
+  // `cachedMeta` stays because the popup / status fallback read its count.
   await chrome.storage.local.set({
-    cachedData: mergedStr,
     cachedMeta: {
-      count: Object.keys(merged).length,
+      count,
       lastRecord: computeLastRecord(merged),
       updatedAt: Date.now(),
     },
   });
-  return { ok: true, data: mergedStr, count: Object.keys(merged).length, fileCount: 0, fromCache: false, deduped: dropped };
+  return { ok: true, data: mergedStr, count, fileCount: 0, deduped: dropped };
 }
 
 async function handleOpenDashboard() {
-  // Refresh the merged snapshot now so the dashboard tab (and later refreshes)
-  // have current data. The dashboard itself re-fetches on every load too.
-  const res = await sendDashboardData();
+  // Do NOT rebuild the snapshot here: the dashboard fetches it live on load, and
+  // precomputing made every dashboard open pay for the merge twice. The popup
+  // only needs a count for its status line — prefer the last cached count, then
+  // the last known total.
+  let count = 0;
+  try {
+    const { cachedMeta, totalRecords } = await chrome.storage.local.get(["cachedMeta", "totalRecords"]);
+    count = (cachedMeta && cachedMeta.count) || totalRecords || 0;
+  } catch (e) {}
   await chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/dashboard.html") });
-  return { ok: true, count: res.count || 0, fileCount: res.fileCount || 0, fromCache: !!res.fromCache };
+  return { ok: true, count, fileCount: 0 };
 }
 
 // ===== Peak/off-peak notifications =====

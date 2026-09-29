@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.2.0 — 2026-09-29
+
+The dashboard no longer freezes on open, and a filter change no longer re-scans the whole history three times.
+
+### Changed
+
+- **Staged, observable load**: settings → storage read → parse → normalize → aggregate → charts, yielding between stages, behind a full-screen progress overlay. Countable stages show a real n/N; nothing fakes a percentage. Filter/table/chart interactions are gated until the first render lands.
+- **One merge per open**: opening the dashboard no longer pre-builds and writes the merged snapshot (`handleOpenDashboard` stopped calling `sendDashboardData`), so the pipeline runs once instead of twice. `sendDashboardData` now only refreshes `cachedMeta`; the full `cachedData` snapshot is no longer written (the legacy key is kept, never deleted).
+- **Charts update in place** (`chart.update("none")`) instead of destroy/recreate, and the yearly heatmap reuses its ~371 cells when the week layout is unchanged (measured 93% reuse), repainting only the cells whose shade moved. Chart animations on filter change are gone by design.
+- **One full scan per render**: `aggregate()` now also emits the date-range-free `dailyAll`/`hourlyAll` maps the yearly heatmap consumes, and the unpriced-model set is memoized by a data version — the separate heatmap and unpriced scans are gone.
+- **Decorative canvas pauses during load** and runs at ~30 fps steady state.
+- **Popup status line** reads `Dashboard opened (N records)`; the always-false `cached`/`latest` qualifier is retired.
+
+### Fixed
+
+- Clicking the hourly view-toggle buttons before the first load no longer throws (the handler is gated behind the data-ready flag).
+
+### Added
+
+- `tools/tests/data-safety.test.mjs` — record stores survive imports (union preserved, repeat import idempotent, `cachedMeta`/`localImportMeta` kept, `cachedData` optional).
+- `tools/bench/dashboard-load.mjs` + smoke test — deterministic load benchmark with median-of-N and a no-op pricer control.
+
 ## 1.1.2 — 2026-09-27
 
 opencode removed `GET /console/api/usage/rows` (404), so the sync moves to the Console request log.

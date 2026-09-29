@@ -13,6 +13,12 @@ let _neuralW = 0;
 let _neuralH = 0;
 let _neuralNextHL = 0;
 let _neuralRecentPaths = [];
+// Load gate: while the dashboard is loading we stop scheduling frames so the
+// decorative canvas does not compete with the main thread; `fps` caps the
+// steady-state rate (0 disables the cap).
+let _neuralPaused = false;
+let _neuralFps = 30;
+let _neuralFrame = 0;
 
 function buildNeuralGraph() {
   const { layers, edges } = buildNeuralLayout(_neuralW, _neuralH);
@@ -106,6 +112,12 @@ function tickNeural() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  // Frame cap: render only every Nth frame, but keep the loop alive.
+  const stride = _neuralFps > 0 && _neuralFps < 60 ? Math.round(60 / _neuralFps) : 1;
+  if (stride > 1 && _neuralFrame++ % stride !== 0) {
+    _neuralRAF = _neuralPaused ? 0 : requestAnimationFrame(tickNeural);
+    return;
+  }
   const now = performance.now();
   const tSec = now * 0.001;
   ctx.clearRect(0, 0, _neuralW, _neuralH);
@@ -217,17 +229,33 @@ function tickNeural() {
     }
   }
 
-  _neuralRAF = requestAnimationFrame(tickNeural);
+  _neuralRAF = _neuralPaused ? 0 : requestAnimationFrame(tickNeural);
 }
 
-export function initDecorBg() {
+// Pause/resume the animation loop. Pausing cancels the pending frame; resuming
+// restarts it unless the tab is hidden (the visibilitychange handler owns that).
+function setPaused(paused) {
+  _neuralPaused = !!paused;
+  if (_neuralPaused) {
+    if (_neuralRAF) cancelAnimationFrame(_neuralRAF);
+    _neuralRAF = 0;
+  } else if (!_neuralRAF && !document.hidden) {
+    tickNeural();
+  }
+}
+
+export function initDecorBg({ paused = false, fps = 30 } = {}) {
+  _neuralPaused = !!paused;
+  _neuralFps = Number.isFinite(fps) ? fps : 30;
+  _neuralFrame = 0;
   startNeural();
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       if (_neuralRAF) cancelAnimationFrame(_neuralRAF);
       _neuralRAF = 0;
-    } else if (!_neuralRAF) {
+    } else if (!_neuralRAF && !_neuralPaused) {
       tickNeural();
     }
   });
+  return { setPaused };
 }

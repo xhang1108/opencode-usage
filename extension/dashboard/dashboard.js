@@ -3,7 +3,7 @@
 // in ./core, ./settings and ./views; this file only wires them together.
 
 import { inclusiveDayDiff, localDateOf } from "./core/time.js";
-import { aggregate } from "./core/aggregate.js";
+import { aggregate, createAggregator, computeUnpricedSet } from "./core/aggregate.js";
 import { priceWithConfig, legacyModelsFromPricing, shouldPassthroughVendorCost, priceVendorCost } from "./core/pricing-config.js";
 import { createFilters } from "./views/filters.js";
 import { createCharts } from "./views/charts.js";
@@ -43,6 +43,16 @@ let unifiedIndex = new Map();
 let costSource = {};
 let passthroughSources = {};
 
+// Set once the first load has finished. Until then, interactive handlers are
+// ignored so they cannot render against an empty cache or call chart code with
+// a null map (the pre-load TypeError this gate exists to prevent).
+let dataReady = false;
+
+// Bumped whenever settings/pricing/records are reloaded, so caches that depend
+// on them (the unpriced-model set) recompute only then — not on every filter.
+let dataVersion = 0;
+let unpricedCache = { version: -1, set: new Set() };
+
 // Table sort state. dir: 1 = ascending, -1 = descending.
 const sortState = {
   ws: { col: "cost", dir: -1 },
@@ -75,11 +85,11 @@ const getRateModels = () => (unifiedPricing.enabled ? unifiedRateModels(unifiedP
 const wsLabel = (wsID) => workspaceName(wsID, settings ? settings.workspaceLabels : {});
 
 // B7: every model with at least one unpriced record among the enabled sources.
+// Memoized by dataVersion: filter/date changes cannot alter the result.
 function globalUnpricedModels() {
-  const set = new Set();
-  for (const rec of enabledRecords()) {
-    if (price(rec).unpriced) set.add(rec.model);
-  }
+  if (unpricedCache.version === dataVersion) return unpricedCache.set;
+  const set = computeUnpricedSet(enabledRecords(), price);
+  unpricedCache = { version: dataVersion, set };
   return set;
 }
 
@@ -94,15 +104,13 @@ function syncUnmappedFirstSeen(models) {
   return next;
 }
 
-const charts = createCharts({
-  getRecords: enabledRecords,
-  getPrice: price,
-  getFilters: () => ({ selectedWorkspace: filters.selectedWorkspace(), selectedModel: filters.selectedModel() }),
-});
+const charts = createCharts({ isReady: () => dataReady });
 const filters = createFilters({
   getRecords: enabledRecords,
   localDateOf,
-  onChange: () => renderDashboard(),
+  onChange: () => {
+    if (dataReady) renderDashboard();
+  },
   getWorkspaceLabel: wsLabel,
 });
 const timeReminder = createTimeReminder({ getRateModels });
@@ -182,9 +190,10 @@ async function reloadSettings() {
   );
   timeReminder.mirrorRates();
   await timeReminder.reloadModels();
+  dataVersion++;
 }
 
-function renderDashboard(skipCharts) {
+function renderDashboard(skipCharts, aggOverride) {
   skipCharts = skipCharts === true;
   const tableScrolls = Array.from(document.querySelectorAll(".table-container")).map((el) => ({ el, top: el.scrollTop }));
 
@@ -194,8 +203,9 @@ function renderDashboard(skipCharts) {
   let endDate = filters.endDate();
   if (startDate && !endDate) endDate = startDate;
 
-  const records = enabledRecords();
-  const agg = aggregate(records, { price, startDate, endDate, selectedWS, selectedModel });
+  // aggOverride lets the staged loader hand in an accumulator produced with
+  // yields; filter-driven renders compute it synchronously here instead.
+  const agg = aggOverride || aggregate(enabledRecords(), { price, startDate, endDate, selectedWS, selectedModel });
   const { dailyMap, dailyTokenMap, hourlyMap, modelMap, wsMap, singleModelDailyMap } = agg;
   // B7: unpriced set is global (not filter-scoped) so the Settings badge and the
   // notice stay meaningful regardless of the current filter.
@@ -267,8 +277,9 @@ function renderDashboard(skipCharts) {
   renderWorkspaceTable(wsMap, sortState.ws, wsLabel);
   renderModelTable({ modelMap, singleModelDailyMap, selectedModel, sortState: sortState.model });
 
-  // The yearly heatmap ignores the date range; keep it outside skipCharts.
-  charts.renderYearlyHeatmap();
+  // The yearly heatmap ignores the date range; keep it outside skipCharts. Its
+  // per-day maps come from the aggregate pass (Step 9), so it never re-scans.
+  charts.renderYearlyHeatmap(agg.dailyAll, agg.hourlyAll);
 
   if (!skipCharts) {
     charts.renderDashboardCharts({ dailyMap, dailyTokenMap, hourlyMap, modelMap, endDate });
@@ -290,34 +301,149 @@ function showEmptyStateIfNeeded() {
   container.prepend(notice);
 }
 
+// Yield control back to the browser between chunks/slices of the load. Chrome
+// 129+ has scheduler.yield(); older builds fall back to a macrotask. The gate
+// stays honest either way because rendering is what we yield around, not a timer.
+const LOAD_CHUNK = 5000;
+function yieldToMain() {
+  if (globalThis.scheduler && typeof globalThis.scheduler.yield === "function") {
+    return globalThis.scheduler.yield();
+  }
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+// Full-screen loading overlay shown until the first render is done. Reuses the
+// page's existing `.modal-overlay` (same backdrop/z-index/centering as Settings)
+// so it matches the app's flat theme; inner styling uses theme.css tokens only.
+// Countable stages report a real n/N; single-shot stages are labelled only —
+// never a fake percentage (see the plan §6.3). Held a minimum time so a fast
+// load doesn't flash past unseen.
+const LOAD_PROGRESS_MIN_MS = 600;
+let loadProgress = null;
+function startLoadProgress() {
+  if (!document.getElementById("dashboardLoadStyle")) {
+    const style = document.createElement("style");
+    style.id = "dashboardLoadStyle";
+    style.textContent =
+      "@keyframes dashboardLoadSpin{to{transform:rotate(360deg)}}" +
+      "#dashboardLoadOverlay .load-box{display:flex;flex-direction:column;align-items:center;gap:14px;}" +
+      "#dashboardLoadOverlay .load-spinner{width:32px;height:32px;border-radius:50%;" +
+      "border:2px solid var(--border);border-top-color:var(--primary);" +
+      "animation:dashboardLoadSpin 0.8s linear infinite;}" +
+      "#dashboardLoadOverlay .load-text{color:var(--text-muted);font-size:12.5px;" +
+      "font-family:var(--font-mono);letter-spacing:0.02em;}" +
+      "@media (prefers-reduced-motion: reduce){#dashboardLoadOverlay .load-spinner{animation:none;}}";
+    document.head.appendChild(style);
+  }
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "dashboardLoadOverlay";
+  overlay.setAttribute("role", "status");
+  overlay.setAttribute("aria-live", "polite");
+
+  const box = document.createElement("div");
+  box.className = "load-box";
+  const spinner = document.createElement("div");
+  spinner.className = "load-spinner";
+  const text = document.createElement("div");
+  text.className = "load-text";
+  text.textContent = "Loading…";
+  box.appendChild(spinner);
+  box.appendChild(text);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const startedAt = performance.now();
+  const api = {
+    stage(label, done, total) {
+      text.textContent =
+        typeof done === "number" && typeof total === "number" && total > 0
+          ? `${label}… ${done.toLocaleString()} / ${total.toLocaleString()}`
+          : `${label}…`;
+    },
+    done() {
+      const hide = () => {
+        overlay.remove();
+        loadProgress = null;
+      };
+      const elapsed = performance.now() - startedAt;
+      if (elapsed < LOAD_PROGRESS_MIN_MS) setTimeout(hide, LOAD_PROGRESS_MIN_MS - elapsed);
+      else hide();
+    },
+  };
+  loadProgress = api;
+  return api;
+}
+
 async function loadFromExtension() {
+  const progress = startLoadProgress();
+  const report = (label, done, total) => {
+    if (progress) progress.stage(label, done, total);
+  };
   try {
     if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.sendMessage) {
       showEmptyStateIfNeeded();
       return;
     }
+    report("Loading settings");
+    await yieldToMain(); // let the progress line paint before the first real await
     await reloadSettings();
+    await yieldToMain();
 
+    report("Reading stored data");
     const res = await chrome.runtime.sendMessage({ type: "get-dashboard-data" });
     if (!res || !res.ok || !res.data) {
       showEmptyStateIfNeeded();
       return;
     }
+
+    report("Parsing records");
     const data = JSON.parse(res.data);
-    // Normalize on ingest so every record carries `time` (derived from `date`
-    // when missing) and numeric tokens before it reaches pricing/aggregation.
-    for (const [id, rec] of Object.entries(data)) {
-      const src = rec.source ? rec : { ...rec, source: "opencode" };
-      globalCache[id] = normalizeRecord(src) || src;
+    await yieldToMain();
+
+    // Normalize on ingest (chunked so the main thread can breathe) so every
+    // record carries `time`/numeric tokens before pricing/aggregation.
+    const entries = Object.entries(data);
+    for (let i = 0; i < entries.length; i += LOAD_CHUNK) {
+      const end = Math.min(i + LOAD_CHUNK, entries.length);
+      for (let j = i; j < end; j++) {
+        const [id, rec] = entries[j];
+        const src = rec.source ? rec : { ...rec, source: "opencode" };
+        globalCache[id] = normalizeRecord(src) || src;
+      }
+      report("Preparing records", end, entries.length);
+      if (end < entries.length) await yieldToMain();
     }
+
     filters.initDateRange();
     filters.updateDropdowns();
-    renderDashboard();
-    showEmptyStateIfNeeded();
 
+    // Aggregate in chunks with yields, then hand the finished result to the
+    // synchronous renderer. This is the cold 444 ms block made interruptible.
+    const selectedWS = filters.selectedWorkspace();
+    const selectedModel = filters.selectedModel();
+    const startDate = filters.startDate();
+    let endDate = filters.endDate();
+    if (startDate && !endDate) endDate = startDate;
+    const records = enabledRecords();
+    const acc = createAggregator({ price, startDate, endDate, selectedWS, selectedModel });
+    for (let i = 0; i < records.length; i += LOAD_CHUNK) {
+      const end = Math.min(i + LOAD_CHUNK, records.length);
+      acc.push(records.slice(i, end));
+      report("Aggregating", end, records.length);
+      if (end < records.length) await yieldToMain();
+    }
+
+    report("Drawing charts");
+    renderDashboard(false, acc.finish());
+    showEmptyStateIfNeeded();
   } catch (e) {
     console.error("Failed to load data", e);
     showEmptyStateIfNeeded();
+  } finally {
+    if (loadProgress) loadProgress.done();
+    dataReady = true;
   }
 }
 
@@ -447,12 +573,14 @@ async function importOpencodeJSON(text) {
 // (opencode); the JSON itself goes through the one Import Usage entry (see
 // importOpencodeJSON above).
 
-wireTableSort({ sortState, onChange: () => renderDashboard(true) });
+wireTableSort({ sortState, onChange: () => { if (dataReady) renderDashboard(true); } });
 charts.wire();
 filters.wire();
 
-loadFromExtension();
+// Start the decorative canvas paused so it cannot compete with the load, then
+// resume once the first render has settled (loadFromExtension never rejects).
+const decor = initDecorBg({ paused: true });
+loadFromExtension().finally(() => decor.setPaused(false));
 if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
   timeReminder.init().catch((e) => console.error(e));
 }
-initDecorBg();

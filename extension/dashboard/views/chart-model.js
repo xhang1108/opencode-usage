@@ -47,6 +47,26 @@ export function yearlyGrid(dateKeys) {
   return { weeks, monthGroups, firstDate, lastDate };
 }
 
+// One entry per calendar cell, in the exact order charts.js builds the DOM
+// (day-of-week outer, week column inner), so an incremental updater can diff the
+// new plan against the previous one by index without touching the DOM in tests.
+//   { key, has, opacity, cost, tokens } — cost is null and tokens 0 when empty.
+export function heatmapCells(daily, weeks, maxCost, floor = 0.08) {
+  const cells = [];
+  const data = daily || {};
+  for (let di = 0; di < 7; di++) {
+    for (let wi = 0; wi < (weeks || []).length; wi++) {
+      const d = new Date(weeks[wi]);
+      d.setDate(d.getDate() + di);
+      const key = isoDate(d);
+      const has = Object.prototype.hasOwnProperty.call(data, key);
+      const cost = has ? data[key].cost : null;
+      cells.push({ key, has, opacity: heatOpacity(cost, maxCost, floor), cost, tokens: has ? data[key].tokens : 0 });
+    }
+  }
+  return cells;
+}
+
 // 24 hourly points (cost + tokens) from a day's minute-indexed map.
 export function hourlyBuckets(dayData) {
   const labels = [];

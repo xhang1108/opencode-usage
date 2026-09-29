@@ -5,6 +5,7 @@ import {
   heatOpacity,
   isoDate,
   yearlyGrid,
+  heatmapCells,
   hourlyBuckets,
   modelChartSeries,
 } from "../../extension/dashboard/views/chart-model.js";
@@ -72,6 +73,44 @@ test("hourlyBuckets tolerates a missing day", () => {
   const { costs, tokens } = hourlyBuckets(null);
   assert.deepEqual(costs, Array(24).fill(0));
   assert.deepEqual(tokens, Array(24).fill(0));
+});
+
+test("heatmapCells lays out one row per weekday, week columns inner (DOM order)", () => {
+  const grid = yearlyGrid(["2026-09-16"]);
+  const daily = { "2026-09-16": { cost: 8, tokens: 80 } };
+  const cells = heatmapCells(daily, grid.weeks, 8);
+  const N = grid.weeks.length;
+  const addDays = (date, n) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + n);
+    return d;
+  };
+
+  assert.equal(cells.length, 7 * N);
+  // di is the outer loop: the first N cells are day-offset 0 across the columns,
+  // the next N are day-offset 1, and so on.
+  assert.equal(cells[0].key, isoDate(grid.weeks[0]));
+  assert.equal(cells[N].key, isoDate(addDays(grid.weeks[0], 1)));
+  assert.equal(cells[cells.length - 1].key, isoDate(addDays(grid.weeks[N - 1], 6)));
+
+  const hit = cells.find((c) => c.key === "2026-09-16");
+  assert.equal(hit.has, true);
+  assert.equal(hit.cost, 8);
+  assert.equal(hit.tokens, 80);
+  assert.equal(hit.opacity, 1);
+});
+
+test("heatmapCells floors empty days and keeps zero-cost days at the floor", () => {
+  const grid = yearlyGrid(["2026-09-16"]);
+  const empty = heatmapCells({}, grid.weeks, 10);
+  assert.equal(empty.length, 7 * grid.weeks.length);
+  assert.ok(empty.every((c) => c.has === false && c.cost === null && c.tokens === 0));
+  assert.ok(empty.every((c) => c.opacity === 0.03));
+
+  const zero = heatmapCells({ "2026-09-16": { cost: 0, tokens: 5 } }, grid.weeks, 10);
+  const zc = zero.find((c) => c.key === "2026-09-16");
+  assert.equal(zc.has, true);
+  assert.equal(zc.opacity, 0.08, "zero cost stays at the floor, not 0");
 });
 
 test("modelChartSeries disambiguates duplicate names and prices hit rate", () => {

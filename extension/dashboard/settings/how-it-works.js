@@ -140,7 +140,7 @@ const BASE_SECTIONS = [
     rows: [
       ["Every vendor's synced records", "<code>&lt;source&gt;ImportData</code> — one store per vendor (e.g. <code>opencodeImportData</code>)"],
       ["Local opencode DB import", "<code>localImportData</code>"],
-      ["Merged snapshot", "<code>cachedData</code> / <code>cachedMeta</code>"],
+      ["Merged snapshot count", "<code>cachedMeta</code> — the full snapshot (<code>cachedData</code>) is no longer written"],
       ["Settings + pricing", "<code>vendorSettings</code>, <code>unifiedPricing</code>, …"],
     ],
     notes: [

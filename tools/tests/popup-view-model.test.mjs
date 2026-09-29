@@ -93,8 +93,11 @@ test("crawlStatusText maps a start-crawl reply", () => {
 });
 
 test("crawlStatusText maps open-dashboard and errors", () => {
-  assert.equal(crawlStatusText({ type: "open-dashboard" }, { ok: true, fromCache: true, count: 12 }).text, "Dashboard opened (cached data, 12 records)");
-  assert.equal(crawlStatusText({ type: "open-dashboard" }, { ok: true, count: 3 }).text, "Dashboard opened (latest data, 3 records)");
+  assert.equal(crawlStatusText({ type: "open-dashboard" }, { ok: true, count: 12 }).text, "Dashboard opened (12 records)");
+  assert.equal(crawlStatusText({ type: "open-dashboard" }, { ok: true, count: 3 }).text, "Dashboard opened (3 records)");
+  // fromCache is retired (§5.3.1): the text must not vary on it even if a stale
+  // response still carries the field.
+  assert.equal(crawlStatusText({ type: "open-dashboard" }, { ok: true, fromCache: true, count: 12 }).text, "Dashboard opened (12 records)");
   assert.deepEqual(crawlStatusText({ type: "start-crawl" }, { ok: false, error: "boom" }), { text: "Error: boom", ok: false });
   assert.deepEqual(crawlStatusText({ type: "start-crawl" }, null), { text: "Error: unknown error", ok: false });
 });

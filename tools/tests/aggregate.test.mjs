@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { aggregate, listWorkspaces, listModels } from "../../extension/dashboard/core/aggregate.js";
+import { aggregate, createAggregator, computeUnpricedSet, listWorkspaces, listModels } from "../../extension/dashboard/core/aggregate.js";
 import { toISODate } from "../../extension/dashboard/core/time.js";
 
 // Stub pricer: $1 per 1M input tokens, flat window, "unmapped" model unpriced.
@@ -37,9 +37,13 @@ test("aggregate totals and local-day buckets", () => {
   assert.equal(a.maxDate, DAY2);
 });
 
+test("aggregate does not expose a filtered array", () => {
+  const a = aggregate(records, { price });
+  assert.equal(Object.prototype.hasOwnProperty.call(a, "filtered"), false);
+});
+
 test("aggregate pre-aggregates workspaces before model/ws filters", () => {
   const a = aggregate(records, { price, selectedModel: "m1" });
-  assert.equal(a.filtered.length, 2);
   assert.equal(a.totals.req, 2);
   assert.equal(a.wsMap["opencode:w1"].req, 2);
   assert.equal(a.wsMap["opencode:w2"].req, 1); // still counted in the workspace rollup
@@ -55,7 +59,8 @@ test("aggregate buckets hourly minutes in local time", () => {
 test("aggregate date range filters by local date", () => {
   const a = aggregate(records, { price, startDate: DAY2, endDate: DAY2 });
   assert.equal(a.totals.req, 1);
-  assert.equal(a.filtered[0].id, "c");
+  assert.equal(a.modelMap["opencode:m2"].req, 1); // only record c (m2, DAY2) survived
+  assert.equal(a.modelMap["opencode:m1"], undefined); // a, b are DAY1 and were filtered out
 });
 
 test("aggregate reports unpriced models only among filtered records", () => {
@@ -101,7 +106,8 @@ test("aggregate keys workspaces per source and filters by the composite key", ()
   assert.deepEqual(Object.keys(all.wsMap).sort(), ["deepseek-official:x", "opencode:x"]);
   const only = aggregate(recs, { price, selectedWS: "deepseek-official:x" });
   assert.equal(only.totals.req, 1);
-  assert.equal(only.filtered[0].id, "b");
+  assert.equal(only.modelMap["deepseek-official:m"].req, 1); // only record b survived
+  assert.equal(only.modelMap["opencode:m"], undefined);
 });
 
 test("aggregate keeps same-named models from different sources separate", () => {
@@ -115,4 +121,71 @@ test("aggregate keeps same-named models from different sources separate", () => 
   assert.equal(a.modelMap["opencode:deepseek-v4-flash"].model, "deepseek-v4-flash");
   assert.equal(a.modelMap["opencode:deepseek-v4-flash"].source, "opencode");
   assert.equal(a.modelMap["deepseek-official:deepseek-v4-flash"].source, "deepseek-official");
+});
+
+test("createAggregator pushed in chunks equals aggregate", () => {
+  const expected = aggregate(records, { price });
+  const acc = createAggregator({ price });
+  acc.push(records.slice(0, 1));
+  acc.push(records.slice(1, 2));
+  acc.push(records.slice(2));
+  assert.deepEqual(acc.finish(), expected);
+});
+
+test("createAggregator matches aggregate across filters and edge inputs", () => {
+  const cases = [
+    ["empty", [], { price }],
+    ["single", [records[0]], { price }],
+    ["date range", records, { price, startDate: DAY2, endDate: DAY2 }],
+    ["model filter", records, { price, selectedModel: "m1" }],
+    ["workspace filter", records, { price, selectedWS: "opencode:w1" }],
+  ];
+  for (const [name, recs, opts] of cases) {
+    const expected = aggregate(recs, opts);
+    const acc = createAggregator(opts);
+    const mid = Math.ceil(recs.length / 2);
+    acc.push(recs.slice(0, mid));
+    acc.push(recs.slice(mid));
+    assert.deepEqual(acc.finish(), expected, name);
+  }
+});
+
+test("createAggregator survives awaits between chunks (interruptible caller)", async () => {
+  const expected = aggregate(records, { price });
+  const acc = createAggregator({ price });
+  const chunks = [records.slice(0, 1), records.slice(1, 3), records.slice(3)];
+  let yields = 0;
+  for (const chunk of chunks) {
+    acc.push(chunk);
+    await Promise.resolve().then(() => { yields++; });
+  }
+  assert.ok(yields >= 2, "the caller yielded between chunks");
+  assert.deepEqual(acc.finish(), expected);
+});
+
+test("aggregate exposes date-range-free dailyAll/hourlyAll for the yearly heatmap", () => {
+  const a = aggregate(records, { price, startDate: DAY2, endDate: DAY2 });
+  // The dated outputs stay scoped to DAY2...
+  assert.equal(a.totals.req, 1);
+  assert.deepEqual(Object.keys(a.dailyMap), [DAY2]);
+  // ...while dailyAll ignores the date range (still ws/model filtered).
+  assert.deepEqual(Object.keys(a.dailyAll).sort(), [DAY1, DAY2].sort());
+  assert.equal(a.dailyAll[DAY1].tokens, 3000);
+  assert.equal(a.dailyAll[DAY2].tokens, 600);
+  assert.equal(a.hourlyAll[DAY1][10 * 60 + 30].tokens, 1000);
+  assert.equal(a.hourlyAll[DAY2][9 * 60].tokens, 600);
+});
+
+test("dailyAll is scoped by ws/model filters but not the date range", () => {
+  const onlyM1 = aggregate(records, { price, selectedModel: "m1", startDate: DAY2, endDate: DAY2 });
+  assert.equal(onlyM1.totals.req, 0, "m1 records are DAY1, out of the dated range");
+  assert.deepEqual(Object.keys(onlyM1.dailyAll), [DAY1]);
+  assert.equal(onlyM1.dailyAll[DAY1].tokens, 3000);
+});
+
+test("computeUnpricedSet collects the models that have an unpriced record", () => {
+  const recs = records.concat([{ id: "u", time: at(2026, 9, 12, 12, 0), model: "unmapped", workspaceID: "w1", input: 10 }]);
+  assert.deepEqual([...computeUnpricedSet(recs, price)], ["unmapped"]);
+  assert.deepEqual([...computeUnpricedSet(records, price)], []);
+  assert.deepEqual([...computeUnpricedSet([], price)], []);
 });
