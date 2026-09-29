@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-26T09:48:46.793Z",
+  "capturedAt": "2026-09-29T11:17:06.598Z",
   "models": [
     "MiniMaxAI/MiniMax-M2.5",
     "MiniMaxAI/MiniMax-M2.7",
@@ -23,11 +23,13 @@
     "claude-opus-5-5",
     "claude-sonnet-4-6",
     "claude-sonnet-5",
+    "claude-sonnet-5-5",
     "deepseek/deepseek-v4-flash",
     "deepseek/deepseek-v4-flash-fast",
     "deepseek/deepseek-v4-flash-vision-exp",
     "deepseek/deepseek-v4-pro",
     "deepseek/deepseek-v4.1-flash",
+    "deepseek/deepseek-v4.1-flash-fast",
     "google/gemini-3.1-flash-lite",
     "google/gemini-3.5-flash",
     "google/gemini-3.5-flash-lite",
