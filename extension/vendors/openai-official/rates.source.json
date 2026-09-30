@@ -673,6 +673,34 @@
       ]
     },
     {
+      "model": "gpt-6.1-sol",
+      "label": "gpt-6.1-sol",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2,
+                  "output": 10,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 2.5
+                },
+                "high": {
+                  "input": 4,
+                  "output": 15,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "o1",
       "label": "o1",
       "rates": [

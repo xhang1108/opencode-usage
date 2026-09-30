@@ -1424,6 +1424,33 @@
       ]
     },
     {
+      "id": "gpt-6.1-sol",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2,
+                  "output": 10,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 2.5
+                },
+                "high": {
+                  "input": 4,
+                  "output": 15,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "grok-0.1-build",
       "rates": [
         {
@@ -3234,6 +3261,7 @@
     "openai-official:gpt-6-astra": "gpt-6-astra",
     "openai-official:gpt-6-luna": "gpt-6-luna",
     "openai-official:gpt-6-sol": "gpt-6-sol",
+    "openai-official:gpt-6.1-sol": "gpt-6.1-sol",
     "openai-official:o1": "o-1",
     "openai-official:o1-pro": "o-1-pro",
     "openai-official:o3": "o-3",
@@ -3405,6 +3433,7 @@
     "fp:gpt:6:base:astra": "gpt-6-astra",
     "fp:gpt:6:base:luna": "gpt-6-luna",
     "fp:gpt:6:base:sol": "gpt-6-sol",
+    "fp:gpt:6.1:base:sol": "gpt-6.1-sol",
     "fp:o:1:base:": "o-1",
     "fp:o:1:pro:": "o-1-pro",
     "fp:o:3:base:": "o-3",
