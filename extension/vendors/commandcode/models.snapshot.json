@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-29T11:17:06.598Z",
+  "capturedAt": "2026-09-30T11:05:26.640Z",
   "models": [
     "MiniMaxAI/MiniMax-M2.5",
     "MiniMaxAI/MiniMax-M2.7",
@@ -46,7 +46,9 @@
     "gpt-6-astra",
     "gpt-6-luna",
     "gpt-6-sol",
+    "gpt-6.1-sol",
     "inclusionai/ling-3.0-flash-sante:free",
+    "inclusionai/ling-3.1-flash:free",
     "meituan/LongCat-2.0",
     "meta/muse-spark-1.1",
     "meta/muse-spark-1.2",
