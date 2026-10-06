@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-27T10:30:12.181Z",
+  "capturedAt": "2026-10-06T11:57:12.644Z",
   "models": [
     "deepseek-flash",
     "deepseek-v4-flash",
@@ -43,6 +43,6 @@
     "qwen3.7-plus",
     "qwen3.8-flash",
     "qwen3.8-max",
-    "space-bunny-free"
+    "space-bunny"
   ]
 }
