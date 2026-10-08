@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-07T11:41:46.032Z",
+  "capturedAt": "2026-10-08T11:56:44.415Z",
   "models": [
     "MiniMaxAI/MiniMax-M2.5",
     "MiniMaxAI/MiniMax-M2.7",
@@ -17,6 +17,7 @@
     "claude-fable-5",
     "claude-fable-5-1",
     "claude-haiku-4-5-20251001",
+    "claude-haiku-5-5",
     "claude-opus-4-7",
     "claude-opus-4-8",
     "claude-opus-5",
@@ -64,6 +65,7 @@
     "nvidia/nemotron-3-ultra-550b-a55b",
     "poolside/laguna-s-2.1-free",
     "sakana/fugu-ultra",
+    "stealth/glyph-cluster:free",
     "stepfun/Step-3.5-Flash",
     "stepfun/Step-3.7-Flash",
     "stepfun/Step-5-Preview",
