@@ -1,6 +1,7 @@
 {
-  "capturedAt": "2026-10-06T11:57:12.644Z",
+  "capturedAt": "2026-10-09T11:48:52.067Z",
   "models": [
+    "claude-haiku-5-5",
     "deepseek-flash",
     "deepseek-v4-flash",
     "deepseek-v4-flash-vision-exp",
@@ -43,6 +44,7 @@
     "qwen3.7-plus",
     "qwen3.8-flash",
     "qwen3.8-max",
-    "space-bunny"
+    "space-bunny",
+    "step-5-preview-free"
   ]
 }
