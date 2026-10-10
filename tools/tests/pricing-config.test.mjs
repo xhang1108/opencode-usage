@@ -11,6 +11,7 @@ import {
   priceVendorCost,
 } from "../../extension/dashboard/core/pricing-config.js";
 import { buildPricing } from "../../extension/shared/preset.js";
+import { resolveTargetId, priceFromRates } from "../../extension/shared/pricing.js";
 
 const VENDOR_RATE = { from: null, pricing: { flat: { input: 0.1, output: 0.2, cacheRead: 0, cacheWrite: 0 } } };
 
@@ -26,31 +27,32 @@ test("withDefaultSource defaults legacy records to opencode without mutating", (
   assert.equal(withDefaultSource({ source: "openrouter" }).source, "openrouter");
 });
 
-test("priceWithConfig prices a legacy (source-less) record", () => {
-  const priced = priceWithConfig({ model: "m1", time: "2026-09-01T00:00:00Z", input: 1000000 }, PRICING);
+test("priceWithConfig prices a legacy (source-less) record from its vendor cost", () => {
+  const priced = priceWithConfig({ model: "m1", time: "2026-09-01T00:00:00Z", input: 1000000, vendorCost: 0.1, costScale: 1 }, PRICING);
   assert.equal(priced.unpriced, false);
   assert.equal(priced.cost, 0.1);
-  assert.equal(priced.priceBasis, "vendor");
+  assert.equal(priced.priceBasis, "vendor-reported");
 });
 
-test("priceWithConfig uses vendor-reported spend when the source opts in", () => {
+test("priceWithConfig bills the vendor-reported spend, never an estimate", () => {
   const rec = { source: "openrouter", model: "stealth/ox-alpha", time: "2026-08-24T00:00:00Z", input: 109, vendorCost: 0.035588 };
-  const out = priceWithConfig(rec, PRICING, { openrouter: "vendor" });
+  const out = priceWithConfig(rec, PRICING);
   assert.equal(out.cost, 0.035588);
   assert.equal(out.priceBasis, "vendor-reported");
   assert.equal(out.unpriced, false);
-  // Without the opt-in it falls back to token pricing (unmapped here).
-  assert.equal(priceWithConfig(rec, PRICING, {}).priceBasis, "unmapped");
-  // Vendor opt-in but no vendorCost -> falls back to token pricing.
+  // No vendor amount -> 0, not a token-rate estimate.
   const noCost = { ...rec, vendorCost: undefined };
-  assert.equal(priceWithConfig(noCost, PRICING, { openrouter: "vendor" }).priceBasis, "unmapped");
+  const zero = priceWithConfig(noCost, PRICING);
+  assert.equal(zero.cost, 0);
+  assert.equal(zero.priceBasis, "no-cost");
+  assert.equal(zero.unpriced, true);
 });
 
-test("priceWithConfig marks unmapped models unpriced with zero cost", () => {
+test("priceWithConfig bills 0 for a record with no vendor cost", () => {
   const priced = priceWithConfig({ model: "nope", time: "2026-09-01T00:00:00Z", input: 10 }, PRICING);
   assert.equal(priced.unpriced, true);
   assert.equal(priced.cost, 0);
-  assert.equal(priced.priceBasis, "unmapped");
+  assert.equal(priced.priceBasis, "no-cost");
 });
 
 test("legacyModelsFromPricing emits one rule per price target, named by label", () => {
@@ -83,11 +85,13 @@ test("shipped opencode preset v2 uses readable source-scoped target ids", () => 
     assert.ok(!/^opencode:r\d+$/.test(id), `target id ${id} still opaque`);
     assert.ok(preset.targets[id], `modelMap points at missing target ${id}`);
   }
-  // End-to-end: a legacy (source-less) record prices against the preset.
+  // The preset still carries rates (the unified builder reads it), even though
+  // the runtime no longer prices records from it — resolve the target, price its rates.
   const pricing = buildPricing({ presets: [preset] });
-  const priced = priceWithConfig({ model: "deepseek-v4.1-flash", time: "2026-09-11T02:00:00Z", input: 1000000 }, pricing);
+  const targetId = resolveTargetId({ source: "opencode", model: "deepseek-v4.1-flash" }, pricing.modelMap);
+  assert.equal(targetId, "opencode:deepseek-v4.1-flash");
+  const priced = priceFromRates({ time: "2026-09-11T02:00:00Z", input: 1000000 }, pricing.targets[targetId].rates, "vendor");
   assert.equal(priced.unpriced, false);
-  assert.equal(priced.targetId, "opencode:deepseek-v4.1-flash");
   assert.equal(priced.window, "peak");
   assert.equal(priced.cost, 0.3);
 });
@@ -103,14 +107,15 @@ test("priceWithConfig divides the raw vendor cost by costScale at compute time",
   assert.equal(priceWithConfig(usd, pricing, { opencode: "vendor" }).cost, 0.05);
 });
 
-test("priceWithConfig falls back to token pricing when vendorCost is missing", () => {
+test("priceWithConfig bills 0 when vendorCost is missing (no rate-table estimate)", () => {
   const pricing = { modelMap: { "opencode:m1": "t1" }, targets: { t1: { rates: [VENDOR_RATE] } } };
-  // opencode server sends `cost: null` on many records; there is no amount to
-  // use, so estimate from the rate table (NOT $0).
+  // opencode server sends `cost: null` on many records; there is nothing to
+  // price with, and we no longer estimate from the rate table -> 0.
   const rec = { source: "opencode", model: "m1", time: "2026-09-01T00:00:00Z", input: 1000000 };
-  const out = priceWithConfig(rec, pricing, { opencode: "vendor" });
-  assert.equal(out.cost, 0.1);
-  assert.equal(out.priceBasis, "vendor");
+  const out = priceWithConfig(rec, pricing);
+  assert.equal(out.cost, 0);
+  assert.equal(out.priceBasis, "no-cost");
+  assert.equal(out.unpriced, true);
 });
 
 const PEAK_RATE = {

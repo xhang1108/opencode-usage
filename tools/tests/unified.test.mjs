@@ -13,7 +13,7 @@ import {
   groupIdForKey,
 } from "../../extension/shared/unified.js";
 import { buildPricing } from "../../extension/shared/preset.js";
-import { priceRecord } from "../../extension/shared/pricing.js";
+import { resolveTargetId, priceFromRates } from "../../extension/shared/pricing.js";
 
 const RATE_A = { from: null, pricing: { flat: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0 } } };
 const RATE_B = {
@@ -272,8 +272,9 @@ test("vendor alias folds cover display labels the parser cannot resolve", () => 
     ["deepseek-chat & deepseek-reasoner", "deepseek-official:deepseek-chat"],
     ["deepseek-v4.1-flash-expires-on-0910", "deepseek-official:deepseek-v4-flash"],
   ]) {
-    const r = priceRecord({ source: "deepseek-official", model, input: 1000000, time: "2026-09-15T12:00:00Z" }, legacy);
+    const targetId = resolveTargetId({ source: "deepseek-official", model }, legacy.modelMap);
+    assert.equal(targetId, target, model);
+    const r = priceFromRates({ input: 1000000, time: "2026-09-15T12:00:00Z" }, legacy.targets[targetId].rates, "vendor");
     assert.equal(r.unpriced, false, model);
-    assert.equal(r.targetId, target, model);
   }
 });

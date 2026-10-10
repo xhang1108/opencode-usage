@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0 — 2026-10-10
+
+Costs come from exactly two places now: the vendor-reported amount, or the unified price list. New vendor: Groq. We recommend leaving unified pricing on — vendor APIs keep changing or dropping fields, and one day a field we rely on may be gone.
+
+### Added
+
+- **`groq-official` crawl vendor** (opt-in under Settings → Vendors). Syncs the same `/platform/v1/organizations/{org}/activity` endpoint the Groq console Usage page uses (Stytch JWT + org header, orgs auto-discovered), one record per day × model × API key with vendor-reported USD cost. Keeps `unifiedPassthrough`: per-second audio billing (e.g. whisper `num_seconds_billed`) has no token-rate expression, so the vendor spend stays authoritative in both modes.
+
+### Changed
+
+- **No more rate-table estimation.** A record bills its own `vendorCost` when the vendor reports one, and bills **0** when it does not. The author-maintained fallback tables no longer price anything at render time; they survive only as an input to the unified preset and as peak/off-peak window definitions.
+- **Consequences:** with unified pricing off, `deepseek-official` and `mimo` (tokens only, no reported amount) and opencode records the Console sends `cost: null` for bill 0; their `savings` column is 0. With unified pricing on (the default) token vendors are unchanged — deepseek/mimo are priced from their official group.
+- **Recommendation: keep unified pricing on.** Vendor-reported fields shift without notice (opencode already removed `usage/rows` and now sends `cost: null` for some rows); the unified list prices from the makers' published rates with daily watches, so history stays comparable even when a vendor stops sending a field.
+- **Settings → Vendors** cost-basis line for a token-only vendor reads `cost 0 (no vendor cost)` instead of `cost estimated`.
+
 ## 1.2.0 — 2026-09-29
 
 The dashboard no longer freezes on open, and a filter change no longer re-scans the whole history three times.

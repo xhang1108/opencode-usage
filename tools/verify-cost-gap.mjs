@@ -4,8 +4,7 @@
 // Reads a records CSV (the extension's Import/Export backup) and, for one
 // source+model (+ optional date range), prints the token sums and the cost under
 // three bases so the difference can be attributed exactly:
-//   vendor-reported  priceWithConfig() with costSource[source] === "vendor"
-//   derived          priceRecord() against the vendor fallback preset
+//   vendor-reported  priceWithConfig() (the vendor amount, else 0)
 //   unified          priceUnified() against shared/unified.preset.json
 //
 // It also groups the unified cost by rate version + window, which is what
@@ -20,7 +19,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseCSV, rowsToObjects } from "../extension/shared/csv.js";
-import { priceRecord, getRateEntryFromRates, getWindow, resolveTable, computeCost, effectiveTimeMs } from "../extension/shared/pricing.js";
+import { getRateEntryFromRates, getWindow, resolveTable, computeCost, effectiveTimeMs } from "../extension/shared/pricing.js";
 import { priceWithConfig } from "../extension/dashboard/core/pricing-config.js";
 import { normalizeUnifiedPricing, buildUnifiedIndex, priceUnified } from "../extension/shared/unified.js";
 import { buildPricing } from "../extension/shared/preset.js";
@@ -62,10 +61,6 @@ function main() {
     process.exit(1);
   }
 
-  const registry = readJSON("extension/shared/vendors.json");
-  const costSource = {};
-  for (const v of registry.vendors || []) if (v && v.source) costSource[v.source] = v.costSource || "derived";
-
   const presets = [];
   for (const src of ["opencode", "deepseek-official", "mimo"]) {
     try { presets.push(readJSON(`extension/vendors/${src}/rates.preset.json`)); } catch (e) { /* optional */ }
@@ -99,7 +94,7 @@ function main() {
 
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const sum = { n: 0, input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0, requests: 0, vendorCostUsd: 0 };
-  let vendor = 0, derived = 0, unifiedTotal = 0, unpriced = 0;
+  let vendor = 0, unifiedTotal = 0, unpriced = 0;
   const byVersion = new Map();
 
   for (const rec of picked) {
@@ -113,8 +108,7 @@ function main() {
     sum.requests += num(rec.requests) || 1;
     if (rec.vendorCost != null) sum.vendorCostUsd += num(rec.vendorCost) / (num(rec.costScale) || 1);
 
-    vendor += priceWithConfig(rec, pricing, costSource).cost;
-    derived += priceRecord(rec, pricing).cost;
+    vendor += priceWithConfig(rec, pricing).cost;
     const u = priceUnified(rec, unifiedIndex);
     unifiedTotal += u.cost;
     if (u.unpriced) unpriced += 1;
@@ -144,7 +138,6 @@ function main() {
   console.log("COST");
   console.log(`  vendor-reported (vendorCost/costScale)  ${fmt(sum.vendorCostUsd)}`);
   console.log(`  vendor-reported via priceWithConfig     ${fmt(vendor)}`);
-  console.log(`  derived (vendor preset, priceRecord)    ${fmt(derived)}`);
   console.log(`  unified (unified.preset.json)           ${fmt(unifiedTotal)}   unpriced records=${unpriced}`);
   console.log("");
   console.log("UNIFIED BREAKDOWN by group <- (version/window detail)");

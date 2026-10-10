@@ -4,7 +4,7 @@
 // pages. Unified pricing is handled separately (shared/unified.js).
 // Zero chrome / DOM dependencies (P9).
 
-import { priceRecord, resolveTargetId, getRateEntry, getWindow, effectiveTimeMs } from "../../shared/pricing.js";
+import { resolveTargetId, getRateEntry, getWindow, effectiveTimeMs } from "../../shared/pricing.js";
 
 // D4: legacy records without a `source` are opencode. Never mutate the input.
 export function withDefaultSource(record) {
@@ -48,19 +48,20 @@ export function priceVendorCost(rec, pricing) {
   return { cost, savings: 0, window: vendorWindow(rec, pricing), unpriced: false, targetId: null, priceBasis: "vendor-reported" };
 }
 
-export function priceWithConfig(record, pricing, costSource = {}) {
+// Price one record. The only amount we trust is the vendor-reported spend
+// (`vendorCost`); a record that reports none (the server sent `cost: null`, or
+// it comes from a token-only vendor like deepseek-official / mimo) bills 0.
+// There is no rate-table estimate any more.
+export function priceWithConfig(record, pricing) {
   const rec = withDefaultSource(record);
-  const source = rec.source || "opencode";
-  if ((costSource[source] || "derived") === "vendor" && rec.vendorCost != null) {
+  if (rec.vendorCost != null) {
     // Records store the vendor amount RAW; `costScale` is the divisor that turns
     // it into USD (opencode console = 1e8, local import = 1, other vendors omit
     // it). The conversion happens here — never at ingest, so stored data is
     // exactly what the vendor returned.
     return priceVendorCost(rec, pricing);
   }
-  // No vendor amount (server sent `cost: null`) or a non-vendor source:
-  // estimate from the token rate table.
-  return priceRecord(rec, pricing || {});
+  return { cost: 0, savings: 0, window: null, unpriced: true, targetId: null, priceBasis: "no-cost" };
 }
 
 // The time-reminder consumes a flat [{ model, rates }] list (peak windows per

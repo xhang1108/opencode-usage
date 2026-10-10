@@ -36,11 +36,8 @@ let settings = null;
 let pricing = { modelMap: {}, targets: {} };
 let unifiedPricing = normalizeUnifiedPricing(null);
 let unifiedIndex = new Map();
-// Per-source cost basis: "vendor" uses the vendor-reported spend, "derived"
-// computes from token rates. Populated from the vendor registry.
 // `passthroughSources` (registry `unifiedPassthrough`) keeps a source's vendor
 // spend even when unified pricing is on (no token-rate expression exists).
-let costSource = {};
 let passthroughSources = {};
 
 // Set once the first load has finished. Until then, interactive handlers are
@@ -77,7 +74,7 @@ const price = (rec) => {
     ? priceUnified(rec, unifiedIndex)
     : shouldPassthroughVendorCost(rec, passthroughSources)
       ? priceVendorCost(rec, pricing)
-      : priceWithConfig(rec, pricing, costSource);
+      : priceWithConfig(rec, pricing);
   if (key != null) priceCache.set(key, out);
   return out;
 };
@@ -136,7 +133,6 @@ const settingsCtx = {
     return presetSources;
   },
   isEnabled,
-  isVendorCost: (source) => (costSource[source] || "derived") === "vendor",
   refreshData: async () => {
     await reloadAfterImportClear();
     renderSettingsPage(settingsModal.getActive());
@@ -170,10 +166,8 @@ async function reloadSettings() {
   unifiedIndex = buildUnifiedIndex(unifiedPricing);
   pricing = await loadPricing(settings);
   priceCache = new Map();
-  costSource = {};
   passthroughSources = {};
   for (const v of (settings.registry && settings.registry.vendors) || []) {
-    if (v && v.source) costSource[v.source] = v.costSource || "derived";
     if (v && v.source && v.unifiedPassthrough) passthroughSources[v.source] = true;
   }
   presetSources = new Set(

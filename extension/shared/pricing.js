@@ -192,22 +192,6 @@ export function resolveTargetId(record, modelMap) {
   return map[`${record.source}:${record.model}`] || null;
 }
 
-// Price one record from the author-maintained vendor price tables.
-export function priceRecord(record, { modelMap = {}, targets = {} } = {}) {
-  const targetId = resolveTargetId(record, modelMap);
-  if (!targetId || !targets[targetId]) {
-    return { cost: 0, savings: 0, window: null, unpriced: true, targetId: null, priceBasis: "unmapped" };
-  }
-  const target = targets[targetId];
-  const entry = getRateEntry({ rates: target.rates }, effectiveTimeMs(record));
-  if (!entry) return { cost: 0, savings: 0, window: null, unpriced: true, targetId, priceBasis: "unpriced" };
-  const window = getWindow(record, entry);
-  const table = resolveTable(entry, window, record.input, record.cacheRead);
-  if (!table) return { cost: 0, savings: 0, window, unpriced: true, targetId, priceBasis: "unpriced" };
-  const { cost, savings } = computeCost(record, table);
-  return { cost, savings, window, unpriced: false, targetId, priceBasis: "vendor" };
-}
-
 // Structural validation of a rate-version list (shared by presets + the unified
 // pricelist): at least one version, unique effective-from times, complete price
 // tables, valid HH:MM windows.

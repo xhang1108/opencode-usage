@@ -7,7 +7,6 @@ import {
   computeCost,
   resolveTable,
   resolveTargetId,
-  priceRecord,
   priceFromRates,
   effectiveTimeMs,
   isRetired,
@@ -82,21 +81,10 @@ test("resolveTargetId prefers provider-qualified keys (D5)", () => {
   assert.equal(resolveTargetId({ source: "mimo", model: "x" }, modelMap), null);
 });
 
-test("priceRecord: offpeak sample, priceBasis=vendor when no curated", () => {
-  const record = {
-    source: "commandcode",
-    time: "2026-09-12T11:55:00Z",
-    model: "deepseek/deepseek-v4.1-flash",
-    input: 184,
-    cacheRead: 107264,
-    output: 291,
-  };
-  const res = priceRecord(record, {
-    modelMap: { "commandcode:deepseek/deepseek-v4.1-flash": "deepseek-v4.1-flash" },
-    targets: { "deepseek-v4.1-flash": FLASH_TARGET },
-  });
+test("off-peak window prices a cache read at the off-peak rate", () => {
+  const record = { time: "2026-09-12T11:55:00Z", input: 184, cacheRead: 107264, output: 291 };
+  const res = priceFromRates(record, FLASH_TARGET.rates, "vendor");
   assert.equal(res.unpriced, false);
-  assert.equal(res.priceBasis, "vendor");
   assert.equal(res.window, "offpeak");
   assert.equal(Number(res.cost.toFixed(9)), 0.000523992);
 });
@@ -107,16 +95,6 @@ test("priceFromRates prices against an explicit rate list", () => {
   assert.equal(res.unpriced, false);
   assert.equal(res.priceBasis, "unified");
   assert.equal(res.cost, 0.001);
-});
-
-test("priceRecord marks unmapped models unpriced (P5, in box)", () => {
-  const res = priceRecord(
-    { source: "mimo", time: "2026-09-12T00:00:00Z", model: "mimo-v2.5", input: 10 },
-    { modelMap: {}, targets: {} }
-  );
-  assert.equal(res.unpriced, true);
-  assert.equal(res.priceBasis, "unmapped");
-  assert.equal(res.cost, 0);
 });
 
 test("effectiveTimeMs falls back to the record date's UTC midnight", () => {

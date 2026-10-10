@@ -4,7 +4,7 @@
 
 // The "crawl · import xlsx" modes line and the cost-basis line shown under a
 // vendor. Under unified pricing the vendor's own basis is bypassed.
-export function vendorMeta(v, { unifiedOn, hasPreset }) {
+export function vendorMeta(v, { unifiedOn }) {
   const modes = [v.crawl ? "crawl" : null, v.import && v.import.length ? `import ${v.import.join("/")}` : null]
     .filter(Boolean)
     .join(" · ");
@@ -12,7 +12,7 @@ export function vendorMeta(v, { unifiedOn, hasPreset }) {
   const passthrough = !!(v && v.unifiedPassthrough);
   const basis = unifiedOn && !passthrough
     ? "unified price"
-    : `cost ${vendorCost ? "vendor-reported" : "estimated"}${passthrough ? " · unified passthrough" : ""}${!vendorCost && !hasPreset ? " · no preset" : ""}`;
+    : `cost ${vendorCost ? "vendor-reported" : "0 (no vendor cost)"}${passthrough ? " · unified passthrough" : ""}`;
   return { modes, basis, vendorCost, passthrough };
 }
 

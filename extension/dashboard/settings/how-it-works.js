@@ -53,7 +53,7 @@ const BASE_SECTIONS = [
             { id: "R", label: "vendor record" },
             { id: "Q", label: "vendor reports an amount?", shape: "decision" },
             { id: "A", label: "use that USD amount" },
-            { id: "B", label: "tokens x shipped rate table" },
+            { id: "B", label: "no reported amount -> $0" },
             { id: "C", label: "final price" },
           ],
           edges: [
@@ -68,7 +68,7 @@ const BASE_SECTIONS = [
     ],
     rows: [
       ["Formula", "input·in + (output + reasoning)·out + cacheRead·read + cacheWrite·write, all divided by 1e6. Rates are USD per 1M."],
-      ["Reported amount", "opencode, OpenRouter and CommandCode report a USD amount. DeepSeek and MiMo never do — they are always derived from their shipped table."],
+      ["Reported amount", "opencode, OpenRouter and CommandCode report a USD amount and bill it. DeepSeek and MiMo never report one — they bill 0 when unified pricing is off (and their official price when it is on)."],
       ["Free models", "Priced like any other model — give the `-free` variant its own rate instead of forcing $0."],
       ["Unassigned models", "Under unified pricing a model in no group is $0 until you drag it into a group."],
     ],

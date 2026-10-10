@@ -106,7 +106,7 @@ export function renderUnified(ctx) {
         </label>
         <div class="settings-vendor-text">
           <strong>Unified pricing</strong>
-          <span class="settings-vendor-meta">Bill every vendor from your own price list. Pauses all vendor-reported spend and fallback prices.</span>
+          <span class="settings-vendor-meta">Bill every vendor from your own price list. Vendor-reported spend is ignored, except per-second sources like groq.</span>
         </div>
       </div>
     </div>`;
@@ -116,7 +116,7 @@ export function renderUnified(ctx) {
     (unified.enabled
       ? ""
       : `<div class="up-off-bar">
-           <span>Unified pricing is <strong>off</strong> — vendors use their own reported spend / fallback prices. Turn it on to edit this list.</span>
+           <span>Unified pricing is <strong>off</strong> — a vendor record bills its own reported spend, or 0 when it reports none. Turn it on to edit this list.</span>
          </div>`) +
     `<div class="up-board${unified.enabled ? "" : " up-locked"}"${unified.enabled ? "" : " inert"}>${board}</div>`;
 
