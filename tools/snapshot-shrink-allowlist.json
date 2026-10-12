@@ -1,0 +1,39 @@
+{
+  "deepseek-official": {
+    "20241107T075055Z.json": [
+      "deepseek-coder"
+    ]
+  },
+  "qwen-official": {
+    "20261011T112649Z.json": [
+      "qwen-mt-turbo",
+      "qwen-plus-2025-07-28",
+      "qwen-plus-2025-09-11",
+      "qwen-turbo",
+      "qwen-vl-max",
+      "qwen-vl-plus",
+      "qwen3-14b",
+      "qwen3-235b-a22b",
+      "qwen3-235b-a22b-instruct-2507",
+      "qwen3-235b-a22b-thinking-2507",
+      "qwen3-30b-a3b",
+      "qwen3-30b-a3b-instruct-2507",
+      "qwen3-30b-a3b-thinking-2507",
+      "qwen3-32b",
+      "qwen3-8b",
+      "qwen3-next-80b-a3b-instruct",
+      "qwen3-next-80b-a3b-thinking",
+      "qwen3-omni-30b-a3b-captioner",
+      "qwen3-vl-235b-a22b-instruct",
+      "qwen3-vl-235b-a22b-thinking",
+      "qwen3-vl-30b-a3b-instruct",
+      "qwen3-vl-30b-a3b-thinking",
+      "qwen3-vl-32b-instruct",
+      "qwen3-vl-32b-thinking",
+      "qwen3-vl-8b-instruct",
+      "qwen3-vl-8b-thinking",
+      "qwen3.6-max-preview",
+      "qwq-plus"
+    ]
+  }
+}
