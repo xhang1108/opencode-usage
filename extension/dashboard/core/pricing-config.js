@@ -29,14 +29,13 @@ function vendorWindow(rec, pricing) {
   }
 }
 
-// Price one canonical record against the fallback config. Vendors may opt into
-// using their own reported spend (`vendorCost`) as the primary cost instead of
-// deriving from token rates: `costSource[source] === "vendor"`. All other
-// sources derive cost from the rate tables ("derived", default).
-// `passthroughSources` (registry `unifiedPassthrough`) lists sources whose
-// billing has no token-rate expression (e.g. per-second audio) and must keep
-// their vendor spend even when unified pricing is on — the unified path asks
-// first via shouldPassthroughVendorCost.
+// Cost basis for one record: the only amount billed is the vendor-reported
+// spend (`vendorCost`); a record with none bills 0 (there is no rate-table
+// derivation any more — see priceWithConfig). `passthroughSources` (registry
+// `unifiedPassthrough`) lists sources whose billing has no token-rate
+// expression (e.g. per-second audio) and must keep their vendor spend even when
+// unified pricing is on — the unified path asks first via
+// shouldPassthroughVendorCost.
 export function shouldPassthroughVendorCost(record, passthroughSources = {}) {
   const rec = withDefaultSource(record);
   const source = rec.source || "opencode";

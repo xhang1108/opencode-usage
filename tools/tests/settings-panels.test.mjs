@@ -44,17 +44,17 @@ test("summaryModel tolerates missing pricing/records", () => {
 
 test("vendorMeta composes the modes and cost-basis lines", () => {
   const crawlImport = { source: "mimo", crawl: true, import: ["xlsx"] };
-  assert.deepEqual(vendorMeta(crawlImport, { unifiedOn: false, hasPreset: true }), {
+  assert.deepEqual(vendorMeta(crawlImport, { unifiedOn: false }), {
     modes: "crawl · import xlsx",
     basis: "cost 0 (no vendor cost)",
     vendorCost: false,
     passthrough: false,
   });
-  assert.equal(vendorMeta(crawlImport, { unifiedOn: false, hasPreset: false }).basis, "cost 0 (no vendor cost)");
-  assert.equal(vendorMeta({ source: "openrouter", costSource: "vendor" }, { unifiedOn: false, hasPreset: true }).basis, "cost vendor-reported");
-  assert.equal(vendorMeta(crawlImport, { unifiedOn: true, hasPreset: true }).basis, "unified price");
+  assert.equal(vendorMeta(crawlImport, { unifiedOn: false }).basis, "cost 0 (no vendor cost)");
+  assert.equal(vendorMeta({ source: "openrouter", costSource: "vendor" }, { unifiedOn: false }).basis, "cost vendor-reported");
+  assert.equal(vendorMeta(crawlImport, { unifiedOn: true }).basis, "unified price");
   assert.equal(
-    vendorMeta({ source: "groq-official", costSource: "vendor", unifiedPassthrough: true }, { unifiedOn: true, hasPreset: false }).basis,
+    vendorMeta({ source: "groq-official", costSource: "vendor", unifiedPassthrough: true }, { unifiedOn: true }).basis,
     "cost vendor-reported · unified passthrough"
   );
 });

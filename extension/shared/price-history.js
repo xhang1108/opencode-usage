@@ -10,6 +10,12 @@
 
 import { makeTargetId } from "../dashboard/core/pricing-config.js";
 
+// Replay committed snapshots oldest-first into per-model version chains. A model
+// present in an earlier snapshot but absent later is NOT dropped or retired: its
+// state (and so its last rate version) is kept indefinitely, and that last
+// version keeps pricing records for any time after it takes effect. There is no
+// version `until`/retirement cutoff on this path — a withdrawn model still
+// resolves to the last price the vendor published for it.
 export function versionsFromSnapshots(snapshots) {
   const ordered = (snapshots || []).filter(Boolean).slice().sort((a, b) => String(a.capturedAt).localeCompare(String(b.capturedAt)));
   const state = {};

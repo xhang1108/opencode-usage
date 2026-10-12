@@ -12,6 +12,8 @@ import {
   isRetired,
   validateRates,
 } from "../../extension/shared/pricing.js";
+import { versionsFromSnapshots } from "../../extension/shared/price-history.js";
+import { parseStandardTable } from "../../extension/vendors/openai-official/pricing-page.js";
 
 const FLASH_TARGET = {
   label: "deepseek-v4.1-flash",
@@ -162,3 +164,31 @@ test("validateRates rejects a malformed or non-monotonic until", () => {
   );
 });
 
+// A model that disappears from a later vendor snapshot is NOT retired: the
+// version chain keeps its last published rate, which keeps pricing any record
+// after it takes effect. There is no `until`/retirement cutoff on this path.
+test("a model removed from later snapshots keeps its last version's price", () => {
+  const snaps = [
+    { capturedAt: "2026-01-01T00:00:00Z", models: { gone: { label: "Gone", entry: { pricing: { flat: { input: 0.1, output: 0.2 } } } } } },
+    { capturedAt: "2026-02-01T00:00:00Z", models: { gone: { label: "Gone", entry: { pricing: { flat: { input: 0.3, output: 0.4 } } } } } },
+    { capturedAt: "2026-03-01T00:00:00Z", models: { kept: { label: "Kept", entry: { pricing: { flat: { input: 1, output: 2 } } } } } },
+  ];
+  const state = versionsFromSnapshots(snaps);
+  assert.ok(state.gone, "the removed model is still present");
+  assert.equal(state.gone.versions.length, 2);
+  assert.equal(state.gone.versions[1].pricing.flat.input, 0.3);
+  // A record long after the model left the page still prices at that version.
+  const entry = getRateEntry({ rates: state.gone.versions }, Date.parse("2026-12-31T00:00:00Z"));
+  assert.equal(entry.pricing.flat.input, 0.3);
+  assert.equal(entry.pricing.flat.output, 0.4);
+});
+
+// The OpenAI page parser folds context labels ("(<272K context length)") into a
+// single id; a genuine duplicate id means the page layout drifted, so it must
+// fail closed instead of silently keeping the last row.
+test("openai parser fails closed on a duplicate model id", () => {
+  const header = "| Model | a | b | c | d | e | f | g | h |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |";
+  const row = "| gpt-6-luna | $1.00 | $0.10 | - | $2.00 | - | - | - | - |";
+  const md = `### Standard pricing data\n\n${header}\n${row}\n${row}\n`;
+  assert.throws(() => parseStandardTable(md), /duplicate model id gpt-6-luna/);
+});

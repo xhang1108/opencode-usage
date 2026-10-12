@@ -6,6 +6,12 @@
 // "opencode:deepseek-v4.1-flash").
 //
 // Usage: node tools/extract-preset.mjs [--source opencode]
+//
+// Hand-maintained vendors only. The parser-backed official vendors (those wired
+// in tools/price-watch-lib.mjs VENDORS) have their rates.source.json GENERATED
+// daily from their committed price snapshots, so editing one there is pointless
+// - the next price-watch run overwrites it (and rebuildPreset() refuses to
+// clobber a file it would not itself have produced).
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";

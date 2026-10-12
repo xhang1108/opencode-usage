@@ -62,6 +62,9 @@ export function parseStandardTable(md) {
             },
           }
         : { pricing: { flat: { input: sIn, output: sOut, cacheRead: sCached, cacheWrite: sWrite } } };
+    // Fail closed: one row per model id. A repeated id (e.g. two context
+    // labels folding to the same id) must not silently keep the last row.
+    if (out[id]) throw new Error(`OpenAI pricing: duplicate model id ${id}`);
     out[id] = { label: id, entry };
   }
 

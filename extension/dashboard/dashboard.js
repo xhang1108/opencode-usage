@@ -129,9 +129,6 @@ const settingsCtx = {
   get allRecords() {
     return Object.values(globalCache);
   },
-  get presetSources() {
-    return presetSources;
-  },
   isEnabled,
   refreshData: async () => {
     await reloadAfterImportClear();
@@ -145,8 +142,6 @@ const settingsCtx = {
     renderSettingsPage(settingsModal.getActive());
   },
 };
-let presetSources = new Set();
-
 const settingsModal = createSettingsModal({ renderPage: renderSettingsPage });
 
 function renderSettingsPage(tab) {
@@ -170,18 +165,6 @@ async function reloadSettings() {
   for (const v of (settings.registry && settings.registry.vendors) || []) {
     if (v && v.source && v.unifiedPassthrough) passthroughSources[v.source] = true;
   }
-  presetSources = new Set(
-    await Promise.all(
-      ((settings.registry && settings.registry.vendors) || []).map(async (v) => {
-        try {
-          const res = await fetch(chrome.runtime.getURL(`vendors/${v.source}/rates.preset.json`));
-          return res.ok ? v.source : null;
-        } catch (e) {
-          return null;
-        }
-      })
-    ).then((list) => list.filter(Boolean))
-  );
   timeReminder.mirrorRates();
   await timeReminder.reloadModels();
   dataVersion++;

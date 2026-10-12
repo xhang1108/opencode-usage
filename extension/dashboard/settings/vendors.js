@@ -23,8 +23,7 @@ export function renderVendors(ctx) {
   const unifiedOn = ctx.settings.unifiedPricing.enabled;
   for (const v of vendors) {
     const enabled = ctx.isEnabled(v.source);
-    const hasPreset = ctx.presetSources ? ctx.presetSources.has(v.source) : true;
-    const { modes, basis } = vendorMeta(v, { unifiedOn, hasPreset });
+    const { modes, basis } = vendorMeta(v, { unifiedOn });
 
     const row = document.createElement("div");
     row.className = "settings-vendor" + (enabled ? "" : " disabled");

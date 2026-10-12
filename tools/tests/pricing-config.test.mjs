@@ -101,10 +101,10 @@ test("priceWithConfig divides the raw vendor cost by costScale at compute time",
   // Crawler now stores the raw USD×1e8 integer plus costScale; nothing is
   // divided at ingest.
   const raw = { source: "opencode", model: "deepseek-v4.1-flash", time: "2026-09-01T00:00:00Z", input: 1, vendorCost: 242499948, costScale: 1e8 };
-  assert.equal(priceWithConfig(raw, pricing, { opencode: "vendor" }).cost, 2.42499948);
+  assert.equal(priceWithConfig(raw, pricing).cost, 2.42499948);
   // Local-DB imports are already USD (costScale 1).
   const usd = { source: "opencode", model: "deepseek-v4.1-flash", time: "2026-09-01T00:00:00Z", input: 1, vendorCost: 0.05, costScale: 1 };
-  assert.equal(priceWithConfig(usd, pricing, { opencode: "vendor" }).cost, 0.05);
+  assert.equal(priceWithConfig(usd, pricing).cost, 0.05);
 });
 
 test("priceWithConfig bills 0 when vendorCost is missing (no rate-table estimate)", () => {
@@ -130,18 +130,18 @@ const PRICING_PEAK = {
 
 test("priceWithConfig labels a vendor-cost record's window by its timestamp without changing cost", () => {
   const base = { source: "opencode", model: "peakm", input: 1, vendorCost: 12345678, costScale: 1e8 };
-  const peak = priceWithConfig({ ...base, time: "2026-09-01T02:00:00Z" }, PRICING_PEAK, { opencode: "vendor" });
-  const off = priceWithConfig({ ...base, time: "2026-09-01T12:00:00Z" }, PRICING_PEAK, { opencode: "vendor" });
+  const peak = priceWithConfig({ ...base, time: "2026-09-01T02:00:00Z" }, PRICING_PEAK);
+  const off = priceWithConfig({ ...base, time: "2026-09-01T12:00:00Z" }, PRICING_PEAK);
   assert.equal(peak.window, "peak");
   assert.equal(off.window, "offpeak");
   assert.equal(peak.cost, 12345678 / 1e8);
   assert.equal(off.cost, peak.cost); // the window never changes the vendor price
   assert.equal(peak.priceBasis, "vendor-reported");
   // A model with no peak windows stays flat.
-  const flat = priceWithConfig({ source: "opencode", model: "m1", time: "2026-09-01T02:00:00Z", input: 1, vendorCost: 5, costScale: 1 }, PRICING, { opencode: "vendor" });
+  const flat = priceWithConfig({ source: "opencode", model: "m1", time: "2026-09-01T02:00:00Z", input: 1, vendorCost: 5, costScale: 1 }, PRICING);
   assert.equal(flat.window, "flat");
   // A model absent from the price map stays flat too.
-  const unknown = priceWithConfig({ source: "opencode", model: "nope", time: "2026-09-01T02:00:00Z", input: 1, vendorCost: 5, costScale: 1 }, PRICING_PEAK, { opencode: "vendor" });
+  const unknown = priceWithConfig({ source: "opencode", model: "nope", time: "2026-09-01T02:00:00Z", input: 1, vendorCost: 5, costScale: 1 }, PRICING_PEAK);
   assert.equal(unknown.window, "flat");
 });
 
