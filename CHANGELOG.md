@@ -7,6 +7,7 @@ Costs come from exactly two places now: the vendor-reported amount, or the unifi
 ### Added
 
 - **`groq-official` crawl vendor** (opt-in under Settings → Vendors). Syncs the same `/platform/v1/organizations/{org}/activity` endpoint the Groq console Usage page uses (Stytch JWT + org header, orgs auto-discovered), one record per day × model × API key with vendor-reported USD cost. Keeps `unifiedPassthrough`: per-second audio billing (e.g. whisper `num_seconds_billed`) has no token-rate expression, so the vendor spend stays authoritative in both modes.
+- **CI now reads the crawl artifacts.** A new test suite parses every committed price snapshot and model snapshot, recomputes each vendor's `rates.preset.json`/`rates.source.json` from its snapshots, and rejects any shrink that is not named in `tools/snapshot-shrink-allowlist.json` — these files previously passed CI without anything reading them.
 
 ### Changed
 
@@ -14,6 +15,10 @@ Costs come from exactly two places now: the vendor-reported amount, or the unifi
 - **Consequences:** with unified pricing off, `deepseek-official` and `mimo` (tokens only, no reported amount) and opencode records the Console sends `cost: null` for bill 0; their `savings` column is 0. With unified pricing on (the default) token vendors are unchanged — deepseek/mimo are priced from their official group.
 - **Recommendation: keep unified pricing on.** Vendor-reported fields shift without notice (opencode already removed `usage/rows` and now sends `cost: null` for some rows); the unified list prices from the makers' published rates with daily watches, so history stays comparable even when a vendor stops sending a field.
 - **Settings → Vendors** cost-basis line for a token-only vendor reads `cost 0 (no vendor cost)` instead of `cost estimated`.
+- **A partial scrape is refused, not committed.** Both watchers now compare the freshly crawled model count against the committed one and abort the write when it drops, naming the ids that would disappear (`--allow-shrink`, or the workflow's `allow_shrink` input, accepts a real retirement). Previously only wholly empty payloads were rejected, so a truncated response could silently gut a snapshot.
+- **A failing source no longer blocks the healthy one.** `model-watch` and `price-watch` still fail red, but the sources that parsed are committed in the same run instead of being discarded with the failure.
+- **The openai parser fails closed on a duplicate model id** instead of keeping whichever row it read last.
+- **`rates.source.json` provenance is now enforced.** For parser-backed official vendors it is a generated mirror of the price snapshots; the daily job refuses to overwrite a file it would not itself have produced, so hand-editing one there no longer disappears silently.
 
 ## 1.2.0 — 2026-09-29
 
