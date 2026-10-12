@@ -9,9 +9,14 @@
 //
 // Safety: `extractIds` rejects malformed/empty payloads, but a truncated yet
 // valid list is indistinguishable from a real mass retirement — so a count
-// shrink past the guard below refuses to write until a human re-runs with
-// --allow-shrink. A failed source still leaves the run red but never blocks
-// the other (healthy) source from being committed.
+// shrink is guarded per source (SOURCES[].shrink):
+//   * "block" (default) — refuse to write and exit non-zero until a human
+//     re-runs with --allow-shrink. For a stable catalog, where a short payload
+//     means a broken crawl.
+//   * "warn" — record the drop, log it in the step summary, keep the run green.
+//     For a volatile catalog that legitimately adds and drops models.
+// A failed source still leaves the run red but never blocks the other
+// (healthy) source from being committed.
 //
 // Usage: node tools/model-watch.mjs [--source opencode|commandcode] [--allow-shrink]
 //
@@ -31,11 +36,17 @@ export const SOURCES = {
     label: "opencode Go",
     url: "https://opencode.ai/zen/go/v1/models",
     dir: "extension/vendors/opencode",
+    // This endpoint generates its response per request (every model carries the
+    // same `created` == fetch time) and its catalog genuinely rotates, so a
+    // count drop is upstream truth rather than a broken crawl: record it and
+    // warn instead of failing the daily run.
+    shrink: "warn",
   },
   commandcode: {
     label: "CommandCode",
     url: "https://api.commandcode.ai/provider/v1/models",
     dir: "extension/vendors/commandcode",
+    shrink: "block",
   },
 };
 
@@ -91,19 +102,29 @@ async function fetchIds(url) {
   }
 }
 
-// Refuse to write when the new model count is smaller than the committed one:
-// a partial/truncated upstream response would otherwise silently gut the
-// snapshot. Real retirements look identical, so the operator can override with
-// --allow-shrink. Baseline (no prev) and same-or-greater counts always pass.
-export function assertNotSuspiciousShrink(prevModels, nextIds, allowShrink) {
-  if (allowShrink || prevModels == null) return;
-  if (nextIds.length >= prevModels.length) return;
+// Describe a count drop, or null when there is nothing to report (baseline, or
+// same/greater count). Pure so both the guard and the tests can use it.
+export function shrinkVerdict(prevModels, nextIds) {
+  if (prevModels == null || nextIds.length >= prevModels.length) return null;
   const next = new Set(nextIds);
   const removed = prevModels.filter((id) => !next.has(id)).sort();
+  return {
+    removed,
+    message: `model count dropped ${prevModels.length} -> ${nextIds.length} (removed ${removed.length}: ${removed.join(", ")})`,
+  };
+}
+
+// Per-source policy: "block" throws (no write) unless the human passes
+// --allow-shrink; "warn" returns the verdict so the caller can record the drop
+// and log it. Returns the verdict when the drop was accepted, throws when it
+// was refused, null when there was no drop.
+export function assertNotSuspiciousShrink(prevModels, nextIds, { allowShrink = false, policy = "block", source = "" } = {}) {
+  const verdict = shrinkVerdict(prevModels, nextIds);
+  if (!verdict) return null;
+  if (policy === "warn" || allowShrink) return verdict;
   throw new Error(
-    `refusing to write: model count dropped ${prevModels.length} -> ${nextIds.length} ` +
-      `(removed ${removed.length}: ${removed.join(", ")}). If this retirement is real, re-run ` +
-      `node tools/model-watch.mjs --source <source> --allow-shrink, or dispatch the ` +
+    `refusing to write: ${verdict.message}. If this retirement is real, re-run ` +
+      `node tools/model-watch.mjs --source ${source} --allow-shrink, or dispatch the ` +
       `"Model watch" workflow with allow_shrink = true.`
   );
 }
@@ -113,11 +134,16 @@ export function assertNotSuspiciousShrink(prevModels, nextIds, allowShrink) {
 // remaining sources. `opts` exists for tests (path/fetchIds); production calls
 // pass only allowShrink.
 export async function watchOne(source, opts = {}) {
+  const cfg = SOURCES[source] || {};
   const path = opts.path || snapshotPath(source);
   const ids = await (opts.fetchIds || fetchIds)(SOURCES[source].url);
   const prev = loadSnapshot(path); // null -> first run: establish baseline
   const prevModels = prev ? prev.models : null;
-  assertNotSuspiciousShrink(prevModels, ids, opts.allowShrink);
+  const shrink = assertNotSuspiciousShrink(prevModels, ids, {
+    allowShrink: opts.allowShrink,
+    policy: opts.shrink || cfg.shrink || "block",
+    source,
+  });
   const diff = diffModels(prevModels, ids);
   const wrote = diff.baseline || diff.changed;
   if (wrote) writeFileSync(path, snapshotContent(ids));
@@ -130,6 +156,7 @@ export async function watchOne(source, opts = {}) {
     removed: diff.removed,
     changed: diff.changed,
     wrote,
+    shrink,
   };
 }
 
@@ -138,11 +165,14 @@ export function summaryMarkdown(results, errors) {
   if (results.length) {
     lines.push("| source | models | added | removed | status |", "| --- | --- | --- | --- | --- |");
     for (const r of results) {
-      const status = r.baseline ? "baseline" : r.changed ? "changed" : "no change";
+      const status = r.shrink ? "dropped (warn)" : r.baseline ? "baseline" : r.changed ? "changed" : "no change";
       lines.push(`| ${r.label} | ${r.total} | ${r.baseline ? "-" : r.added.length} | ${r.baseline ? "-" : r.removed.length} | ${status} |`);
     }
     lines.push("");
     for (const r of results) {
+      // A warn-only source recorded a drop the guard would have refused on a
+      // stable source: surface it so the log still shows what disappeared.
+      if (r.shrink) lines.push(`> **${r.label}: accepted a model-count drop** — ${r.shrink.message}`, "");
       if (r.baseline) {
         lines.push(`### ${r.label}: baseline established (${r.total} models)`, "");
         continue;
@@ -170,6 +200,10 @@ if (invokedDirectly) {
     try {
       const r = await watchOne(source, { allowShrink });
       results.push(r);
+      if (r.shrink) {
+        // The CHANGED block below already lists the removed ids one per line.
+        console.warn(`${source}: WARNING (${SOURCES[source].shrink} policy) accepted a drop — ${r.shrink.message}`);
+      }
       if (r.baseline) {
         console.log(`${source}: baseline written (${r.total} models)`);
       } else if (r.changed) {
