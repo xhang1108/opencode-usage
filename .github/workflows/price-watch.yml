@@ -7,6 +7,17 @@ on:
   schedule:
     - cron: "17 5 * * *" # daily 05:17 UTC
   workflow_dispatch:
+    inputs:
+      allow_shrink:
+        description: "Accept a model-count drop as a real retirement (yes, the change must also be listed in tools/snapshot-shrink-allowlist.json or CI fails)"
+        type: boolean
+        default: false
+
+# One run at a time, queued not cancelled: a manual dispatch cannot race the
+# daily schedule against the same snapshot files.
+concurrency:
+  group: price-watch
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -20,11 +31,15 @@ jobs:
         with:
           node-version: "22"
 
+      # continue-on-error so a failing source still lets the healthy sources'
+      # snapshots be rebuilt and committed; the final step re-fails the job.
       - name: Fetch price snapshots + rebuild presets
+        id: watch
+        continue-on-error: true
         run: |
           set -o pipefail
           status=0
-          node tools/price-watch.mjs 2>&1 | tee "$RUNNER_TEMP/price-watch.log" || status=$?
+          node tools/price-watch.mjs ${{ inputs.allow_shrink && '--allow-shrink' || '' }} 2>&1 | tee "$RUNNER_TEMP/price-watch.log" || status=$?
           {
             echo "### price-watch"
             echo '```'
@@ -52,3 +67,11 @@ jobs:
             git commit -m "chore(price-watch): update vendor price snapshots"
             git push
           fi
+
+      # Keep fail-closed: the job ends RED when any source failed, but the
+      # healthy sources' data was already committed above.
+      - name: Fail if a source failed
+        if: steps.watch.outcome == 'failure'
+        run: |
+          echo "::error::one or more price sources failed (see the run summary); changes from the healthy sources were still committed"
+          exit 1

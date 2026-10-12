@@ -1,10 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { extractIds, diffModels, loadSnapshot, snapshotContent, summaryMarkdown } from "../model-watch.mjs";
+import {
+  extractIds,
+  diffModels,
+  loadSnapshot,
+  snapshotContent,
+  summaryMarkdown,
+  assertNotSuspiciousShrink,
+  watchOne,
+} from "../model-watch.mjs";
 
 const list = (ids) => ({ object: "list", data: ids.map((id) => ({ id, object: "model" })) });
 
@@ -80,4 +88,65 @@ test("summaryMarkdown lists changes and failures, skips quiet results", () => {
   assert.match(md, /`grok-4\.7`/);
   assert.match(md, /baseline established \(81 models\)/);
   assert.match(md, /commandcode: FAILED.*HTTP 500/);
+});
+
+// A stubbed fetch that yields a parsed payload, so watchOne can be driven
+// without the network.
+const stubFetch = (ids) => async () => extractIds(list(ids));
+
+test("assertNotSuspiciousShrink only rejects a count drop without the override", () => {
+  assert.doesNotThrow(() => assertNotSuspiciousShrink(null, ["a"], false)); // baseline
+  assert.doesNotThrow(() => assertNotSuspiciousShrink(["a"], ["a", "b"], false)); // growth
+  assert.doesNotThrow(() => assertNotSuspiciousShrink(["a", "b"], ["b", "a"], false)); // equal count
+  assert.throws(() => assertNotSuspiciousShrink(["a", "b"], ["a"], false), /--allow-shrink/);
+  assert.doesNotThrow(() => assertNotSuspiciousShrink(["a", "b"], ["a"], true)); // override
+});
+
+test("watchOne refuses a short payload and leaves the snapshot untouched", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "model-watch-"));
+  try {
+    const path = join(dir, "models.snapshot.json");
+    writeFileSync(path, snapshotContent(["a", "b", "c"], "2026-09-24T00:00:00.000Z"));
+    const before = readFileSync(path, "utf8");
+
+    await assert.rejects(
+      watchOne("opencode", { path, fetchIds: stubFetch(["a", "b"]) }),
+      (e) => /refusing to write/.test(e.message) && /removed 1: c/.test(e.message) && /--source <source> --allow-shrink/.test(e.message)
+    );
+    assert.equal(readFileSync(path, "utf8"), before); // no overwrite
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("watchOne is a byte-for-byte no-op when the set is unchanged", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "model-watch-"));
+  try {
+    const path = join(dir, "models.snapshot.json");
+    writeFileSync(path, snapshotContent(["a", "b"], "2026-09-24T00:00:00.000Z"));
+    const before = readFileSync(path, "utf8");
+
+    const r = await watchOne("opencode", { path, fetchIds: stubFetch(["b", "a"]) });
+    assert.equal(r.wrote, false);
+    assert.equal(r.changed, false);
+    assert.equal(readFileSync(path, "utf8"), before); // capturedAt preserved
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("watchOne lets a legitimate drop through with allowShrink", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "model-watch-"));
+  try {
+    const path = join(dir, "models.snapshot.json");
+    writeFileSync(path, snapshotContent(["a", "b", "c"], "2026-09-24T00:00:00.000Z"));
+
+    const r = await watchOne("opencode", { path, fetchIds: stubFetch(["a", "b"]), allowShrink: true });
+    assert.equal(r.wrote, true);
+    assert.equal(r.changed, true);
+    assert.deepEqual(r.removed, ["c"]);
+    assert.deepEqual(loadSnapshot(path).models, ["a", "b"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

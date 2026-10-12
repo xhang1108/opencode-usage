@@ -7,7 +7,13 @@
 // The snapshot is this tool's state file (nothing in the extension runtime
 // reads it); git history of the snapshots is the dated model add/remove log.
 //
-// Usage: node tools/model-watch.mjs [--source opencode|commandcode]
+// Safety: `extractIds` rejects malformed/empty payloads, but a truncated yet
+// valid list is indistinguishable from a real mass retirement — so a count
+// shrink past the guard below refuses to write until a human re-runs with
+// --allow-shrink. A failed source still leaves the run red but never blocks
+// the other (healthy) source from being committed.
+//
+// Usage: node tools/model-watch.mjs [--source opencode|commandcode] [--allow-shrink]
 //
 // CI (.github/workflows/model-watch.yml): daily cron, tests first, then this
 // script, then commit ONLY the two snapshot paths when the diff changed.
@@ -35,7 +41,8 @@ export const SOURCES = {
 
 // OpenAI-style list response -> sorted unique ids. Fail-closed: a malformed or
 // empty payload throws instead of returning [], so a broken endpoint can never
-// wipe a snapshot clean.
+// wipe a snapshot clean. This only catches wholly bad payloads; a truncated
+// but valid list is caught by the shrink guard in `watchOne`.
 export function extractIds(json) {
   if (!json || !Array.isArray(json.data)) throw new Error("unexpected response (missing data[])");
   const ids = [];
@@ -84,13 +91,34 @@ async function fetchIds(url) {
   }
 }
 
-// Fetch + diff + (conditionally) rewrite the snapshot. Throws on fetch/parse
-// errors; the caller keeps going with the remaining sources.
-export async function watchOne(source) {
-  const path = snapshotPath(source);
-  const ids = await fetchIds(SOURCES[source].url);
+// Refuse to write when the new model count is smaller than the committed one:
+// a partial/truncated upstream response would otherwise silently gut the
+// snapshot. Real retirements look identical, so the operator can override with
+// --allow-shrink. Baseline (no prev) and same-or-greater counts always pass.
+export function assertNotSuspiciousShrink(prevModels, nextIds, allowShrink) {
+  if (allowShrink || prevModels == null) return;
+  if (nextIds.length >= prevModels.length) return;
+  const next = new Set(nextIds);
+  const removed = prevModels.filter((id) => !next.has(id)).sort();
+  throw new Error(
+    `refusing to write: model count dropped ${prevModels.length} -> ${nextIds.length} ` +
+      `(removed ${removed.length}: ${removed.join(", ")}). If this retirement is real, re-run ` +
+      `node tools/model-watch.mjs --source <source> --allow-shrink, or dispatch the ` +
+      `"Model watch" workflow with allow_shrink = true.`
+  );
+}
+
+// Fetch + guard + diff + (conditionally) rewrite the snapshot. Throws on
+// fetch/parse errors or a suspected shrink; the caller keeps going with the
+// remaining sources. `opts` exists for tests (path/fetchIds); production calls
+// pass only allowShrink.
+export async function watchOne(source, opts = {}) {
+  const path = opts.path || snapshotPath(source);
+  const ids = await (opts.fetchIds || fetchIds)(SOURCES[source].url);
   const prev = loadSnapshot(path); // null -> first run: establish baseline
-  const diff = diffModels(prev ? prev.models : null, ids);
+  const prevModels = prev ? prev.models : null;
+  assertNotSuspiciousShrink(prevModels, ids, opts.allowShrink);
+  const diff = diffModels(prevModels, ids);
   const wrote = diff.baseline || diff.changed;
   if (wrote) writeFileSync(path, snapshotContent(ids));
   return {
@@ -131,6 +159,7 @@ const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLT
 if (invokedDirectly) {
   const argIndex = process.argv.indexOf("--source");
   const sources = argIndex !== -1 ? [process.argv[argIndex + 1]] : Object.keys(SOURCES);
+  const allowShrink = process.argv.includes("--allow-shrink");
   const results = [];
   const errors = [];
   for (const source of sources) {
@@ -139,7 +168,7 @@ if (invokedDirectly) {
       process.exit(1);
     }
     try {
-      const r = await watchOne(source);
+      const r = await watchOne(source, { allowShrink });
       results.push(r);
       if (r.baseline) {
         console.log(`${source}: baseline written (${r.total} models)`);

@@ -1,5 +1,15 @@
 // tools/price-watch-lib.mjs — shared helpers for price-watch + backfill.
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+//
+// rates.source.json provenance (parser-backed official vendors ONLY):
+//   Every vendor wired in VENDORS below is parser-backed, and for those
+//   rebuildPreset() GENERATES rates.source.json as a mirror of the committed
+//   price-snapshots — the same state that produces rates.preset.json. It is
+//   never hand-edited. Hand-maintained vendors (e.g. opencode) use the authored
+//   flow instead: tools/extract-preset.mjs reads a human-curated rates.source.json
+//   and emits rates.preset.json. rebuildPreset() therefore refuses to clobber a
+//   rates.source.json whose shape it would not itself have produced; see
+//   sourceMirrorDecision().
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -82,6 +92,64 @@ export function modelsKey(snapshot) {
   return JSON.stringify(Object.entries(snapshot.models || {}).sort());
 }
 
+// Refuse to write when the new model count drops below the committed snapshot's:
+// a partial/truncated fetch or a vendor layout change would otherwise silently
+// gut the history. Real retirements look identical, so the operator can override
+// with --allow-shrink. Baseline (no previous snapshot) and same-or-greater counts
+// always pass. The message names the dropped ids and the exact re-run command.
+export function assertNotSuspiciousShrink(previous, next, { source, allowShrink = false } = {}) {
+  const prevModels = (previous && previous.models) || null;
+  if (allowShrink || !prevModels) return;
+  const nextIds = Object.keys((next && next.models) || {});
+  const prevIds = Object.keys(prevModels);
+  if (nextIds.length >= prevIds.length) return;
+  const nextSet = new Set(nextIds);
+  const dropped = prevIds.filter((id) => !nextSet.has(id)).sort();
+  throw new Error(
+    `refusing to write: model count dropped ${prevIds.length} -> ${nextIds.length} ` +
+      `(dropped ${dropped.length}: ${dropped.join(", ")}). If this change is real, re-run ` +
+      `node tools/price-watch.mjs --source ${source} --allow-shrink, or dispatch the ` +
+      `"Price watch" workflow with allow_shrink = true. A real retirement also has to be ` +
+      `named in tools/snapshot-shrink-allowlist.json or CI rejects the new snapshot.`,
+  );
+}
+
+// True when `text` has the shape rebuildPreset() emits for rates.source.json:
+// { source, models: [ { model, label, rates: [ { from, pricing } ] } ] }. A
+// hand-authored file (e.g. opencode's, which carries no per-model `label`) does
+// not match, so the generator will not clobber it.
+export function isGeneratedSourceMirror(text, source) {
+  let doc;
+  try {
+    doc = JSON.parse(text);
+  } catch {
+    return false;
+  }
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return false;
+  if (doc.source !== source || !Array.isArray(doc.models)) return false;
+  return doc.models.every(
+    (m) =>
+      m &&
+      typeof m === "object" &&
+      typeof m.model === "string" &&
+      typeof m.label === "string" &&
+      Array.isArray(m.rates) &&
+      m.rates.length > 0 &&
+      m.rates.every((r) => r && typeof r === "object" && "from" in r && r.pricing),
+  );
+}
+
+// Decide whether rebuildPreset() may (re)write rates.source.json. { write, reason }:
+// absent -> create; unchanged -> byte-identical no-op; regenerate -> a recognisable
+// generated mirror; foreign -> a file this generator would not have produced, so
+// it is left untouched and the caller reports it.
+export function sourceMirrorDecision(existingText, nextText, source) {
+  if (existingText == null) return { write: true, reason: "absent" };
+  if (existingText === nextText) return { write: false, reason: "unchanged" };
+  if (isGeneratedSourceMirror(existingText, source)) return { write: true, reason: "regenerate" };
+  return { write: false, reason: "foreign" };
+}
+
 export function snapshotsDir(cfg) {
   const dir = resolve(ROOT, cfg.dir, "price-snapshots");
   mkdirSync(dir, { recursive: true });
@@ -134,7 +202,20 @@ export async function rebuildPreset(source, cfg) {
   const sourceModels = Object.keys(state)
     .sort()
     .map((id) => ({ model: id, label: state[id].label, rates: state[id].versions }));
-  writeFileSync(resolve(ROOT, cfg.dir, "rates.source.json"), JSON.stringify({ source, models: sourceModels }, null, 2) + "\n");
+  // rates.source.json is a GENERATED mirror for parser-backed vendors; never
+  // clobber a file this generator would not itself have produced (see header).
+  const sourcePath = resolve(ROOT, cfg.dir, "rates.source.json");
+  const nextSourceText = JSON.stringify({ source, models: sourceModels }, null, 2) + "\n";
+  const existingSourceText = existsSync(sourcePath) ? readFileSync(sourcePath, "utf8") : null;
+  const decision = sourceMirrorDecision(existingSourceText, nextSourceText, source);
+  if (decision.write) {
+    writeFileSync(sourcePath, nextSourceText);
+  } else if (decision.reason === "foreign") {
+    console.warn(
+      `${source}: rates.source.json is not a generated snapshot mirror — left unchanged. ` +
+        `Delete ${cfg.dir}/rates.source.json to regenerate it from the snapshots.`,
+    );
+  }
 
   return { source, snapshots: listSnapshots(cfg).length, targets: Object.keys(preset.targets).length, modelMap: Object.keys(preset.modelMap).length };
 }

@@ -12,6 +12,8 @@
 
 export const DEEPSEEK_SOURCE = "deepseek-official";
 
+const MIN_MODELS = 2; // live peak/off-peak page listed 2 models at time of writing
+
 // The page shows display names (e.g. "DeepSeek-V4.1-Flash") and labels older
 // generations by thinking mode; exports use API ids. Normalize both to a stable
 // canonical id so one model = one version chain.
@@ -170,7 +172,12 @@ function parseWide(rows, headerIdx, header) {
     if (isZeroEntry(entry)) continue;
     out[label] = { label, entry };
   }
-  if (Object.keys(out).length === 0) throw new Error("DeepSeek pricing page: no model columns found (long layout)");
+  const count = Object.keys(out).length;
+  if (count === 0) throw new Error("DeepSeek pricing page: no model columns found (long layout)");
+  // The live layout (peak/off-peak pricing) lists 2 models today: a smaller
+  // parse means the page changed shape. Legacy flat layouts are exempt — the
+  // Wayback backfill still parses single-model archived pages.
+  if (hasPeak && count < MIN_MODELS) throw new Error(`DeepSeek pricing page: only ${count} models (<${MIN_MODELS}) — layout drift?`);
   return out;
 }
 
