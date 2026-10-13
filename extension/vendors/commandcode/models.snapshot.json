@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-08T11:56:44.415Z",
+  "capturedAt": "2026-10-13T12:36:52.645Z",
   "models": [
     "MiniMaxAI/MiniMax-M2.5",
     "MiniMaxAI/MiniMax-M2.7",
@@ -56,6 +56,7 @@
     "meta/muse-spark-1.2-contributor",
     "meta/muse-spark-1.3",
     "meta/muse-spark-1.3-contributor",
+    "meta/muse-wonder-1.0",
     "mistral/mistral-large-4",
     "moonshotai/Kimi-K2.5",
     "moonshotai/Kimi-K2.6",

@@ -1,6 +1,7 @@
 {
-  "capturedAt": "2026-10-12T13:01:53.012Z",
+  "capturedAt": "2026-10-13T12:36:52.361Z",
   "models": [
+    "cat-jam-free",
     "claude-haiku-5-5",
     "deepseek-flash",
     "deepseek-v4-flash",
