@@ -68,7 +68,7 @@ const BASE_SECTIONS = [
     ],
     rows: [
       ["Formula", "input·in + (output + reasoning)·out + cacheRead·read + cacheWrite·write, all divided by 1e6. Rates are USD per 1M."],
-      ["Reported amount", "opencode, OpenRouter and CommandCode report a USD amount and bill it. DeepSeek and MiMo never report one — they bill 0 when unified pricing is off (and their official price when it is on)."],
+      ["Reported amount", "opencode, OpenRouter, CommandCode and Groq report a USD amount and bill it. DeepSeek and MiMo never report one — they bill 0 when unified pricing is off (and their official price when it is on). Groq whisper audio stays vendor-billed in both modes."],
       ["Free models", "Priced like any other model — give the `-free` variant its own rate instead of forcing $0."],
       ["Unassigned models", "Under unified pricing a model in no group is $0 until you drag it into a group."],
     ],

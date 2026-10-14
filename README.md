@@ -4,7 +4,7 @@
 
 [![Version](https://img.shields.io/github/manifest-json/v/xhang1108/opencode-usage?filename=extension%2Fmanifest.json&label=version&color=blue)](https://github.com/xhang1108/opencode-usage)
 
-A Chrome extension that aggregates token usage from several AI vendors into one local dashboard. opencode no longer scrapes its page — it syncs from the **Console Usage API** (one record per request, full history) using the signed-in Console session, so **no API key is stored**. The extension also tracks the free models opencode's own page ignores. OpenRouter, DeepSeek, CommandCode and MiMo can be enabled as well.
+A Chrome extension that aggregates token usage from several AI vendors into one local dashboard. opencode no longer scrapes its page — it syncs from the **Console Usage API** (one record per request, full history) using the signed-in Console session, so **no API key is stored**. The extension also tracks the free models opencode's own page ignores. OpenRouter, DeepSeek, CommandCode, MiMo and Groq can be enabled as well.
 
 > **Syncing is MANUAL by default** — click **Sync** when you need fresh data, to avoid hitting vendors too frequently. opencode has an optional 6h auto-sync, which needs Chrome running with a signed-in opencode.ai session.
 
@@ -17,10 +17,11 @@ A Chrome extension that aggregates token usage from several AI vendors into one 
 | DeepSeek | crawl (signed-in session) | — | off |
 | CommandCode | crawl (charts) | — | off |
 | MiMo | XLSX import | XLSX | off |
+| Groq | crawl (console activity API) | — | off |
 
 Enable more in **Settings → Vendors**. Each additional vendor may ask for host permission the first time you turn it on.
 
-Only **opencode** and **MiMo** accept a vendor-native import file (opencode local DB JSON, MiMo XLSX). OpenRouter, DeepSeek and CommandCode have no export format to import — their records come from **Crawl Now**, or from a backup records CSV.
+Only **opencode** and **MiMo** accept a vendor-native import file (opencode local DB JSON, MiMo XLSX). OpenRouter, DeepSeek, CommandCode and Groq have no export format to import — their records come from **Crawl Now**, or from a backup records CSV.
 
 ## Features
 
@@ -86,7 +87,7 @@ flowchart LR
 ```
 
 - **Sync (MANUAL):** open a signed-in `opencode.ai/console` page and click **Sync**. The extension calls the Console request log (`/console/api/request-logs?category=inference` — session cookie + `x-org-id`) for one record per succeeded request, newest-first with cursor+until pagination (~30d retention); hold **Shift** for a full-window sync. Other vendors sync from their own pages / APIs.
-- **Pricing:** one user-authored price list (**Settings → Pricing**) bills every vendor; each model is mapped to a rate group and priced from tokens, so costs can be recomputed at any time.
+- **Pricing:** two modes. Unified ON (default, **Settings → Pricing**) re-prices every vendor's tokens from one list — each model maps to a rate group, billed at the rate version effective at that time (plus peak/off-peak window). Unified OFF bills the vendor's own reported amount, or **$0** when the vendor reports none: opencode, OpenRouter, CommandCode and Groq report an amount; DeepSeek and MiMo never do, so they bill 0 (their official price applies only when unified is ON). Groq whisper audio stays vendor-billed in both modes (per-second billing has no token-rate expression). Keep unified ON — vendor fields shift without notice.
 - **Free models:** export from the local database and import the JSON on the dashboard.
 - **View:** open **Dashboard** for charts, costs, and backup export.
 

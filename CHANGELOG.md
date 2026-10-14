@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 — 2026-10-10
+## 1.3.0 — 2026-10-14
 
 Costs come from exactly two places now: the vendor-reported amount, or the unified price list. New vendor: Groq. We recommend leaving unified pricing on — vendor APIs keep changing or dropping fields, and one day a field we rely on may be gone.
 
