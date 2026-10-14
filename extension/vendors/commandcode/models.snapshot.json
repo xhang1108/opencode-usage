@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-13T12:36:52.645Z",
+  "capturedAt": "2026-10-14T10:03:32.802Z",
   "models": [
     "MiniMaxAI/MiniMax-M2.5",
     "MiniMaxAI/MiniMax-M2.7",
@@ -37,6 +37,7 @@
     "google/gemini-3.6-flash",
     "google/gemini-3.7-flash",
     "google/gemini-3.8-flash",
+    "google/gemini-4-argon",
     "gpt-5.3-codex",
     "gpt-5.4",
     "gpt-5.4-mini",
