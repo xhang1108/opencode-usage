@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-14T10:03:32.802Z",
+  "capturedAt": "2026-10-15T09:47:06.161Z",
   "models": [
     "MiniMaxAI/MiniMax-M2.5",
     "MiniMaxAI/MiniMax-M2.7",
@@ -13,6 +13,7 @@
     "Qwen/Qwen3.8-Flash",
     "Qwen/Qwen3.8-Max",
     "Qwen/Qwen3.8-Max-0902",
+    "Qwen/Qwen3.8-Max-Prime",
     "Qwen/Qwen3.8-Omni-Flash",
     "claude-fable-5",
     "claude-fable-5-1",
@@ -50,7 +51,7 @@
     "gpt-6-sol",
     "gpt-6.1-sol",
     "inclusionai/ling-3.0-flash-sante:free",
-    "inclusionai/ling-3.1-flash:free",
+    "inclusionai/ling-3.1-flash",
     "meituan/LongCat-2.0",
     "meta/muse-spark-1.1",
     "meta/muse-spark-1.2",

@@ -1,11 +1,8 @@
 {
-  "capturedAt": "2026-10-14T10:03:32.689Z",
+  "capturedAt": "2026-10-15T09:47:05.966Z",
   "models": [
     "cat-jam-free",
     "claude-haiku-5-5",
-    "deepseek-flash",
-    "deepseek-v4-flash",
-    "deepseek-v4-flash-vision-exp",
     "deepseek-v4-pro",
     "deepseek-v4.1-flash",
     "gemini-4-argon-contributor",
