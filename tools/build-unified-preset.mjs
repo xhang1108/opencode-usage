@@ -37,7 +37,6 @@ const SOURCES = [
   "openai-official",
   "qwen-official",
   "tencent-official",
-  "spacebunny-official",
 ];
 const FINGERPRINT_PREFIX = "fp:";
 
@@ -98,7 +97,6 @@ const PREFERRED_BY_SERIES = {
   gpt: "openai-official",
   qwen: "qwen-official",
   hy: "tencent-official",
-  space: "spacebunny-official",
 };
 function preferredSource(fp) {
   return PREFERRED_BY_SERIES[String(fp).split(":")[0]] || null;
@@ -296,14 +294,9 @@ const AUTHORED_FOLDS = {
 };
 
 // Models whose shipped fallback price must be suppressed regardless of what the
-// vendor table carries (e.g. a withdrawn listing).
-const AUTHORED_UNPRICED = new Set([
-  // PAUSED 2026-10-16 — space-bunny's $3/M total-token rate is under review
-  // (single-figure page, no input/output/cache split published). Its
-  // price-watch snapshots keep flowing daily; deleting this line resumes
-  // pricing from the latest snapshot with no other change.
-  "space-bunny",
-]);
+// vendor table carries (e.g. a withdrawn listing). Empty for now: Omen Alpha's
+// price is GitHub-fetched (added 2026-09-04) so it is kept.
+const AUTHORED_UNPRICED = new Set();
 
 // --- Union-find over fingerprints --------------------------------------------
 const parent = new Map();

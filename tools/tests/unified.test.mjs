@@ -236,13 +236,12 @@ test("the board agrees with pricing: structurally-priced vendor ids are assigned
     priceUnified({ ...rec, source: "commandcode", model: "meituan/LongCat-2.0:free" }, index).unpriced,
     false,
   );
-  // Space Bunny is PAUSED (see AUTHORED_UNPRICED in build-unified-preset.mjs):
-  // price-watch still snapshots its page daily, but it must stay unpriced
-  // until the rate is confirmed.
+  // Space Bunny has no official price source (spacebunnymodel.com is a
+  // third-party site, not the model owner), so no parser watches it and it
+  // stays unpriced.
   assert.equal(groupIdForKey(unified.assign, "opencode:space-bunny"), null);
-  assert.equal(groupIdForKey(unified.assign, "spacebunny-official:space-bunny"), null);
   const bunny = priceUnified({ ...rec, source: "opencode", model: "space-bunny" }, index);
-  assert.equal(bunny.unpriced, true, "opencode:space-bunny stays unpriced while paused");
+  assert.equal(bunny.unpriced, true, "opencode:space-bunny stays unpriced: no official source");
 });
 
 test("vendor alias folds cover display labels the parser cannot resolve", () => {
