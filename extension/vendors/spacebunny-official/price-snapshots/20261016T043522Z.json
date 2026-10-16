@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-10-16T04:35:22.839Z",
+  "source": "spacebunny-official",
+  "models": {
+    "space-bunny": {
+      "label": "space-bunny",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 3,
+            "output": 3,
+            "cacheRead": 3,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

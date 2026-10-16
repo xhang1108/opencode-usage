@@ -1,0 +1,22 @@
+{
+  "source": "spacebunny-official",
+  "models": [
+    {
+      "model": "space-bunny",
+      "label": "space-bunny",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 3,
+              "cacheRead": 3,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

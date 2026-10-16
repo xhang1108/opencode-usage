@@ -77,6 +77,13 @@ export const VENDORS = {
     dir: "extension/vendors/tencent-official",
     parser: "extension/vendors/tencent-official/pricing-page.js",
   },
+  "spacebunny-official": {
+    // Single-model page; the $X / 1M total-tokens list rate maps to
+    // input = output = X (see pricing-page.js header).
+    url: "https://spacebunnymodel.com/pricing",
+    dir: "extension/vendors/spacebunny-official",
+    parser: "extension/vendors/spacebunny-official/pricing-page.js",
+  },
 };
 
 export function snapshotFilename(capturedAt) {

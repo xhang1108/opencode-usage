@@ -8,13 +8,14 @@ import { parseStandardTable as parseOpenAI, snapshotFromPage as snapOpenAI } fro
 import { parsePricingModels as parseXai, snapshotFromPage as snapXai } from "../../extension/vendors/xai-official/pricing-page.js";
 import { parsePricingModels as parseQwen, snapshotFromPage as snapQwen } from "../../extension/vendors/qwen-official/pricing-page.js";
 import { parsePricingModels as parseTencent, snapshotFromPage as snapTencent } from "../../extension/vendors/tencent-official/pricing-page.js";
+import { parsePricingModels as parseBunny, snapshotFromPage as snapBunny } from "../../extension/vendors/spacebunny-official/pricing-page.js";
 
 // ---------------------------------------------------------------------------
 // VENDORS wiring
 // ---------------------------------------------------------------------------
 
-test("four official sources are wired with existing parser files", () => {
-  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official"]) {
+test("five official sources are wired with existing parser files", () => {
+  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "spacebunny-official"]) {
     const cfg = VENDORS[source];
     assert.ok(cfg, `${source} missing from VENDORS`);
     assert.match(cfg.url, /^https:\/\//);
@@ -484,16 +485,50 @@ test("tencent snapshot carries source and capturedAt", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Space Bunny — single total-token rate, dual-anchored (hero stat + billing rule)
+// ---------------------------------------------------------------------------
+
+const BUNNY_HTML = `<div class="stat"><div class="num">$3.00<span class="u">/M</span></div><div class="lbl">Per 1M total tokens</div></div>
+<div class="buy-grid"><div class="buy-card"><div class="buy-amount">$50</div><div class="buy-rate">$2.50/M</div></div>
+<div class="buy-card"><div class="buy-amount">$100</div><div class="buy-rate">$1.79/M</div></div></div>
+<ul><li>Each call deducts <code>$3.00 / 1M total tokens</code> (prompt + completion) from your balance.</li></ul>`;
+
+test("spacebunny parser maps the total-token rate onto both legs, ignoring bonus-pack rates", () => {
+  const models = parseBunny(BUNNY_HTML);
+  assert.deepEqual(Object.keys(models), ["space-bunny"]);
+  // $3 per 1M total tokens == input 3 + output 3; cacheRead is also 3 because
+  // records split prompt tokens into miss (input) / hit (cacheRead) — 0 would
+  // make cached reads free. The $2.50/$1.79 top-up bonuses must never become
+  // the list rate.
+  assert.deepEqual(models["space-bunny"].entry.pricing.flat, { input: 3, output: 3, cacheRead: 3, cacheWrite: 0 });
+});
+
+test("spacebunny parser fails closed on drift or disagreement", () => {
+  assert.throws(() => parseBunny("<html><body>moved</body></html>"), /hero rate/);
+  assert.throws(() => parseBunny(BUNNY_HTML.replace("deducts", "grants")), /billing rule/);
+  const disagree = BUNNY_HTML.replace("$3.00 / 1M total tokens", "$4.00 / 1M total tokens");
+  assert.throws(() => parseBunny(disagree), /disagrees/);
+});
+
+test("spacebunny snapshot carries source and capturedAt", () => {
+  const snap = snapBunny(BUNNY_HTML, "2026-10-16T04:15:28.000Z");
+  assert.equal(snap.source, "spacebunny-official");
+  assert.equal(snap.capturedAt, "2026-10-16T04:15:28.000Z");
+  assert.ok(snap.models["space-bunny"]);
+});
+
+// ---------------------------------------------------------------------------
 // Cross-source snapshot contract (price-history -> preset round trip)
 // ---------------------------------------------------------------------------
 
-test("all four parsers produce valid snapshot -> preset chains", async () => {
+test("all five parsers produce valid snapshot -> preset chains", async () => {
   const { versionsFromSnapshots, presetFromVersions } = await import("../../extension/shared/price-history.js");
   const cases = [
     ["openai-official", snapOpenAI(OPENAI_MD, "2026-09-24T05:17:00.000Z"), "gpt-6-luna"],
     ["xai-official", snapXai(XAI_HTML, "2026-09-24T05:17:00.000Z"), "grok-4.7"],
     ["qwen-official", snapQwen(QWEN_HTML, "2026-09-24T05:17:00.000Z"), "qwen3.5-plus"],
     ["tencent-official", snapTencent(TENCENT_ROWS, "2026-09-24T05:17:00.000Z"), "hy3"],
+    ["spacebunny-official", snapBunny(BUNNY_HTML, "2026-10-16T04:15:28.000Z"), "space-bunny"],
   ];
   for (const [source, snap, id] of cases) {
     const state = versionsFromSnapshots([snap]);
