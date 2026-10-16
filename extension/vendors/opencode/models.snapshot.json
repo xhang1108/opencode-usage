@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-15T09:47:05.966Z",
+  "capturedAt": "2026-10-16T09:40:31.969Z",
   "models": [
     "cat-jam-free",
     "claude-haiku-5-5",
@@ -37,6 +37,6 @@
     "qwen3.8-flash",
     "qwen3.8-max",
     "space-bunny",
-    "step-5-preview-free"
+    "step-5-preview"
   ]
 }
