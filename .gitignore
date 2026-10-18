@@ -1,8 +1,12 @@
-# Private keys (signing / packing only — never commit)
+# Private keys (signing / packing only - never commit)
 *.pem
 
 # Browser panel screenshots
 .openchamber/
+
+# Cache-you (private memory: contents ignored, sentinel tracked to prevent deletion)
+.cache-you/*
+!.cache-you/.keep
 
 # OS / editor
 .DS_Store
