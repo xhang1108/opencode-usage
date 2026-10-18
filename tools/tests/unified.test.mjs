@@ -271,6 +271,12 @@ test("vendor alias folds cover display labels the parser cannot resolve", () => 
   }
   assert.equal(groupIdForKey(unified.assign, "opencode:muse-spark-1.2"), "muse-1.2-spark");
 
+  // OpenRouter's dated Jev snapshot id normalises to jev-1.13.0 structurally
+  // (compact-date strip + .0-patch collapse), so no explicit fold is needed.
+  const jev113 = groupIdForKey(unified.assign, "typesafe-official:jev-1.13.0");
+  assert.ok(jev113, "typesafe-official:jev-1.13.0 should resolve to a group");
+  assert.equal(groupIdForKey(unified.assign, "openrouter:typesafe/jev-1.13-20260917"), jev113);
+
   // The legacy (unified-off) vendor table maps them too.
   const vendor = JSON.parse(fs.readFileSync(new URL("../../extension/vendors/deepseek-official/rates.preset.json", import.meta.url)));
   const legacy = buildPricing({ presets: [vendor] });

@@ -22,6 +22,11 @@ const GOLDEN = {
   // Date stamps and billing markers are stripped.
   "openrouter:openai/gpt-5-nano": "gpt:5:base:nano",
   "openrouter:openai/gpt-5-nano-2025-08-07": "gpt:5:base:nano",
+  // Compact date suffixes and .0 patches collapse to the base version.
+  "typesafe-official:jev-1.13.0": "jev:1.13:base:",
+  "typesafe-official:jev-1.13": "jev:1.13:base:",
+  "openrouter:typesafe/jev-1.13-20260917": "jev:1.13:base:",
+  "typesafe-official:jev-1.14.0": "jev:1.14:base:",
   "deepseek-official:deepseek-v4-flash-free": "deepseek:4:flash:",
   "opencode:hy3-free": "hy:3:base:",
   // Spacing / hyphenation variants of the same id normalise together.

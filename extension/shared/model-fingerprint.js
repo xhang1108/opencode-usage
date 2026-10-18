@@ -33,6 +33,11 @@ export function parse(key) {
   // strip date stamps so gpt-5-nano-2025-08-07 === gpt-5-nano
   raw = raw.replace(/\d{4}-\d{2}-\d{2}/g, "");
 
+  // strip compact date suffixes so jev-1.13-20260917 === jev-1.13
+  // (OpenRouter appends YYYYMMDD to snapshot ids). Month/day are sanity-
+  // checked so a genuine 8-digit version is never eaten.
+  raw = raw.replace(/-(\d{4})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/, "");
+
   raw = raw
     .toLowerCase()
     .replace(/[_ ]+/g, "-")
@@ -69,7 +74,11 @@ export function parse(key) {
   const model = raw
     .replace(/^([a-z]+)-?/, "")
     .replace(/[-_]?(\d+(?:\.\d+)?)/, "")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-+|-+$/g, "")
+    // a trailing .0 patch is the same release as the bare version, so
+    // jev-1.13.0 === jev-1.13. Only an all-zero leftover collapses;
+    // jev-1.13.1 stays a distinct model.
+    .replace(/^\.0+$/, "");
 
   return {
     fingerprint: `${series}:${version}:${variant}:${model}`,
