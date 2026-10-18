@@ -763,16 +763,15 @@
         <div class="sub" id="statSplit"></div>
       </div>
       <div class="card">
+        <div class="title">Spend vs Value</div>
+        <div class="value" id="statSpend">$0.00</div>
+        <div class="sub" id="statValueRatio">Value: $0.00 · Ratio: -</div>
+      </div>
+      <div class="card">
         <div class="title">Total Tokens</div>
         <div class="value" id="statTokens">0</div>
         <div class="sub" id="statAvgTokens">Avg tokens/data: 0</div>
         <div class="sub" id="statAvgTokensPerDay">Avg tokens/day: 0</div>
-      </div>
-      <div class="card">
-        <div class="title">Avg Cache Hit Rate</div>
-        <div class="value" id="statHitRate">0.00%</div>
-        <div class="sub" id="statHitRateMax">Max: -</div>
-        <div class="sub" id="statHitRateMin">Min: -</div>
       </div>
       <div class="card">
         <div class="title">Top Cost Model</div>
@@ -876,6 +875,7 @@
         <button type="button" class="settings-tab" data-tab="general">General</button>
         <button type="button" class="settings-tab" data-tab="vendors">Vendors</button>
         <button type="button" class="settings-tab" data-tab="pricing">Pricing <span class="badge" id="pricingUnmappedBadge" hidden></span></button>
+        <button type="button" class="settings-tab" data-tab="spend">Spend</button>
         <button type="button" class="settings-tab" data-tab="database">Database</button>
         <button type="button" class="settings-tab" data-tab="how">How it works</button>
       </div>
@@ -906,6 +906,58 @@
 
         <section class="settings-pane" id="settings-pricing" hidden>
           <div id="pricingBoard"></div>
+        </section>
+
+        <section class="settings-pane" id="settings-spend" hidden>
+          <div class="settings-section-title">Add spend</div>
+          <div class="settings-field">
+            <label for="spendPlatform">Platform</label>
+            <div class="select-custom">
+              <button type="button" class="input select-trigger" id="spendPlatformTrigger" title="Platform">
+                <span class="select-label" id="spendPlatformLabel"></span>
+                <span class="select-caret">▾</span>
+              </button>
+              <div class="select-panel" id="spendPlatformPanel" hidden>
+                <div class="select-options" id="spendPlatformOptions"></div>
+              </div>
+            </div>
+            <select class="input" id="spendPlatform" hidden></select>
+          </div>
+          <div class="settings-field">
+            <label>Date</label>
+            <div class="date-range-group">
+              <button type="button" class="input range-trigger" id="spendDateTrigger">
+                <span class="select-label" id="spendDateLabel">Select date</span>
+                <span class="range-caret">▾</span>
+              </button>
+              <div class="range-popup" id="spendDatePopup" hidden>
+                <div class="range-cal-head">
+                  <button type="button" class="range-nav" id="spendDatePrev">‹</button>
+                  <span class="range-month-label" id="spendDateMonth"></span>
+                  <button type="button" class="range-nav" id="spendDateNext">›</button>
+                </div>
+                <div class="range-weekdays" id="spendDateWeekdays"></div>
+                <div class="range-days" id="spendDateDays"></div>
+              </div>
+            </div>
+            <input type="hidden" id="spendDate">
+          </div>
+          <div class="settings-field">
+            <label>Amount (USD)</label>
+            <input type="text" inputmode="decimal" class="input" id="spendAmount" placeholder="0.00">
+          </div>
+          <div class="settings-field">
+            <label for="spendNote">Note</label>
+            <input type="text" class="input" id="spendNote" maxlength="500">
+          </div>
+          <div class="modal-actions" style="justify-content:flex-start; margin:0 0 12px;">
+            <button class="btn btn-primary" id="spendAdd">Add</button>
+            <button class="btn btn-secondary" id="spendClearAll">Clear all</button>
+          </div>
+          <div class="settings-section-title">Entries</div>
+          <div id="spendTable"></div>
+          <div class="settings-section-title">Spend by month</div>
+          <div id="spendChart"></div>
         </section>
 
         <section class="settings-pane" id="settings-database" hidden>

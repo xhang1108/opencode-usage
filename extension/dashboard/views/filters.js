@@ -150,7 +150,7 @@ export function initCustomSelect(selectId, triggerId, labelId, panelId, optionsI
 }
 
 // Shared calendar core used by both pickers so they render identically.
-function renderCalendarGrid(weekdaysEl, daysEl, viewYear, viewMonth, decorate, onPick) {
+export function renderCalendarGrid(weekdaysEl, daysEl, viewYear, viewMonth, decorate, onPick) {
   weekdaysEl.innerHTML = "";
   for (const w of ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]) {
     const span = document.createElement("span");
@@ -180,7 +180,7 @@ function renderCalendarGrid(weekdaysEl, daysEl, viewYear, viewMonth, decorate, o
   }
 }
 
-function shiftViewMonth(view, delta) {
+export function shiftViewMonth(view, delta) {
   view.viewMonth += delta;
   if (view.viewMonth < 0) {
     view.viewMonth = 11;

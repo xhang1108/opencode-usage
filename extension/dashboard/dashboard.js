@@ -4,6 +4,7 @@
 
 import { inclusiveDayDiff, localDateOf } from "./core/time.js";
 import { aggregate, createAggregator, computeUnpricedSet } from "./core/aggregate.js";
+import { aggregateSpend, computeRoi } from "../shared/spend.js";
 import { priceWithConfig, legacyModelsFromPricing, shouldPassthroughVendorCost, priceVendorCost } from "./core/pricing-config.js";
 import { createFilters } from "./views/filters.js";
 import { createCharts } from "./views/charts.js";
@@ -11,13 +12,14 @@ import { wireTableSort, renderWorkspaceTable, renderModelTable } from "./views/t
 import { createTimeReminder } from "./views/time-reminder.js";
 import { initDecorBg } from "./views/decor.js";
 import { fmtMoney, escHTML, workspaceName } from "./views/format.js";
-import { readSettings, loadPricing, loadUnifiedPreset, isSourceEnabled, saveVendorSettings, saveUnifiedPricing, saveDefaultCrawl, saveWorkspaceLabels, saveUnmappedFirstSeen } from "./settings/store.js";
+import { readSettings, loadPricing, loadUnifiedPreset, isSourceEnabled, saveVendorSettings, saveUnifiedPricing, saveDefaultCrawl, saveWorkspaceLabels, saveUnmappedFirstSeen, saveSpendEntries } from "./settings/store.js";
 import { normalizeUnifiedPricing, buildUnifiedIndex, priceUnified, unifiedRateModels } from "../shared/unified.js";
 import { createSettingsModal } from "./settings/tabs.js";
 import { renderGeneral } from "./settings/general.js";
 import { renderVendors } from "./settings/vendors.js";
 import { renderUnified } from "./settings/unified.js";
 import { renderDatabase } from "./settings/database.js";
+import { renderSpend } from "./settings/spend.js";
 import { renderHowItWorks } from "./settings/how-it-works.js";
 import { parseXlsx } from "../shared/xlsx.js";
 import { parseMimoSheets } from "../vendors/mimo/import-usage.js";
@@ -150,6 +152,7 @@ function renderSettingsPage(tab) {
   else if (tab === "vendors") renderVendors(settingsCtx);
   else if (tab === "pricing") renderUnified(settingsCtx);
   else if (tab === "database") renderDatabase(settingsCtx);
+  else if (tab === "spend") renderSpend(settingsCtx);
   else if (tab === "how") renderHowItWorks(settings.registry);
 }
 
@@ -200,16 +203,21 @@ function renderDashboard(skipCharts, aggOverride) {
   const totalCost = agg.totals.cost;
   const totalSavings = agg.totals.savings;
   const totalTokens = agg.totals.tokens;
-  const totalPrompt = agg.totals.prompt;
-  const totalCacheRead = agg.totals.cacheRead;
+
+  const spendAgg = aggregateSpend(settings && settings.spendEntries ? settings.spendEntries : [], { startDate, endDate });
+  const roi = computeRoi(totalCost, spendAgg.totalSpent);
+  const spendEl = document.getElementById("statSpend");
+  if (spendEl) spendEl.textContent = `$${fmtMoney(spendAgg.totalSpent, 2)}`;
+  const ratioEl = document.getElementById("statValueRatio");
+  if (ratioEl) {
+    const ratioText = roi.ratio === null ? "-" : `${roi.ratio.toFixed(2)}x`;
+    ratioEl.textContent = `Value: $${fmtMoney(totalCost)} · Ratio: ${ratioText}`;
+  }
 
   document.getElementById("statRequests").innerText = totalReq.toLocaleString();
   document.getElementById("statCost").innerText = `$${fmtMoney(totalCost)}`;
   document.getElementById("statSavings").innerText = `Cache savings: $${fmtMoney(totalSavings)}`;
   document.getElementById("statTokens").innerText = totalTokens.toLocaleString();
-  document.getElementById("statHitRate").innerText = totalPrompt > 0 ? `${((totalCacheRead / totalPrompt) * 100).toFixed(2)}%` : "0.00%";
-  document.getElementById("statHitRateMax").innerText = agg.maxHitRate !== null ? `Max: ${agg.maxHitRate.toFixed(2)}%` : "Max: -";
-  document.getElementById("statHitRateMin").innerText = agg.minHitRate !== null ? `Min: ${agg.minHitRate.toFixed(2)}%` : "Min: -";
   document.getElementById("statAvgCostPerReq").innerText = `Avg per data: $${totalReq > 0 ? fmtMoney(totalCost / totalReq, 5) : "0.00000"}`;
   document.getElementById("statAvgTokens").innerText = `Avg tokens/data: ${totalReq > 0 ? Math.round(totalTokens / totalReq).toLocaleString() : 0}`;
 
@@ -491,6 +499,7 @@ async function restoreSettings(payload) {
   if (patch.defaultCrawl != null) await saveDefaultCrawl(patch.defaultCrawl);
   if (patch.workspaceLabels) await saveWorkspaceLabels(patch.workspaceLabels);
   if (patch.unmappedFirstSeen) await saveUnmappedFirstSeen(patch.unmappedFirstSeen);
+  if (patch.spendEntries) await saveSpendEntries(patch.spendEntries);
   // A restored vendorSettings may enable optional vendors; re-sync their runtime
   // content scripts so crawl works without a manual toggle (B1/B2).
   if (patch.vendorSettings) {

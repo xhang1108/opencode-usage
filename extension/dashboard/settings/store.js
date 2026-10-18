@@ -7,6 +7,7 @@
 
 import { buildPricing } from "../../shared/preset.js";
 import { normalizeUnifiedPricing } from "../../shared/unified.js";
+import { normalizeSpendEntry, validateSpendEntry } from "../../shared/spend.js";
 
 export const STORAGE_KEYS = {
   registry: "vendorRegistry",
@@ -16,8 +17,18 @@ export const STORAGE_KEYS = {
   workspaceLabels: "workspaceLabels",
   unmappedFirstSeen: "unmappedFirstSeen",
   autoSync: "autoSyncEnabled",
+  spendEntries: "spendEntries",
 };
 
+function normalizeSpendEntries(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const e of raw) {
+    const norm = normalizeSpendEntry(e);
+    if (norm && validateSpendEntry(norm).ok) out.push(norm);
+  }
+  return out;
+}
 const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const asObject = (v) => (isPlainObject(v) ? { ...v } : {});
 
@@ -37,6 +48,7 @@ export function normalizeSettings(stored) {
     workspaceLabels: asObject(stored[STORAGE_KEYS.workspaceLabels]),
     unmappedFirstSeen: asObject(stored[STORAGE_KEYS.unmappedFirstSeen]),
     autoSync: stored[STORAGE_KEYS.autoSync] === true,
+    spendEntries: normalizeSpendEntries(stored[STORAGE_KEYS.spendEntries]),
   };
 }
 
@@ -67,6 +79,10 @@ export async function saveWorkspaceLabels(map) {
 // B7: first time each unmapped `model` was seen, so the badge can show age.
 export async function saveUnmappedFirstSeen(map) {
   await chrome.storage.local.set({ [STORAGE_KEYS.unmappedFirstSeen]: asObject(map) });
+}
+
+export async function saveSpendEntries(entries) {
+  await chrome.storage.local.set({ [STORAGE_KEYS.spendEntries]: normalizeSpendEntries(entries) });
 }
 
 // D9: vendors default off unless the registry seeds otherwise; unseeded legacy

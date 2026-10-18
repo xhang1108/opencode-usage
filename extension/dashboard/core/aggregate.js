@@ -172,13 +172,6 @@ export function createAggregator({ price, startDate = "", endDate = "", selected
       }
     }
 
-    const hitRates = Object.values(modelMap)
-      .map((m) => {
-        const prompt = m.input + m.cacheRead;
-        return prompt > 0 ? (m.cacheRead / prompt) * 100 : 0;
-      })
-      .filter((r) => r > 0);
-
     return {
       totals,
       dailyMap,
@@ -194,8 +187,6 @@ export function createAggregator({ price, startDate = "", endDate = "", selected
       maxDate,
       topModel,
       topModelCost,
-      maxHitRate: hitRates.length ? Math.max(...hitRates) : null,
-      minHitRate: hitRates.length ? Math.min(...hitRates) : null,
     };
   }
 

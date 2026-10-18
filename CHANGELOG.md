@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4.0 — 2026-10-18
+
+Track what you actually paid alongside what the usage was worth. Settings → Spend is a manual USD ledger (platform + date + amount + note) with add/edit/delete, and the dashboard gains a Spend vs Value card (total spent vs usage Value with a value/spend ratio).
+
+### Added
+
+- **Settings → Spend ledger.** Manual USD entries per platform and date with add/edit/delete/clear-all, a month-by-month spend table, and a total / last-12-months / entries summary. Entries persist in `chrome.storage.local` (`spendEntries`), are normalized and validated on read, and ride along in the settings backup export/import.
+- **Spend vs Value card.** Dashboard KPI showing total spent (date-filtered) against usage Value, with a `Nx` value-per-dollar ratio (`-` when nothing is spent).
+- Pure ledger helpers in `shared/spend.js` (normalize/validate/aggregate/ROI, no chrome/DOM) covered by `tools/tests/spend.test.mjs`.
+
+### Changed
+
+- **Removed the Avg Cache Hit Rate KPI card.** Per-model hit rates still live in chart 5 (Cache Hit Rate by Model) and the workspace/model tables; only the summary card is gone. Its `maxHitRate`/`minHitRate` aggregate fields are removed with it.
+- The Spend date picker reuses the filter bar's shared calendar grid instead of its own copy.
+
 ## 1.3.0 — 2026-10-14
 
 Costs come from exactly two places now: the vendor-reported amount, or the unified price list. New vendor: Groq. We recommend leaving unified pricing on — vendor APIs keep changing or dropping fields, and one day a field we rely on may be gone.
