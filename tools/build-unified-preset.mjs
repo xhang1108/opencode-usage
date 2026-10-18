@@ -37,6 +37,7 @@ const SOURCES = [
   "openai-official",
   "qwen-official",
   "tencent-official",
+  "typesafe-official",
 ];
 const FINGERPRINT_PREFIX = "fp:";
 
@@ -97,6 +98,7 @@ const PREFERRED_BY_SERIES = {
   gpt: "openai-official",
   qwen: "qwen-official",
   hy: "tencent-official",
+  jev: "typesafe-official",
 };
 function preferredSource(fp) {
   return PREFERRED_BY_SERIES[String(fp).split(":")[0]] || null;

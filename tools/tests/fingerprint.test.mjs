@@ -73,6 +73,7 @@ test("shipped preset: valid, no dangling assign, every known id reachable", () =
     "openai-official",
     "qwen-official",
     "tencent-official",
+    "typesafe-official",
   ]) {
     const p = JSON.parse(fs.readFileSync(new URL(`../../extension/vendors/${source}/rates.preset.json`, import.meta.url)));
     for (const key of Object.keys(p.modelMap || {})) {

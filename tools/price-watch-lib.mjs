@@ -77,6 +77,11 @@ export const VENDORS = {
     dir: "extension/vendors/tencent-official",
     parser: "extension/vendors/tencent-official/pricing-page.js",
   },
+  "typesafe-official": {
+    url: "https://docs.typesafe.ai/models.md",
+    dir: "extension/vendors/typesafe-official",
+    parser: "extension/vendors/typesafe-official/pricing-page.js",
+  },
 };
 
 export function snapshotFilename(capturedAt) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Price-watch: TypeSafe Jev (`typesafe-official`)** — daily crawl of `docs.typesafe.ai/models.md` for Jev 1.13/1.14 pricing ($0.042/Mtok input, output free), committed to `extension/vendors/typesafe-official/price-snapshots/` and folded into the unified preset.
+
 ## 1.4.0 — 2026-10-18
 
 Track what you actually paid alongside what the usage was worth. Settings → Spend is a manual USD ledger (platform + date + amount + note) with add/edit/delete, and the dashboard gains a Spend vs Value card (total spent vs usage Value with a value/spend ratio).

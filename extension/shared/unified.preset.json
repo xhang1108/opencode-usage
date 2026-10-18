@@ -1699,6 +1699,38 @@
       ]
     },
     {
+      "id": "jev-1.13-.0",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.042,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "jev-1.14-.0",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.042,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "kimi-2.5-k",
       "rates": [
         {
@@ -3341,6 +3373,8 @@
     "qwen-official:qwq-plus": "qwq-plus",
     "tencent-official:hy3": "hy-3",
     "tencent-official:hy4-preview": "hy-4-preview",
+    "typesafe-official:jev-1.13.0": "jev-1.13-.0",
+    "typesafe-official:jev-1.14.0": "jev-1.14-.0",
     "openrouter:stealth/ox-alpha": "glm-5.3-flash",
     "fp:glm:5.3:flash:": "glm-5.3-flash",
     "fp:grok:4.6:base:": "grok-4.6",
@@ -3490,6 +3524,8 @@
     "fp:qwen:3.8:base:27b": "qwen-3.8-27b",
     "fp:qwen:3.8:base:max-0902": "qwen-3.8-max-0902",
     "fp:qwq:0:plus:": "qwq-plus",
+    "fp:jev:1.13:base:.0": "jev-1.13-.0",
+    "fp:jev:1.14:base:.0": "jev-1.14-.0",
     "fp:muse:0:base:spark-contributor": "muse-1.2-spark-contributor",
     "fp:gpt:20:base:ossb": "gpt-20-ossb",
     "fp:gpt:4:base:": "gpt-4",

@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-10-18T14:18:14.891Z",
+  "source": "typesafe-official",
+  "models": {
+    "jev-1.14.0": {
+      "label": "jev-1.14.0",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.042,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "jev-1.13.0": {
+      "label": "jev-1.13.0",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.042,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

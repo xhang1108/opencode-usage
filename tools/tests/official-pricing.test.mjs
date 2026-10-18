@@ -8,13 +8,14 @@ import { parseStandardTable as parseOpenAI, snapshotFromPage as snapOpenAI } fro
 import { parsePricingModels as parseXai, snapshotFromPage as snapXai } from "../../extension/vendors/xai-official/pricing-page.js";
 import { parsePricingModels as parseQwen, snapshotFromPage as snapQwen } from "../../extension/vendors/qwen-official/pricing-page.js";
 import { parsePricingModels as parseTencent, snapshotFromPage as snapTencent } from "../../extension/vendors/tencent-official/pricing-page.js";
+import { parsePricingModels as parseTypesafe, snapshotFromPage as snapTypesafe } from "../../extension/vendors/typesafe-official/pricing-page.js";
 
 // ---------------------------------------------------------------------------
 // VENDORS wiring
 // ---------------------------------------------------------------------------
 
-test("four official sources are wired with existing parser files", () => {
-  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official"]) {
+test("five official sources are wired with existing parser files", () => {
+  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official"]) {
     const cfg = VENDORS[source];
     assert.ok(cfg, `${source} missing from VENDORS`);
     assert.match(cfg.url, /^https:\/\//);
@@ -484,16 +485,77 @@ test("tencent snapshot carries source and capturedAt", () => {
 });
 
 // ---------------------------------------------------------------------------
+// TypeSafe — Jev pricing from models.md
+// ---------------------------------------------------------------------------
+
+const TYPESAFE_MD = `# Models
+
+## Current models
+
+| | Jev 1.14 | Jev 1.13 |
+| :- | :- | :- |
+| Model ID | \`jev-1.14.0\` | \`jev-1.13.0\` |
+| Price (per Btok / per Mtok) | \$42 / \$0.042 | \$42 / \$0.042 |
+| Context length | 64k per-request / 32k per-question | 64k per-request / 32k per-question |
+| Input | Text | Text |
+`;
+
+test("typesafe parser reads Jev models with per-Mtok price and free output", () => {
+  const models = parseTypesafe(TYPESAFE_MD);
+  assert.equal(Object.keys(models).length, 2);
+  assert.ok(models["jev-1.14.0"]);
+  assert.ok(models["jev-1.13.0"]);
+  assert.deepEqual(models["jev-1.14.0"].entry.pricing.flat, {
+    input: 0.042,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+  });
+  assert.deepEqual(models["jev-1.13.0"].entry.pricing.flat, {
+    input: 0.042,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+  });
+});
+
+test("typesafe parser fails closed on missing section / anchor / price", () => {
+  assert.throws(() => parseTypesafe("# no pricing"), /Current models/);
+  assert.throws(() => parseTypesafe(TYPESAFE_MD.replace("jev-1.14.0", "jev-9.0.0")), /anchor model jev-1.14.0 missing/);
+  // Both models have zero price -> should fail sanity (price > 0 required)
+  const badPrice = `# Models
+
+## Current models
+
+| | Jev 1.14 | Jev 1.13 |
+| :- | :- | :- |
+| Model ID | \`jev-1.14.0\` | \`jev-1.13.0\` |
+| Price (per Btok / per Mtok) | \$42 / \$0.000 | \$42 / \$0.000 |
+| Context length | 64k per-request / 32k per-question | 64k per-request / 32k per-question |
+| Input | Text | Text |
+`;
+  assert.throws(() => parseTypesafe(badPrice), /invalid price/);
+});
+
+test("typesafe snapshot carries source and capturedAt", () => {
+  const snap = snapTypesafe(TYPESAFE_MD, "2026-09-24T05:17:00.000Z");
+  assert.equal(snap.source, "typesafe-official");
+  assert.equal(snap.capturedAt, "2026-09-24T05:17:00.000Z");
+  assert.ok(snap.models["jev-1.14.0"]);
+});
+
+// ---------------------------------------------------------------------------
 // Cross-source snapshot contract (price-history -> preset round trip)
 // ---------------------------------------------------------------------------
 
-test("all four parsers produce valid snapshot -> preset chains", async () => {
+test("all five parsers produce valid snapshot -> preset chains", async () => {
   const { versionsFromSnapshots, presetFromVersions } = await import("../../extension/shared/price-history.js");
   const cases = [
     ["openai-official", snapOpenAI(OPENAI_MD, "2026-09-24T05:17:00.000Z"), "gpt-6-luna"],
     ["xai-official", snapXai(XAI_HTML, "2026-09-24T05:17:00.000Z"), "grok-4.7"],
     ["qwen-official", snapQwen(QWEN_HTML, "2026-09-24T05:17:00.000Z"), "qwen3.5-plus"],
     ["tencent-official", snapTencent(TENCENT_ROWS, "2026-09-24T05:17:00.000Z"), "hy3"],
+    ["typesafe-official", snapTypesafe(TYPESAFE_MD, "2026-09-24T05:17:00.000Z"), "jev-1.14.0"],
   ];
   for (const [source, snap, id] of cases) {
     const state = versionsFromSnapshots([snap]);

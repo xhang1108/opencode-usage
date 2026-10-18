@@ -1,0 +1,44 @@
+{
+  "presetVersion": 2,
+  "source": "typesafe-official",
+  "modelMap": {
+    "typesafe-official:jev-1.13.0": "typesafe-official:jev-1.13.0",
+    "typesafe-official:jev-1.14.0": "typesafe-official:jev-1.14.0"
+  },
+  "targets": {
+    "typesafe-official:jev-1.13.0": {
+      "label": "jev-1.13.0",
+      "scope": "typesafe-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.042,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "typesafe-official:jev-1.14.0": {
+      "label": "jev-1.14.0",
+      "scope": "typesafe-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.042,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  }
+}
