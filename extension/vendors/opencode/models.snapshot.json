@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-17T09:12:17.556Z",
+  "capturedAt": "2026-10-20T09:57:45.361Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
@@ -28,6 +28,7 @@
     "minimax-m2.5",
     "minimax-m2.7",
     "minimax-m3",
+    "minimax-m3.1-flash-free",
     "muse-spark-1.2-contributor",
     "muse-spark-1.3-contributor",
     "omen-alpha",
@@ -36,7 +37,6 @@
     "qwen3.7-plus",
     "qwen3.8-flash",
     "qwen3.8-max",
-    "space-bunny",
     "step-5-preview"
   ]
 }
