@@ -1,21 +1,20 @@
 name: Model watch
 
-# Daily model-id watch: fetch the public models endpoints (opencode Go +
-# CommandCode), diff against the committed snapshots, and commit ONLY the two
-# snapshot files when the set changed. Git history of vendors/*/models.snapshot.json
-# is the dated model add/remove log. No pricing data is touched.
+# Daily model-id watch: fetch the public models endpoint (opencode Go), diff
+# against the committed snapshot, and commit ONLY the snapshot file when the set
+# changed. Git history of vendors/opencode/models.snapshot.json is the dated
+# model add/remove log. No pricing data is touched.
+#
+# opencode's catalog rotates for real, so its shrink policy is "warn": a drop is
+# recorded and reported, never blocked. The run only fails when the fetch or the
+# payload itself is broken.
 on:
   schedule:
     - cron: "7 5 * * *" # daily 05:07 UTC (13:07 Taipei)
   workflow_dispatch:
-    inputs:
-      allow_shrink:
-        description: "Accept a model-count drop as a real retirement (skip the partial-scrape guard)"
-        type: boolean
-        default: false
 
 # One run at a time, queued not cancelled: a manual dispatch cannot race the
-# daily schedule against the same snapshot files.
+# daily schedule against the same snapshot file.
 concurrency:
   group: model-watch
   cancel-in-progress: false
@@ -35,31 +34,19 @@ jobs:
       - name: Tests
         run: npm test
 
-      # continue-on-error so a failing source still lets the healthy source's
-      # snapshot be committed; the final step re-fails the job to keep the
-      # failure visible.
       - name: Diff model snapshots
-        id: watch
-        continue-on-error: true
-        run: node tools/model-watch.mjs ${{ inputs.allow_shrink && '--allow-shrink' || '' }}
+        run: node tools/model-watch.mjs
 
-      # Fixed paths only — never `git add -A`, so this can only ever commit
-      # the two watcher state files. Runs even when the diff step tripped
-      # (continue-on-error) so a healthy source is still committed.
+      # Fixed path only — never `git add -A`, so this can only ever commit the
+      # watcher state file.
       - name: Commit changes
         run: |
           git config user.name "model-watch"
           git config user.email "model-watch@users.noreply.github.com"
-          git add extension/vendors/opencode/models.snapshot.json extension/vendors/commandcode/models.snapshot.json
+          git add extension/vendors/opencode/models.snapshot.json
           if git diff --cached --quiet; then
             echo "no model changes"
           else
             git commit -m "chore(model-watch): update model snapshots"
             git push
           fi
-
-      - name: Fail if a source failed
-        if: steps.watch.outcome == 'failure'
-        run: |
-          echo "::error::one or more sources failed (see the run summary); a change from the healthy source was still committed"
-          exit 1

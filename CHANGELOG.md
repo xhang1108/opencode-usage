@@ -6,6 +6,14 @@
 
 - **Price-watch: TypeSafe Jev (`typesafe-official`)** — daily crawl of `docs.typesafe.ai/models.md` for Jev 1.13/1.14 pricing ($0.042/Mtok input, output free), committed to `extension/vendors/typesafe-official/price-snapshots/` and folded into the unified preset.
 
+### Changed
+
+- **Model watch no longer tracks CommandCode.** Its catalog genuinely rotates (96 → 92 models on 2026-10-22/23), so the `block` shrink policy left the daily run red with nothing to act on. Only `opencode` (the `warn` source) remains, the `allow_shrink` dispatch input is gone, and a red run now means the fetch or payload broke.
+
+### Fixed
+
+- **Price watch reads both OpenAI price tables again.** `pricing.md` split its Standard section into a short/long-context table (with 30m/12h cache-write columns) plus a plain Input/Output/Cached-input table, which the position-based parser read as 11 models and rejected as layout drift. Columns are now read by header name across both shapes; the 30m write column is the `cacheWrite` (12h is ignored — one cacheWrite per entry). Prices are unchanged; the 4 legacy rows OpenAI dropped (`babbage-002`, `davinci-002`, `gpt-3.5-turbo-1106`, `gpt-3.5-turbo-instruct`) are allowlisted in `tools/snapshot-shrink-allowlist.json`.
+
 ## 1.4.0 — 2026-10-18
 
 Track what you actually paid alongside what the usage was worth. Settings → Spend is a manual USD ledger (platform + date + amount + note) with add/edit/delete, and the dashboard gains a Spend vs Value card (total spent vs usage Value with a value/spend ratio).

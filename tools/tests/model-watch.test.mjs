@@ -78,16 +78,16 @@ test("summaryMarkdown lists changes and failures, skips quiet results", () => {
   const md = summaryMarkdown(
     [
       { label: "opencode Go", total: 42, baseline: false, changed: true, added: ["grok-4.7"], removed: [] },
-      { label: "CommandCode", total: 81, baseline: true, changed: false, added: [], removed: [] },
+      { label: "second Source", total: 81, baseline: true, changed: false, added: [], removed: [] },
     ],
-    [{ source: "commandcode", message: "HTTP 500" }]
+    [{ source: "second", message: "HTTP 500" }]
   );
   assert.match(md, /## Model watch/);
   assert.match(md, /\| opencode Go \| 42 \| 1 \| 0 \| changed \|/);
-  assert.match(md, /\| CommandCode \| 81 \| - \| - \| baseline \|/);
+  assert.match(md, /\| second Source \| 81 \| - \| - \| baseline \|/);
   assert.match(md, /`grok-4\.7`/);
   assert.match(md, /baseline established \(81 models\)/);
-  assert.match(md, /commandcode: FAILED.*HTTP 500/);
+  assert.match(md, /second: FAILED.*HTTP 500/);
 });
 
 // A stubbed fetch that yields a parsed payload, so watchOne can be driven
@@ -99,8 +99,8 @@ test("assertNotSuspiciousShrink only rejects a count drop without the override",
   assert.equal(assertNotSuspiciousShrink(["a"], ["a", "b"], {}), null); // growth
   assert.equal(assertNotSuspiciousShrink(["a", "b"], ["b", "a"], {}), null); // equal count
   assert.throws(
-    () => assertNotSuspiciousShrink(["a", "b"], ["a"], { source: "commandcode" }),
-    /--source commandcode --allow-shrink/
+    () => assertNotSuspiciousShrink(["a", "b"], ["a"], { source: "opencode" }),
+    /--source opencode --allow-shrink/
   );
   assert.deepEqual(assertNotSuspiciousShrink(["a", "b"], ["a"], { allowShrink: true }).removed, ["b"]);
 });
@@ -121,8 +121,8 @@ test("watchOne refuses a short payload and leaves the snapshot untouched", async
     const before = readFileSync(path, "utf8");
 
     await assert.rejects(
-      watchOne("commandcode", { path, fetchIds: stubFetch(["a", "b"]) }),
-      (e) => /refusing to write/.test(e.message) && /removed 1: c/.test(e.message) && /--source commandcode --allow-shrink/.test(e.message)
+      watchOne("opencode", { path, fetchIds: stubFetch(["a", "b"]), shrink: "block" }),
+      (e) => /refusing to write/.test(e.message) && /removed 1: c/.test(e.message) && /--source opencode --allow-shrink/.test(e.message)
     );
     assert.equal(readFileSync(path, "utf8"), before); // no overwrite
   } finally {
@@ -170,7 +170,7 @@ test("watchOne lets a legitimate drop through with allowShrink", async () => {
     const path = join(dir, "models.snapshot.json");
     writeFileSync(path, snapshotContent(["a", "b", "c"], "2026-09-24T00:00:00.000Z"));
 
-    const r = await watchOne("commandcode", { path, fetchIds: stubFetch(["a", "b"]), allowShrink: true });
+    const r = await watchOne("opencode", { path, fetchIds: stubFetch(["a", "b"]), shrink: "block", allowShrink: true });
     assert.equal(r.wrote, true);
     assert.equal(r.changed, true);
     assert.deepEqual(r.removed, ["c"]);

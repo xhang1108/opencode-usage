@@ -4,6 +4,14 @@
       "deepseek-coder"
     ]
   },
+  "openai-official": {
+    "20261023T102731Z.json": [
+      "babbage-002",
+      "davinci-002",
+      "gpt-3.5-turbo-1106",
+      "gpt-3.5-turbo-instruct"
+    ]
+  },
   "qwen-official": {
     "20261011T112649Z.json": [
       "qwen-mt-turbo",

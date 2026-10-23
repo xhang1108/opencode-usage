@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// tools/model-watch.mjs — daily model-id watcher (opencode Go + CommandCode).
-// Fetches each vendor's public models endpoint, diffs the ids against the
+// tools/model-watch.mjs — daily model-id watcher (opencode Go).
+// Fetches the vendor's public models endpoint, diffs the ids against the
 // committed snapshot (vendors/<source>/models.snapshot.json) and rewrites the
 // snapshot ONLY when the set changed. Pure fetch+diff — no pricing data.
 //
@@ -15,14 +15,12 @@
 //     means a broken crawl.
 //   * "warn" — record the drop, log it in the step summary, keep the run green.
 //     For a volatile catalog that legitimately adds and drops models.
-// A failed source still leaves the run red but never blocks the other
-// (healthy) source from being committed.
+// A failed source still leaves the run red.
 //
-// Usage: node tools/model-watch.mjs [--source opencode|commandcode] [--allow-shrink]
+// Usage: node tools/model-watch.mjs [--source opencode] [--allow-shrink]
 //
 // CI (.github/workflows/model-watch.yml): daily cron, tests first, then this
-// script, then commit ONLY the two snapshot paths when the diff changed.
-// A failed source marks the run failed but never blocks the other source.
+// script, then commit ONLY the snapshot path when the diff changed.
 
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -41,12 +39,6 @@ export const SOURCES = {
     // count drop is upstream truth rather than a broken crawl: record it and
     // warn instead of failing the daily run.
     shrink: "warn",
-  },
-  commandcode: {
-    label: "CommandCode",
-    url: "https://api.commandcode.ai/provider/v1/models",
-    dir: "extension/vendors/commandcode",
-    shrink: "block",
   },
 };
 

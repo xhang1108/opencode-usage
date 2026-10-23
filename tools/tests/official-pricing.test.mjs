@@ -29,26 +29,34 @@ test("five official sources are wired with existing parser files", () => {
 // OpenAI — markdown Standard-pricing section
 // ---------------------------------------------------------------------------
 
-const OPENAI_BASE_ROWS = `| Model | Short context input | Short cached input | Short cache writes | Short output | Long input | Long cached input | Long cache writes | Long output |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| gpt-6-astra | $10.00 | $1.00 | $12.50 | $50.00 | $20.00 | $2.00 | $25.00 | $75.00 |
-| gpt-6-luna | $0.10 | $0.01 | $0.125 | $0.50 | $0.20 | $0.02 | $0.25 | $0.75 |
-| gpt-5.5 (<272K context length) | $5.00 | $0.50 | - | $20.00 | $10.00 | $1.00 | - | $45.00 |
-| gpt-5.4-mini (<272K context length) | $0.75 | $0.075 | - | $4.50 | - | - | - | - |
-| gpt-3.5-turbo | $1.50 | $0.50 | - | $2.00 | - | - | - | - |`;
+// Short+long context table, then the plain Input/Output table for models
+// without long-context pricing — the two shapes the page publishes in one
+// section. Column order is read from the header, never assumed.
+const OPENAI_TIERED_ROWS = `| Model | Short context input | Short context output | Short context cached input | Short context 30m write | Short context 12h write | Long context input | Long context output | Long context cached input | Long context 30m write | Long context 12h write |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| gpt-6-astra | $10.00 | $50.00 | $1.00 | $12.50 | $25.00 | $20.00 | $75.00 | $2.00 | $25.00 | $50.00 |
+| gpt-6-luna | $0.10 | $0.50 | $0.01 | $0.125 | $0.25 | $0.20 | $0.75 | $0.02 | $0.25 | $0.50 |
+| gpt-5.5 (<272K context length) | $5.00 | $30.00 | $0.50 | - | - | $10.00 | $45.00 | $1.00 | - | - |`;
 
-// pad past MIN_MODELS (20) the way the real 39-row table does
+// pad past MIN_MODELS (20) the way the real table does
 const OPENAI_FILLERS = Array.from(
   { length: 16 },
-  (_, i) => `| gpt-filler-${i} | $1.00 | $0.10 | - | $2.00 | - | - | - | - |`,
+  (_, i) => `| gpt-filler-${i} | $1.00 | $2.00 | $0.10 |`,
 ).join("\n");
+
+const OPENAI_FLAT_ROWS = `| Model | Input | Output | Cached input |
+| --- | --- | --- | --- |
+| gpt-5.4-mini | $0.75 | $4.50 | $0.075 |
+| gpt-3.5-turbo | $0.50 | $1.50 | - |
+${OPENAI_FILLERS}`;
 
 const OPENAI_MD = `# Pricing
 
 ### Standard pricing data
 
-${OPENAI_BASE_ROWS}
-${OPENAI_FILLERS}
+${OPENAI_TIERED_ROWS}
+
+${OPENAI_FLAT_ROWS}
 
 ### Batch pricing data
 
@@ -64,7 +72,8 @@ test("openai parser reads only the Standard section into tier/flat entries", () 
     assert.ok(models[id], `${id} missing`);
   }
 
-  // tiered at 272K, short/long legs mapped low/high
+  // tiered at 272K, short/long legs mapped low/high; the 30m write column is
+  // the cacheWrite, so the 12h one ($0.25 low) must not win
   assert.deepEqual(models["gpt-6-luna"].entry.pricing.flat.tier, {
     limit: 272000,
     low: { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
@@ -81,6 +90,17 @@ test("openai parser reads only the Standard section into tier/flat entries", () 
 
   // Batch section must not leak (it would overwrite standard with $0.05)
   assert.equal(models["gpt-6-luna"].entry.pricing.flat.tier.low.input, 0.1);
+});
+
+test("openai parser reads the plain input/output table as flat entries", () => {
+  const models = parseOpenAI(OPENAI_MD);
+  assert.deepEqual(models["gpt-3.5-turbo"].entry.pricing.flat, {
+    input: 0.5,
+    output: 1.5,
+    cacheRead: 0,
+    cacheWrite: 0,
+  });
+  assert.equal(models["gpt-3.5-turbo"].entry.pricing.flat.tier, undefined);
 });
 
 test("openai parser fails closed on missing anchor / missing section", () => {
