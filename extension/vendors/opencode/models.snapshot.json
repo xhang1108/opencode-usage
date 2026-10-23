@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-22T10:02:04.513Z",
+  "capturedAt": "2026-10-23T09:56:21.008Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
@@ -27,7 +27,7 @@
     "minimax-m2.5",
     "minimax-m2.7",
     "minimax-m3",
-    "minimax-m3.1-flash-free",
+    "minimax-m3.1-flash",
     "muse-spark-1.2-contributor",
     "muse-spark-1.3-contributor",
     "omen-alpha",
