@@ -1,0 +1,328 @@
+{
+  "source": "zai-official",
+  "models": [
+    {
+      "model": "glm-4-32b-0414-128k",
+      "label": "GLM-4-32B-0414-128K",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.1,
+              "output": 0.1,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.5",
+      "label": "GLM-4.5",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 2.2,
+              "cacheRead": 0.11,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.5-air",
+      "label": "GLM-4.5-Air",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.2,
+              "output": 1.1,
+              "cacheRead": 0.03,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.5-airx",
+      "label": "GLM-4.5-AirX",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.1,
+              "output": 4.5,
+              "cacheRead": 0.22,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.5-x",
+      "label": "GLM-4.5-X",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2.2,
+              "output": 8.9,
+              "cacheRead": 0.45,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.5v",
+      "label": "GLM-4.5V",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 1.8,
+              "cacheRead": 0.11,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.6",
+      "label": "GLM-4.6",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 2.2,
+              "cacheRead": 0.11,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.6v",
+      "label": "GLM-4.6V",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 0.9,
+              "cacheRead": 0.05,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.6v-flashx",
+      "label": "GLM-4.6V-FlashX",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.04,
+              "output": 0.4,
+              "cacheRead": 0.004,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.7",
+      "label": "GLM-4.7",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.6,
+              "output": 2.2,
+              "cacheRead": 0.11,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-4.7-flashx",
+      "label": "GLM-4.7-FlashX",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.07,
+              "output": 0.4,
+              "cacheRead": 0.01,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5",
+      "label": "GLM-5",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1,
+              "output": 3.2,
+              "cacheRead": 0.2,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5.1",
+      "label": "GLM-5.1",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5.2",
+      "label": "GLM-5.2",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5.3",
+      "label": "GLM-5.3",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.4,
+              "output": 4.4,
+              "cacheRead": 0.26,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5.3-flash",
+      "label": "GLM-5.3-Flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.5,
+              "cacheRead": 0.03,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5.3-flashx",
+      "label": "GLM-5.3-FlashX",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.37,
+              "output": 1.25,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5.3-flashx-legal",
+      "label": "GLM-5.3-FlashX-Legal",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.37,
+              "output": 1.25,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-ocr",
+      "label": "GLM-OCR",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.03,
+              "output": 0.03,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

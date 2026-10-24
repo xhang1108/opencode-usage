@@ -10,13 +10,14 @@ import { parsePricingModels as parseQwen, snapshotFromPage as snapQwen } from ".
 import { parsePricingModels as parseTencent, snapshotFromPage as snapTencent } from "../../extension/vendors/tencent-official/pricing-page.js";
 import { parsePricingModels as parseTypesafe, snapshotFromPage as snapTypesafe } from "../../extension/vendors/typesafe-official/pricing-page.js";
 import { parsePricingModels as parseMinimax, snapshotFromPage as snapMinimax } from "../../extension/vendors/minimax-official/pricing-page.js";
+import { parsePricingModels as parseZai, snapshotFromPage as snapZai } from "../../extension/vendors/zai-official/pricing-page.js";
 
 // ---------------------------------------------------------------------------
 // VENDORS wiring
 // ---------------------------------------------------------------------------
 
-test("six official sources are wired with existing parser files", () => {
-  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official"]) {
+test("seven official sources are wired with existing parser files", () => {
+  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official", "zai-official"]) {
     const cfg = VENDORS[source];
     assert.ok(cfg, `${source} missing from VENDORS`);
     assert.match(cfg.url, /^https:\/\//);
@@ -646,10 +647,117 @@ test("minimax snapshot carries source and capturedAt", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Z.ai — GLM pricing from HTML tables ($ per 1M tokens)
+// ---------------------------------------------------------------------------
+
+// The page publishes five 5-column price tables (latest/text/other-text/vision,
+// plus an audio one) next to several 2-column tables (tools, images, agents,
+// video). Only the 5-column Model/Input/Cached Input/Cached Input Storage/Output
+// shape is a token price; the "Cached Input Storage" cell is a storage promo,
+// never a cacheWrite. Free rows are skipped, and "-"/"\" cells mean "not billed".
+const ZAI_HEADER = `<tr><th>Model</th><th>Input</th><th>Cached Input</th><th>Cached Input Storage</th><th>Output</th></tr>`;
+
+const ZAI_HTML = `<h2>Latest Models</h2>
+<table>
+${ZAI_HEADER}
+<tr><td>GLM-5.3</td><td>$1.4</td><td>$0.26</td><td>Limited-time Free</td><td>$4.4</td></tr>
+<tr><td>GLM-5.3-Flash</td><td>$0.15</td><td>$0.03</td><td>Limited-time Free</td><td>$0.50</td></tr>
+<tr><td>GLM-5.3-FlashX</td><td>$0.37</td><td>$0.075</td><td>Limited-time Free</td><td>$1.25</td></tr>
+</table>
+<h2>Text Models</h2>
+<table>
+${ZAI_HEADER}
+<tr><td>GLM-5.3-FlashX-Legal</td><td>$0.37</td><td>$0.075</td><td>Limited-time Free</td><td>$1.25</td></tr>
+<tr><td>GLM-5.2</td><td>$1.4</td><td>$0.26</td><td>Limited-time Free</td><td>$4.4</td></tr>
+<tr><td>GLM-5.1</td><td>$1.4</td><td>$0.26</td><td>Limited-time Free</td><td>$4.4</td></tr>
+<tr><td>GLM-5</td><td>$1</td><td>$0.2</td><td>Limited-time Free</td><td>$3.2</td></tr>
+<tr><td>GLM-4.7</td><td>$0.6</td><td>$0.11</td><td>Limited-time Free</td><td>$2.2</td></tr>
+<tr><td>GLM-4.6</td><td>$0.6</td><td>$0.11</td><td>Limited-time Free</td><td>$2.2</td></tr>
+</table>
+<table>
+<tr><th>Tool</th><th>Cost</th></tr>
+<tr><td>Web Search</td><td>$0.01 / use</td></tr>
+</table>
+<table>
+<tr><th>Model</th><th>Price</th></tr>
+<tr><td>GLM-Image</td><td>$0.015</td></tr>
+</table>
+<h2>Other Pricing</h2>
+<table>
+${ZAI_HEADER}
+<tr><td>GLM-4.7-FlashX</td><td>$0.07</td><td>$0.01</td><td>Limited-time Free</td><td>$0.4</td></tr>
+<tr><td>GLM-4.5</td><td>$0.6</td><td>$0.11</td><td>Limited-time Free</td><td>$2.2</td></tr>
+<tr><td>GLM-4.5-X</td><td>$2.2</td><td>$0.45</td><td>Limited-time Free</td><td>$8.9</td></tr>
+<tr><td>GLM-4.5-Air</td><td>$0.2</td><td>$0.03</td><td>Limited-time Free</td><td>$1.1</td></tr>
+<tr><td>GLM-4.5-AirX</td><td>$1.1</td><td>$0.22</td><td>Limited-time Free</td><td>$4.5</td></tr>
+<tr><td>GLM-4-32B-0414-128K</td><td>$0.1</td><td>-</td><td>-</td><td>$0.1</td></tr>
+<tr><td>GLM-4.7-Flash</td><td>Free</td><td>Free</td><td>Free</td><td>Free</td></tr>
+<tr><td>GLM-4.5-Flash</td><td>Free</td><td>Free</td><td>Free</td><td>Free</td></tr>
+</table>
+<table>
+${ZAI_HEADER}
+<tr><td>GLM-4.6V</td><td>$0.3</td><td>$0.05</td><td>Limited-time Free</td><td>$0.9</td></tr>
+<tr><td>GLM-OCR</td><td>$0.03</td><td>\\</td><td>\\</td><td>$0.03</td></tr>
+<tr><td>GLM-4.6V-FlashX</td><td>$0.04</td><td>$0.004</td><td>Limited-time Free</td><td>$0.4</td></tr>
+<tr><td>GLM-4.5V</td><td>$0.6</td><td>$0.11</td><td>Limited-time Free</td><td>$1.8</td></tr>
+<tr><td>GLM-4.6V-Flash</td><td>Free</td><td>Free</td><td>Free</td><td>Free</td></tr>
+</table>`;
+
+test("zai parser reads 5-column USD tables, canonical ids, skips free rows", () => {
+  const models = parseZai(ZAI_HTML);
+
+  // 19 priced rows; the three all-"Free" rows carry no price and stay unpriced
+  // (an override, not this parser, is how a genuinely free model reads "free").
+  assert.equal(Object.keys(models).length, 19);
+  for (const id of ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6v-flash"]) {
+    assert.ok(!(id in models), `${id} is free and must not be priced`);
+  }
+  // 2-column tables are not token prices
+  assert.ok(!("web-search" in models) && !("glm-image" in models));
+
+  assert.deepEqual(models["glm-5.3"].entry.pricing.flat, {
+    input: 1.4,
+    output: 4.4,
+    cacheRead: 0.26,
+    cacheWrite: 0,
+  });
+  // label -> canonical routing id (GLM-4.5V is `glm-4.5v`, not `glm-4.5-v`)
+  assert.ok(models["glm-4.5v"], "GLM-4.5V must canonicalize to glm-4.5v");
+  // "-" and "\" mean "not billed", so cacheRead is 0 - never NaN
+  assert.equal(models["glm-4-32b-0414-128k"].entry.pricing.flat.cacheRead, 0);
+  assert.equal(models["glm-ocr"].entry.pricing.flat.cacheRead, 0);
+  // the storage promo ("Limited-time Free") is not a cacheWrite
+  for (const m of Object.values(models)) assert.equal(m.entry.pricing.flat.cacheWrite, 0);
+});
+
+test("zai parser fails closed on layout drift / missing anchor / too few rows", () => {
+  assert.throws(() => parseZai("<html><body>moved</body></html>"), /no model rows parsed/);
+  assert.throws(
+    () => parseZai(ZAI_HTML.replace("<td>GLM-5.3</td>", "<td>GLM-9.9</td>")),
+    /anchor model glm-5.3 missing/,
+  );
+
+  // a real page always carries far more than 10 priced rows
+  const tiny = `<table>${ZAI_HEADER}
+<tr><td>GLM-5.3</td><td>$1.4</td><td>$0.26</td><td>Limited-time Free</td><td>$4.4</td></tr>
+<tr><td>GLM-5</td><td>$1</td><td>$0.2</td><td>Limited-time Free</td><td>$3.2</td></tr>
+<tr><td>GLM-4.6</td><td>$0.6</td><td>$0.11</td><td>Limited-time Free</td><td>$2.2</td></tr>
+</table>`;
+  assert.throws(() => parseZai(tiny), /only 3 models \(<10\)/);
+});
+
+test("zai snapshot carries source and capturedAt", () => {
+  const snap = snapZai(ZAI_HTML, "2026-10-24T11:47:24.986Z");
+  assert.equal(snap.source, "zai-official");
+  assert.equal(snap.capturedAt, "2026-10-24T11:47:24.986Z");
+  assert.ok(snap.models["glm-5.3"]);
+});
+
+// ---------------------------------------------------------------------------
 // Cross-source snapshot contract (price-history -> preset round trip)
 // ---------------------------------------------------------------------------
 
-test("all six parsers produce valid snapshot -> preset chains", async () => {
+test("all seven parsers produce valid snapshot -> preset chains", async () => {
   const { versionsFromSnapshots, presetFromVersions } = await import("../../extension/shared/price-history.js");
   const cases = [
     ["openai-official", snapOpenAI(OPENAI_MD, "2026-09-24T05:17:00.000Z"), "gpt-6-luna"],
@@ -658,6 +766,7 @@ test("all six parsers produce valid snapshot -> preset chains", async () => {
     ["tencent-official", snapTencent(TENCENT_ROWS, "2026-09-24T05:17:00.000Z"), "hy3"],
     ["typesafe-official", snapTypesafe(TYPESAFE_MD, "2026-09-24T05:17:00.000Z"), "jev-1.14.0"],
     ["minimax-official", snapMinimax(MINIMAX_MD, "2026-10-24T05:17:00.000Z"), "MiniMax-M3.1-Flash", "minimax-m3.1-flash"],
+    ["zai-official", snapZai(ZAI_HTML, "2026-10-24T11:47:24.986Z"), "glm-5.3"],
   ];
   for (const [source, snap, id, target = id] of cases) {
     const state = versionsFromSnapshots([snap]);

@@ -39,6 +39,7 @@ const SOURCES = [
   "tencent-official",
   "typesafe-official",
   "minimax-official",
+  "zai-official",
 ];
 const FINGERPRINT_PREFIX = "fp:";
 
@@ -101,6 +102,7 @@ const PREFERRED_BY_SERIES = {
   hy: "tencent-official",
   jev: "typesafe-official",
   minimax: "minimax-official",
+  glm: "zai-official",
 };
 function preferredSource(fp) {
   return PREFERRED_BY_SERIES[String(fp).split(":")[0]] || null;
@@ -212,14 +214,9 @@ const OVERRIDE_RATES = {
 
   // --- The17 groups no daily parser covers: hand-transcribed OFFICIAL list ---
   // prices (USD per 1M tokens), one comment block per vendor with its URL.
-  // GLM — z.ai official pricing (https://docs.z.ai/guides/overview/pricing).
-  // Cache write stays 0 (official storage promo is free); glm-5 is still on
-  // sale, so no `until` (the old go.mdx retirement stamp is not reused).
-  "glm-5": [{ from: null, pricing: { flat: { input: 1, output: 3.2, cacheRead: 0.2, cacheWrite: 0 } } }],
-  "glm-5.1": [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }],
-  "glm-5.2": [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }],
-  "glm-5.3": [{ from: null, pricing: { flat: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 } } }],
-  "glm-5.3-flash": [{ from: null, pricing: { flat: { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 } } }],
+  // GLM — no longer hand-transcribed: `zai-official` owns the whole GLM table
+  // (extension/vendors/zai-official). Do not re-add a GLM override here; the
+  // parser covers every row the vendor publishes, free ones included.
 
   // Kimi — Moonshot official pricing (https://platform.kimi.ai/docs/pricing/chat).
   // k2.6/k2.7/k3 are current list prices (K2 series lists no cache-write

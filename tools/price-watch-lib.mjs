@@ -77,6 +77,11 @@ export const VENDORS = {
     dir: "extension/vendors/tencent-official",
     parser: "extension/vendors/tencent-official/pricing-page.js",
   },
+  "zai-official": {
+    url: "https://docs.z.ai/guides/overview/pricing",
+    dir: "extension/vendors/zai-official",
+    parser: "extension/vendors/zai-official/pricing-page.js",
+  },
   "minimax-official": {
     // The docs path /docs/guides/pricing-paygo 308-redirects to this .md.
     // MiniMax owns the model, so this is the price of record for MiniMax-M3.1-Flash
