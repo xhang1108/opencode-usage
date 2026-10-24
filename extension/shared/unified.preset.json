@@ -2042,6 +2042,22 @@
       ]
     },
     {
+      "id": "minimax-3.1-flash-m",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.015,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "muse-1.2-spark",
       "rates": [
         {
@@ -3375,7 +3391,11 @@
     "tencent-official:hy4-preview": "hy-4-preview",
     "typesafe-official:jev-1.13.0": "jev-1.13",
     "typesafe-official:jev-1.14.0": "jev-1.14",
-    "openrouter:stealth/ox-alpha": "glm-5.3-flash",
+    "minimax-official:MiniMax-M3": "minimax-3-m",
+    "minimax-official:MiniMax-M3.1-Flash": "minimax-3.1-flash-m",
+    "alias:space-bunny": "minimax-3.1-flash-m",
+    "alias:ox-alpha": "glm-5.3-flash",
+    "alias:x-preview-f": "glm-5.3-flash",
     "fp:glm:5.3:flash:": "glm-5.3-flash",
     "fp:grok:4.6:base:": "grok-4.6",
     "fp:longcat:2.0:base:": "longcat-2.0",
@@ -3526,7 +3546,9 @@
     "fp:qwq:0:plus:": "qwq-plus",
     "fp:jev:1.13:base:": "jev-1.13",
     "fp:jev:1.14:base:": "jev-1.14",
+    "fp:minimax:3.1:flash:m": "minimax-3.1-flash-m",
     "fp:muse:0:base:spark-contributor": "muse-1.2-spark-contributor",
+    "fp:space:0:base:bunny": "minimax-3.1-flash-m",
     "fp:gpt:20:base:ossb": "gpt-20-ossb",
     "fp:gpt:4:base:": "gpt-4",
     "fp:o:1:preview:": "o-1-preview",
@@ -3540,6 +3562,7 @@
     "fp:gemini:2.5:flash:": "gemini-2.5-flash",
     "fp:gemini:2.5:lite:flash": "gemini-2.5-lite-flash",
     "fp:gemini:2.0:flash:": "gemini-2.0-flash",
-    "fp:gemini:2.0:lite:flash": "gemini-2.0-lite-flash"
+    "fp:gemini:2.0:lite:flash": "gemini-2.0-lite-flash",
+    "fp:nemotron:3:base:ultra-550b-a55b": "nemotron-3-ultra"
   }
 }

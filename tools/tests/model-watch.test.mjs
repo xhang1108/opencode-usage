@@ -6,9 +6,11 @@ import { join } from "node:path";
 
 import {
   extractIds,
+  extractModels,
   diffModels,
   loadSnapshot,
   snapshotContent,
+  snapshotIds,
   summaryMarkdown,
   assertNotSuspiciousShrink,
   watchOne,
@@ -19,6 +21,23 @@ const list = (ids) => ({ object: "list", data: ids.map((id) => ({ id, object: "m
 test("extractIds sorts, dedupes and drops blank ids", () => {
   const ids = extractIds(list(["b", "a", "b", "  ", "c"]));
   assert.deepEqual(ids, ["a", "b", "c"]);
+});
+
+test("extractModels keeps the display name next to a routing id", () => {
+  const models = extractModels({
+    object: "list",
+    data: [
+      { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 3 Ultra" },
+      { id: "MiniMaxAI/MiniMax-M3", name: "MiniMax M3" },
+      { id: "bare-id" },
+      { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "duplicate ignored" },
+    ],
+  });
+  assert.deepEqual(models, [
+    { id: "MiniMaxAI/MiniMax-M3", name: "MiniMax M3" },
+    { id: "bare-id", name: "" },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 3 Ultra" },
+  ]);
 });
 
 test("extractIds keeps provider-prefixed ids verbatim", () => {
@@ -111,6 +130,48 @@ test("assertNotSuspiciousShrink returns the verdict instead of throwing for a wa
   assert.match(verdict.message, /dropped 3 -> 1/);
   // A warn source still reports growth-free drops as null.
   assert.equal(assertNotSuspiciousShrink(["a"], ["a", "b"], { policy: "warn" }), null);
+});
+
+test("watchOne keeps names for a names source and diffs by id", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "model-watch-"));
+  try {
+    const path = join(dir, "models.snapshot.json");
+    const fetchNames = async () => extractModels({
+      object: "list",
+      data: [
+        { id: "lab/model-a", name: "Model A" },
+        { id: "lab/model-b", name: "Model B" },
+      ],
+    });
+
+    const first = await watchOne("commandcode", { path, fetchIds: fetchNames });
+    assert.equal(first.wrote, true);
+    assert.equal(first.baseline, true);
+    assert.deepEqual(loadSnapshot(path).models, [
+      { id: "lab/model-a", name: "Model A" },
+      { id: "lab/model-b", name: "Model B" },
+    ]);
+
+    // Same ids, one renamed: the set did not change, so the snapshot is a no-op
+    // (the name is a display label, not a priced fact).
+    const before = readFileSync(path, "utf8");
+    const renamed = async () => extractModels({
+      object: "list",
+      data: [
+        { id: "lab/model-a", name: "Model A (new label)" },
+        { id: "lab/model-b", name: "Model B" },
+      ],
+    });
+    const second = await watchOne("commandcode", { path, fetchIds: renamed });
+    assert.equal(second.changed, false);
+    assert.equal(readFileSync(path, "utf8"), before);
+
+    // snapshotIds reads both shapes.
+    assert.deepEqual(snapshotIds(loadSnapshot(path)), ["lab/model-a", "lab/model-b"]);
+    assert.deepEqual(snapshotIds({ models: ["x", "y"] }), ["x", "y"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("watchOne refuses a short payload and leaves the snapshot untouched", async () => {

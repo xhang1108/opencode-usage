@@ -77,6 +77,14 @@ export const VENDORS = {
     dir: "extension/vendors/tencent-official",
     parser: "extension/vendors/tencent-official/pricing-page.js",
   },
+  "minimax-official": {
+    // The docs path /docs/guides/pricing-paygo 308-redirects to this .md.
+    // MiniMax owns the model, so this is the price of record for MiniMax-M3.1-Flash
+    // (the model behind opencode's Space Bunny, revealed 2026-10-19).
+    url: "https://platform.minimax.io/docs/pricing/overview.md",
+    dir: "extension/vendors/minimax-official",
+    parser: "extension/vendors/minimax-official/pricing-page.js",
+  },
   "typesafe-official": {
     url: "https://docs.typesafe.ai/models.md",
     dir: "extension/vendors/typesafe-official",

@@ -12,8 +12,9 @@ import { wireTableSort, renderWorkspaceTable, renderModelTable } from "./views/t
 import { createTimeReminder } from "./views/time-reminder.js";
 import { initDecorBg } from "./views/decor.js";
 import { fmtMoney, escHTML, workspaceName } from "./views/format.js";
-import { readSettings, loadPricing, loadUnifiedPreset, isSourceEnabled, saveVendorSettings, saveUnifiedPricing, saveDefaultCrawl, saveWorkspaceLabels, saveUnmappedFirstSeen, saveSpendEntries } from "./settings/store.js";
+import { readSettings, loadPricing, loadUnifiedPreset, isSourceEnabled, saveVendorSettings, saveUnifiedPricing, saveUnifiedPricingBackup, loadUnifiedPricingBackup, saveDefaultCrawl, saveWorkspaceLabels, saveUnmappedFirstSeen, saveSpendEntries } from "./settings/store.js";
 import { normalizeUnifiedPricing, buildUnifiedIndex, priceUnified, unifiedRateModels } from "../shared/unified.js";
+import { computePresetDrift } from "../shared/preset-drift.js";
 import { createSettingsModal } from "./settings/tabs.js";
 import { renderGeneral } from "./settings/general.js";
 import { renderVendors } from "./settings/vendors.js";
@@ -51,6 +52,15 @@ let dataReady = false;
 // on them (the unpriced-model set) recompute only then — not on every filter.
 let dataVersion = 0;
 let unpricedCache = { version: -1, set: new Set() };
+
+// The shipped pricelist, fetched once per page (an extension update means a new
+// page, so this cannot go stale across versions) and compared against the
+// stored one to spot users whose saved list missed an update.
+let shippedPreset = null;
+let driftCache = { version: -1, value: null };
+// "idle" until the notice's one-click update runs, then "done" while Undo is
+// still offered (reset back to "idle" by Undo).
+let presetResetState = "idle";
 
 // Table sort state. dir: 1 = ascending, -1 = descending.
 const sortState = {
@@ -90,6 +100,19 @@ function globalUnpricedModels() {
   const set = computeUnpricedSet(enabledRecords(), price);
   unpricedCache = { version: dataVersion, set };
   return set;
+}
+
+// How far the stored pricelist has fallen behind the shipped one, for the
+// dashboard notice. Memoized like the unpriced set: it only depends on the
+// priced config, the stored list and the records.
+function globalPresetDrift() {
+  if (driftCache.version === dataVersion) return driftCache.value;
+  const value =
+    settings && settings.unifiedStored && unifiedPricing.enabled && shippedPreset
+      ? computePresetDrift({ stored: unifiedPricing, shipped: shippedPreset, records: enabledRecords() })
+      : null;
+  driftCache = { version: dataVersion, value };
+  return value;
 }
 
 // Record first-seen timestamps for the current unpriced set (pruning the ones
@@ -158,8 +181,15 @@ function renderSettingsPage(tab) {
 
 async function reloadSettings() {
   settings = await readSettings();
+  // Fetched once per page: it is both the fallback when nothing is stored and
+  // the yardstick the stored list is compared against (globalPresetDrift). A
+  // failed/empty read stays null so the update offer can never wipe the list.
+  if (!shippedPreset) {
+    const shipped = await loadUnifiedPreset();
+    shippedPreset = shipped.groups.length > 0 ? shipped : null;
+  }
   // No stored pricelist yet -> start from the shipped default preset.
-  unifiedPricing = settings.unifiedStored ? settings.unifiedPricing : await loadUnifiedPreset();
+  unifiedPricing = settings.unifiedStored ? settings.unifiedPricing : normalizeUnifiedPricing(shippedPreset);
   settings.unifiedPricing = unifiedPricing;
   unifiedIndex = buildUnifiedIndex(unifiedPricing);
   pricing = await loadPricing(settings);
@@ -240,17 +270,46 @@ function renderDashboard(skipCharts, aggOverride) {
 
   const unpricedEl = document.getElementById("unpricedList");
   if (unpricedEl) {
-    if (unpricedModels.size > 0) {
+    // A stored list saved before an extension update can leave models unpriced
+    // (or mispriced) with no hint that a newer shipped list fixes it. Offer the
+    // refresh right here so the user never has to find Settings -> Pricing.
+    const drift = globalPresetDrift();
+    const offerUpdate = !!(drift && drift.suggest && presetResetState === "idle");
+    const showUndo = presetResetState === "done";
+    if (unpricedModels.size > 0 || offerUpdate || showUndo) {
+      const head =
+        unpricedModels.size > 0
+          ? `<strong>Unpriced models (${unpricedModels.size})</strong>` +
+            `<span class="notice-badges">` +
+            Array.from(unpricedModels)
+              .sort()
+              .map((m) => `<span class="badge">${escHTML(m)}</span>`)
+              .join("") +
+            `</span>` +
+            `<span class="notice-hint">— Assign them to a group in Settings → Pricing to price them${oldestDays > 0 ? ` (oldest ${oldestDays}d)` : ""}.</span>`
+          : `<strong>Price list out of date</strong>`;
+      let action = "";
+      if (offerUpdate) {
+        const detail =
+          drift.recoverableCount > 0
+            ? `The shipped price list prices <strong>${drift.recoverableCount}</strong> of these models.`
+            : `The shipped price list bills <strong>${drift.repricedCount}</strong> of your models differently.`;
+        // A custom assignment the shipped list does not have would be lost, so
+        // say it up front instead of letting the reset quietly unprice it.
+        const loss =
+          drift.lostCount > 0
+            ? ` It would leave ${drift.lostCount} model${drift.lostCount === 1 ? "" : "s"} you priced yourself unpriced.`
+            : "";
+        action =
+          `<div class="notice-action"><span>${detail}${loss} Replaces your saved list with the shipped one; Undo restores it.</span>` +
+          `<button type="button" class="btn btn-primary" id="presetRefresh">Update price list</button></div>`;
+      } else if (showUndo) {
+        action =
+          `<div class="notice-action"><span>Price list updated to the shipped preset.</span>` +
+          `<button type="button" class="btn btn-secondary" id="presetUndo">Undo</button></div>`;
+      }
       unpricedEl.hidden = false;
-      unpricedEl.innerHTML =
-        `<strong>Unpriced models (${unpricedModels.size})</strong>` +
-        `<span class="notice-badges">` +
-        Array.from(unpricedModels)
-          .sort()
-          .map((m) => `<span class="badge">${escHTML(m)}</span>`)
-          .join("") +
-        `</span>` +
-        `<span class="notice-hint">— Assign them to a group in Settings → Pricing to price them${oldestDays > 0 ? ` (oldest ${oldestDays}d)` : ""}.</span>`;
+      unpricedEl.innerHTML = head + action;
     } else {
       unpricedEl.hidden = true;
     }
@@ -558,6 +617,48 @@ async function importOpencodeJSON(text) {
 // local import how-to and export command live in Settings -> How it works
 // (opencode); the JSON itself goes through the one Import Usage entry (see
 // importOpencodeJSON above).
+
+// ===== One-click price list update (dashboard notice) =====
+// The stored list was saved by an older version. Back it up first so the reset
+// is reversible from the same notice, then write the shipped list with the
+// user's on/off choice kept.
+async function applyShippedPreset() {
+  if (!shippedPreset) return;
+  await saveUnifiedPricingBackup(unifiedPricing);
+  const preset = normalizeUnifiedPricing(shippedPreset);
+  preset.enabled = unifiedPricing.enabled;
+  await saveUnifiedPricing(preset);
+  presetResetState = "done";
+  await settingsCtx.reload();
+}
+
+async function undoShippedPreset() {
+  const prev = await loadUnifiedPricingBackup();
+  if (!prev) return;
+  await saveUnifiedPricing(prev);
+  presetResetState = "idle";
+  await settingsCtx.reload();
+}
+
+document.getElementById("unpricedList").addEventListener("click", (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+  if (!btn || btn.disabled) return;
+  // A second click before the reload would back up the freshly reset list and
+  // lose the original, so the button is one-shot.
+  if (btn.id === "presetRefresh") {
+    btn.disabled = true;
+    applyShippedPreset().catch((err) => {
+      btn.disabled = false;
+      console.error(err);
+    });
+  } else if (btn.id === "presetUndo") {
+    btn.disabled = true;
+    undoShippedPreset().catch((err) => {
+      btn.disabled = false;
+      console.error(err);
+    });
+  }
+});
 
 wireTableSort({ sortState, onChange: () => { if (dataReady) renderDashboard(true); } });
 charts.wire();

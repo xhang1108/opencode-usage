@@ -1,14 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 — 2026-10-24
+
+This release keeps prices current after an update: the dashboard now detects a saved price list that fell behind the shipped one and refreshes it in one click. Price-watch adds MiniMax and resolves every stealth label it knows, and model-watch reads ids and names separately.
 
 ### Added
 
+- **Stale price list detection with a one-click refresh.** The Pricing board saves the whole price list the first time it is touched (even the master toggle), so an update that improves `shared/unified.preset.json` never reached that user until they pressed "Reset to preset" — a step nothing told them about. `shared/preset-drift.js` (pure, tested) now compares the saved list with the shipped one against the user's own records: unpriced models the shipped list can price, plus models whose bill would change. When the gap is material (≥3 recoverable or ≥5 repriced models) the dashboard's unpriced notice offers **Update price list** directly — no Settings trip — naming what it fixes and how many self-priced models it would unprice, and keeps the replaced list in `unifiedPricingPrev` so the same notice can **Undo** it. The reset only swaps the price list; the unified-pricing on/off choice and every record are untouched.
+- **Price-watch: MiniMax official (`minimax-official`)** — daily crawl of `platform.minimax.io/docs/pricing/overview.md` (the `/docs/guides/pricing-paygo` path 308-redirects there), committed to `extension/vendors/minimax-official/price-snapshots/`. Reads only the Standard tier (Priority is 1.5x `service_tier` and must not overwrite the list price), resolves `~~old~~ new` promos to the live price, and folds the `> 512k` row into MiniMax-M3's 512k tier. No cache-write column is published, so `cacheWrite` stays 0.
+- **Every Space Bunny spelling prices as MiniMax M3.1 Flash.** MiniMax confirmed on 2026-10-19 that Space Bunny was M3.1 Flash under an anonymous label, and opencode renamed the listing to `minimax-m3.1-flash-free` (old id `space-bunny-free` deprecated). The reveal is declared once in `tools/model-aliases.json` as a vendor-neutral token, so `opencode:space-bunny`, `commandcode:stealth/space-bunny-alpha`, `openrouter:alpha-space-bunny-test` and any future spelling resolve to the official $0.15 / $0.60 / $0.015 group - never the third-party spacebunnymodel.com table removed in 7d73035.
 - **Price-watch: TypeSafe Jev (`typesafe-official`)** — daily crawl of `docs.typesafe.ai/models.md` for Jev 1.13/1.14 pricing ($0.042/Mtok input, output free), committed to `extension/vendors/typesafe-official/price-snapshots/` and folded into the unified preset.
 
 ### Changed
 
-- **Model watch no longer tracks CommandCode.** Its catalog genuinely rotates (96 → 92 models on 2026-10-22/23), so the `block` shrink policy left the daily run red with nothing to act on. Only `opencode` (the `warn` source) remains, the `allow_shrink` dispatch input is gone, and a red run now means the fetch or payload broke.
+- **Stealth reveals are data, not per-vendor literals.** `tools/model-aliases.json` maps a lowercase token (`space-bunny`, `ox-alpha`, `x-preview-f`) to its real model; the builder unions that fingerprint with the canonical model's and emits an internal `alias:<token>` assign key, and `shared/unified.js` resolves an unassigned id whose text contains the token (longest match wins). The old `AUTHORED_FOLDS` stealth rows (opencode/OpenRouter ox-alpha and Space Bunny) are gone, so a new vendor reporting the same label needs no code change; alias keys are never shown as model chips or picker entries.
+- **MiniMax-M3's hand-transcribed rate is gone**; the new parser owns it (identical numbers), so `PREFERRED_BY_SERIES.minimax` keeps the official table ahead of any resale row. M2.5/M2.7 stay hand-transcribed: the page has delisted them (they retire 2026-11-18), and dropping their price would leave historical usage unpriced.
+- **CommandCode is watched again, now as a names-only catalog under the `warn` policy.** b8dd9c6 dropped it because a rotating catalog under the `block` policy left the daily run red with nothing to act on. It returns with `names: true`: `extension/vendors/commandcode/models.snapshot.json` keeps `{id, name}`, and `build-unified-preset.mjs` unions `fp(id)` with `fp(name)` **only when the name already has a price**. Routing ids that carry deployment noise therefore adopt the price of the model they name - `nvidia/nemotron-3-ultra-550b-a55b` ("Nemotron 3 Ultra", $0.63/M) now prices with no per-id entry - while an unpriced or delisted name can never invent one. A drop is reported, never blocked.
 
 ### Fixed
 

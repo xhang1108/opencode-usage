@@ -13,6 +13,9 @@ export const STORAGE_KEYS = {
   registry: "vendorRegistry",
   vendors: "vendorSettings",
   unified: "unifiedPricing",
+  // One-step undo for "Update price list" (the whole-list reset offered from the
+  // dashboard notice). Machine-local: never exported by shared/backup.js.
+  unifiedPrev: "unifiedPricingPrev",
   defaultCrawl: "defaultCrawl",
   workspaceLabels: "workspaceLabels",
   unmappedFirstSeen: "unmappedFirstSeen",
@@ -62,6 +65,17 @@ export async function saveVendorSettings(vendorSettings) {
 
 export async function saveUnifiedPricing(unifiedPricing) {
   await chrome.storage.local.set({ [STORAGE_KEYS.unified]: normalizeUnifiedPricing(unifiedPricing) });
+}
+
+// Keep the pricelist that is about to be replaced so the dashboard's one-click
+// "Update price list" can be undone (null when nothing was backed up).
+export async function saveUnifiedPricingBackup(unifiedPricing) {
+  await chrome.storage.local.set({ [STORAGE_KEYS.unifiedPrev]: normalizeUnifiedPricing(unifiedPricing) });
+}
+
+export async function loadUnifiedPricingBackup() {
+  const raw = (await chrome.storage.local.get(STORAGE_KEYS.unifiedPrev))[STORAGE_KEYS.unifiedPrev];
+  return raw == null ? null : normalizeUnifiedPricing(raw);
 }
 
 export async function saveDefaultCrawl(source) {

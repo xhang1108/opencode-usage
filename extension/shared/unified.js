@@ -24,6 +24,16 @@ const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 export const FINGERPRINT_PREFIX = "fp:";
 const isFingerprintKey = (key) => key.startsWith(FINGERPRINT_PREFIX);
 
+// Assign keys with this prefix are declared identity aliases (see
+// tools/model-aliases.json): "alias:<token>" -> groupId. A stealth label has no
+// structure, so its reveal is data; any id CONTAINING the token resolves to the
+// group, which is what covers "stealth/space-bunny-alpha" without naming the
+// vendor. Never shown as model chips either.
+export const ALIAS_PREFIX = "alias:";
+const isAliasKey = (key) => key.startsWith(ALIAS_PREFIX);
+const isInternalKey = (key) => isFingerprintKey(key) || isAliasKey(key);
+const aliasToken = (key) => key.slice(ALIAS_PREFIX.length).toLowerCase();
+
 export function normalizeUnifiedPricing(value) {
   const src = isPlainObject(value) ? value : {};
   const groups = [];
@@ -60,19 +70,38 @@ export function makeGroupId(existing = new Set()) {
 // internal and never listed as models.
 export function modelsInGroup(unified, groupId) {
   return Object.entries((unified && unified.assign) || {})
-    .filter(([key, g]) => g === groupId && !isFingerprintKey(key))
+    .filter(([key, g]) => g === groupId && !isInternalKey(key))
     .map(([key]) => key)
     .sort();
 }
 
-// The assign key a "<source>:<model>" resolves to: the exact key, else the
-// fingerprint fallback. Returns null when neither is present. Shared by the
-// pricing path and the dashboard board so both agree on what is assigned.
+// The longest declared alias token contained in an id, or null. One pass over
+// the keys; used by both the key resolver and the pricing index so an id the
+// builder never enumerated still lands on its group.
+function matchAliasKey(keys, key) {
+  const needle = String(key).toLowerCase();
+  let best = null;
+  let bestLen = 0;
+  for (const candidate of keys) {
+    if (!isAliasKey(candidate)) continue;
+    const token = aliasToken(candidate);
+    if (token.length <= bestLen || !needle.includes(token)) continue;
+    best = candidate;
+    bestLen = token.length;
+  }
+  return best;
+}
+
+// The assign key a "<source>:<model>" resolves to: the exact key, then the
+// fingerprint fallback, then a declared alias token contained in the id.
+// Returns null when none is present. Shared by the pricing path and the
+// dashboard board so both agree on what is assigned.
 export function resolveAssignKey(assign, key) {
   if (!assign) return null;
   if (assign[key]) return key;
   const fp = FINGERPRINT_PREFIX + parse(key).fingerprint;
-  return assign[fp] ? fp : null;
+  if (assign[fp]) return fp;
+  return matchAliasKey(Object.keys(assign), key);
 }
 
 // The group id a "<source>:<model>" prices against, or null when unassigned.
@@ -137,6 +166,12 @@ export function priceUnified(record, index) {
   if (!rates) {
     targetId = FINGERPRINT_PREFIX + parse(key).fingerprint;
     rates = index && index.get(targetId);
+    if (!rates) {
+      // Declared identity alias (stealth label) - the id itself carries no
+      // fingerprint signal, so match the shipped tokens.
+      targetId = index ? matchAliasKey(index.keys(), key) : null;
+      rates = targetId && index.get(targetId);
+    }
   }
   if (!rates) return { cost: 0, savings: 0, window: null, unpriced: true, targetId: null, priceBasis: "unmapped" };
   const out = priceFromRates(record, rates, "unified");
@@ -156,7 +191,7 @@ export function unifiedRateModels(unified) {
   const pointed = new Set();
   for (const [key, groupId] of Object.entries((unified && unified.assign) || {})) {
     pointed.add(groupId);
-    if (isFingerprintKey(key)) continue; // internal, not a display name
+    if (isInternalKey(key)) continue; // internal, not a display name
     const colon = key.indexOf(":");
     const name = colon === -1 ? key : key.slice(colon + 1);
     const list = namesByGroup.get(groupId);

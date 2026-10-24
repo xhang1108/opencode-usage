@@ -199,11 +199,16 @@ test("unifiedRateModels skips groups no model points at", () => {
   assert.deepEqual(unifiedRateModels(unified).map((r) => r.model), ["g"]);
 });
 
-test("resolveAssignKey prefers the exact key, then the fingerprint fallback", () => {
-  const assign = { "opencode:deepseek-v4-flash": "g", "fp:hy:3:base:": "h" };
+test("resolveAssignKey prefers the exact key, then the fingerprint, then a declared alias", () => {
+  const assign = { "opencode:deepseek-v4-flash": "g", "fp:hy:3:base:": "h", "alias:space-bunny": "m" };
   assert.equal(resolveAssignKey(assign, "opencode:deepseek-v4-flash"), "opencode:deepseek-v4-flash");
   assert.equal(resolveAssignKey(assign, "commandcode:tencent/hy3-paid"), "fp:hy:3:base:");
+  // A stealth label has no fingerprint signal, so the declared token matches by
+  // substring - any vendor prefix, any suffix.
+  assert.equal(resolveAssignKey(assign, "commandcode:stealth/space-bunny-alpha"), "alias:space-bunny");
+  assert.equal(resolveAssignKey(assign, "openrouter:alpha-space-bunny-test"), "alias:space-bunny");
   assert.equal(resolveAssignKey(assign, "mystery:nope"), null);
+  assert.equal(groupIdForKey(assign, "commandcode:stealth/space-bunny-alpha"), "m");
   assert.equal(groupIdForKey(assign, "commandcode:tencent/hy3-paid"), "h");
   assert.equal(groupIdForKey(assign, "mystery:nope"), null);
 });
@@ -236,12 +241,86 @@ test("the board agrees with pricing: structurally-priced vendor ids are assigned
     priceUnified({ ...rec, source: "commandcode", model: "meituan/LongCat-2.0:free" }, index).unpriced,
     false,
   );
-  // Space Bunny has no official price source (spacebunnymodel.com is a
-  // third-party site, not the model owner), so no parser watches it and it
-  // stays unpriced.
-  assert.equal(groupIdForKey(unified.assign, "opencode:space-bunny"), null);
-  const bunny = priceUnified({ ...rec, source: "opencode", model: "space-bunny" }, index);
-  assert.equal(bunny.unpriced, true, "opencode:space-bunny stays unpriced: no official source");
+  // Space Bunny was MiniMax M3.1 Flash under an anonymous label; MiniMax named
+  // it on 2026-10-19 and opencode renamed the listing to
+  // minimax-m3.1-flash-free. The token is declared ONCE in
+  // tools/model-aliases.json, so every vendor spelling resolves - opencode's
+  // stealth id, CommandCode's routed id and OpenRouter's test listing - with no
+  // per-vendor entry. Price is the official $0.15/$0.60/$0.015, never
+  // spacebunnymodel.com (a third-party site that is not the model owner).
+  const bunny = groupIdForKey(unified.assign, "opencode:space-bunny");
+  assert.ok(bunny, "opencode:space-bunny should resolve to the MiniMax group");
+  assert.equal(bunny, groupIdForKey(unified.assign, "minimax-official:MiniMax-M3.1-Flash"));
+  assert.equal(bunny, groupIdForKey(unified.assign, "opencode:space-bunny-free"));
+  assert.equal(bunny, groupIdForKey(unified.assign, "opencode:minimax-m3.1-flash-free"));
+  for (const [source, model] of [
+    ["commandcode", "stealth/space-bunny-alpha"],
+    ["openrouter", "stealth/space-bunny-alpha"],
+    ["openrouter", "alpha-space-bunny-test"],
+  ]) {
+    assert.equal(groupIdForKey(unified.assign, `${source}:${model}`), bunny, `${source}:${model} -> ${bunny}`);
+    assert.equal(priceUnified({ ...rec, source, model }, index).unpriced, false, `${source}:${model} must price`);
+  }
+  const pricedBunny = priceUnified({ ...rec, source: "opencode", model: "space-bunny" }, index);
+  assert.equal(pricedBunny.unpriced, false, "opencode:space-bunny prices at the M3.1 Flash list rate");
+  assert.equal(pricedBunny.cost, 0.15, "1M input tokens at $0.15/M");
+
+  // Alias keys are internal: no model chip, no peak/off-peak picker entry.
+  assert.ok(!modelsInGroup(unified, bunny).some((k) => k.startsWith("alias:")));
+  assert.ok(!unifiedRateModels(unified).some((r) => r.model.startsWith("alias:")));
+});
+
+test("model-aliases.json is well-formed and every reveal points at a priced model", () => {
+  const aliases = JSON.parse(fs.readFileSync(new URL("../../tools/model-aliases.json", import.meta.url))).aliases;
+  const preset = JSON.parse(fs.readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
+  const unified = normalizeUnifiedPricing(preset);
+  const seen = new Set();
+  for (const entry of aliases) {
+    assert.equal(typeof entry.canonical, "string", "canonical must be a string");
+    assert.ok(Array.isArray(entry.match) && entry.match.length > 0, `${entry.canonical}: match list required`);
+    for (const token of entry.match) {
+      assert.equal(token, token.toLowerCase(), `${token} must be lowercase`);
+      assert.ok(!seen.has(token), `duplicate alias token ${token}`);
+      seen.add(token);
+      assert.ok(unified.assign[`alias:${token}`], `alias:${token} missing from the shipped preset - re-run the builder`);
+    }
+    // The canonical model must actually be priced, or the alias resolves to nothing.
+    const groupId = unified.assign[`alias:${entry.match[0]}`];
+    assert.ok(unified.groups.some((g) => g.id === groupId && g.rates.length > 0), `${entry.canonical} has no rates`);
+  }
+});
+
+test("vendor catalogs: a routing id prices wherever its display name prices", () => {
+  // CommandCode publishes routing ids (`nvidia/nemotron-3-ultra-550b-a55b`) next
+  // to the canonical display name ("Nemotron 3 Ultra"). The builder unions the
+  // two fingerprints, so the id lands on the name's group without any per-id
+  // entry here - this test guards that the catalog is actually read.
+  const preset = JSON.parse(fs.readFileSync(new URL("../../extension/shared/unified.preset.json", import.meta.url)));
+  const unified = normalizeUnifiedPricing(preset);
+  const index = buildUnifiedIndex(unified);
+  const catalog = JSON.parse(fs.readFileSync(new URL("../../extension/vendors/commandcode/models.snapshot.json", import.meta.url)));
+  const rec = { input: 1000000, output: 0, cacheRead: 0, cacheWrite: 0, time: "2026-10-15T12:00:00Z" };
+
+  let adopted = 0;
+  for (const { id, name } of catalog.models) {
+    if (!name) continue;
+    const nameGroup = groupIdForKey(unified.assign, name);
+    if (!nameGroup) continue; // the catalogue name carries no price of ours
+    assert.equal(groupIdForKey(unified.assign, `commandcode:${id}`), nameGroup, `${id} must follow its name`);
+    adopted++;
+  }
+  assert.ok(adopted > 0, "no catalog id was adopted - is the snapshot shape stale?");
+
+  // The concrete win: parameter-sized id -> the priced 'Nemotron 3 Ultra' group.
+  const nemotron = priceUnified({ ...rec, source: "commandcode", model: "nvidia/nemotron-3-ultra-550b-a55b" }, index);
+  assert.equal(nemotron.unpriced, false);
+  assert.equal(nemotron.cost, 0.63);
+
+  // A name with no price of ours must not borrow one: `-fast` SKUs are distinct
+  // priced models, and stealth labels stay Fail-Closed until a reveal exists.
+  for (const model of ["deepseek/deepseek-v4-flash-fast", "stealth/glyph-cluster:free"]) {
+    assert.equal(priceUnified({ ...rec, source: "commandcode", model }, index).unpriced, true, `${model} must stay unpriced`);
+  }
 });
 
 test("vendor alias folds cover display labels the parser cannot resolve", () => {

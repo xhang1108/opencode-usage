@@ -1,0 +1,29 @@
+{
+  "$comment": [
+    "Vendor-neutral identity reveals, consumed by tools/build-unified-preset.mjs.",
+    "A stealth / preview label carries no structure a fingerprint can derive",
+    "(\"space-bunny\" says nothing about MiniMax), so the reveal is declared once",
+    "here as DATA - never as a per-vendor \"<source>:<model>\" literal in code.",
+    "Builder: unions fingerprint(match) with fingerprint(canonical) and emits",
+    "assign[\"alias:<match>\"] pointing at the canonical model's group. Runtime",
+    "(shared/unified.js): an unassigned id whose text contains a match token",
+    "resolves to that group (longest token wins), so every spelling any vendor",
+    "reports - opencode space-bunny, commandcode stealth/space-bunny-alpha,",
+    "openrouter alpha-space-bunny-test - resolves with no new line anywhere.",
+    "match tokens are lowercase substrings, unique across entries; canonical must",
+    "already have a price group; evidence says why they are the same model."
+  ],
+  "aliases": [
+    {
+      "match": ["space-bunny"],
+      "canonical": "MiniMax-M3.1-Flash",
+      "evidence": "https://github.com/anomalyco/opencode/pull/57021",
+      "note": "MiniMax revealed on 2026-10-19 that Space Bunny was an early version of M3.1 Flash; opencode renamed the listing to minimax-m3.1-flash-free and deprecated space-bunny-free. Seen as opencode space-bunny(-free) plus stealth/space-bunny-alpha and alpha-space-bunny-test on the routers. Zen's free window ended 2026-10-22; the official list price still applies to that usage."
+    },
+    {
+      "match": ["ox-alpha", "x-preview-f"],
+      "canonical": "glm-5.3-flash",
+      "note": "Earlier stealth reveal: ox-alpha and the x-preview-f listing were GLM 5.3 Flash under anonymous labels. These used to be per-vendor AUTHORED_FOLDS lines."
+    }
+  ]
+}

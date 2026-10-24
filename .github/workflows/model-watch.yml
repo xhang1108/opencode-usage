@@ -1,11 +1,13 @@
 name: Model watch
 
-# Daily model-id watch: fetch the public models endpoint (opencode Go), diff
-# against the committed snapshot, and commit ONLY the snapshot file when the set
-# changed. Git history of vendors/opencode/models.snapshot.json is the dated
-# model add/remove log. No pricing data is touched.
+# Daily model-catalog watch: fetch each vendor's public models endpoint
+# (opencode Go, CommandCode Provider), diff against the committed snapshot, and
+# commit ONLY the snapshot files when a set changed. Git history of
+# vendors/<source>/models.snapshot.json is the dated model add/remove log. No
+# pricing data is touched; the unified builder reads CommandCode's `name` field
+# to fingerprint routing ids against their canonical model name.
 #
-# opencode's catalog rotates for real, so its shrink policy is "warn": a drop is
+# Both catalogs rotate for real, so their shrink policy is "warn": a drop is
 # recorded and reported, never blocked. The run only fails when the fetch or the
 # payload itself is broken.
 on:
@@ -37,13 +39,13 @@ jobs:
       - name: Diff model snapshots
         run: node tools/model-watch.mjs
 
-      # Fixed path only — never `git add -A`, so this can only ever commit the
-      # watcher state file.
+      # Fixed paths only - never `git add -A`, so this can only ever commit the
+      # watcher state files.
       - name: Commit changes
         run: |
           git config user.name "model-watch"
           git config user.email "model-watch@users.noreply.github.com"
-          git add extension/vendors/opencode/models.snapshot.json
+          git add extension/vendors/*/models.snapshot.json
           if git diff --cached --quiet; then
             echo "no model changes"
           else

@@ -21,7 +21,7 @@
 // over any vendor table; they are official list prices transcribed by hand for
 // models no daily parser covers (Gemini, legacy GPT, …).
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { parse } from "../extension/shared/model-fingerprint.js";
@@ -38,6 +38,7 @@ const SOURCES = [
   "qwen-official",
   "tencent-official",
   "typesafe-official",
+  "minimax-official",
 ];
 const FINGERPRINT_PREFIX = "fp:";
 
@@ -99,6 +100,7 @@ const PREFERRED_BY_SERIES = {
   qwen: "qwen-official",
   hy: "tencent-official",
   jev: "typesafe-official",
+  minimax: "minimax-official",
 };
 function preferredSource(fp) {
   return PREFERRED_BY_SERIES[String(fp).split(":")[0]] || null;
@@ -235,13 +237,14 @@ const OVERRIDE_RATES = {
   // kimi-k3); priced as the underlying k3 model per author decision.
   "kimi-3-k-7-24-2x": [{ from: null, pricing: { flat: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3 } } }],
 
-  // MiniMax — official pay-as-you-go pricing
-  // (https://platform.minimax.io/docs/guides/pricing-paygo). m3 is tiered by
-  // context length (<=512k permanently half price); cache write is not listed
-  // for m3, so 0.
+  // MiniMax — official pay-as-you-go pricing. M3 / M3.1-Flash are parsed daily
+  // by `minimax-official` (platform.minimax.io/docs/pricing/overview.md): M3 is
+  // tiered by context length (<=512k permanently half price), cache write is not
+  // published for either model so the parser writes 0. The two rows below are
+  // models the page has delisted (M2.5/M2.7 retire 2026-11-18) - kept by hand so
+  // historical usage still prices.
   "minimax-2.5-m": [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.03, cacheWrite: 0.375 } } }],
   "minimax-2.7-m": [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 } } }],
-  "minimax-3-m": [{ from: null, pricing: { flat: { tier: { limit: 512000, low: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 }, high: { input: 0.6, output: 2.4, cacheRead: 0.12, cacheWrite: 0 } } } } }],
 
   // Muse Spark — Meta AI official rates (https://dev.meta.ai/docs/pricing-rate-limits).
   // Spark standard price (the group previously carried the contributor price);
@@ -281,11 +284,13 @@ function geminiPro() {
 // Pure parsing cannot know these, so they are declared here, together, and
 // audited in one place. Everything else is derived automatically.
 //
-// Stealth / anonymous deployments that are really a known model underneath:
+// Stealth / anonymous deployments that are really a known model underneath live
+// in tools/model-aliases.json instead: the token -> canonical reveal is DATA, so
+// it is declared once for every vendor that reports the label, and the runtime
+// resolves unseen spellings by substring (see ALIAS_PREFIX in shared/unified.js).
+// Only same-family version folds stay here, because their fingerprint already
+// carries the shared structure.
 const AUTHORED_FOLDS = {
-  "openrouter:stealth/ox-alpha": "glm-5.3-flash",
-  "opencode:ox-alpha-free": "glm-5.3-flash",
-  "opencode:x-preview-f-free": "glm-5.3-flash",
   // Muse Spark contributor generations are one model (the 1.3 paid listing
   // supersedes 1.2; the parser would split them on the version). Carried over
   // from the pre-fingerprint ALIAS table.
@@ -294,6 +299,12 @@ const AUTHORED_FOLDS = {
   "opencode:muse-spark-1.3-contributor": "muse-spark-contributor",
   "opencode:muse-spark-1.3-contributor-free": "muse-spark-contributor",
 };
+
+// Declared identity reveals (stealth labels -> the real model). Each token is a
+// lowercase substring of a model id; the builder unions its fingerprint with the
+// canonical model's and emits `alias:<token>`, so one entry covers every vendor
+// spelling without a "<source>:<model>" literal anywhere.
+const MODEL_ALIASES = JSON.parse(readFileSync(resolve(root, "tools/model-aliases.json"), "utf8")).aliases || [];
 
 // Models whose shipped fallback price must be suppressed regardless of what the
 // vendor table carries (e.g. a withdrawn listing). Empty for now: Omen Alpha's
@@ -354,11 +365,66 @@ for (const [rawId, canonId] of Object.entries(AUTHORED_FOLDS)) {
   keyFp.set(rawId, a);
 }
 
+// Identity aliases: same idea, but declared once per token in
+// tools/model-aliases.json and vendor-neutral. The token's fingerprint joins the
+// canonical model's group, and the "alias:<token>" key is emitted so the runtime
+// can resolve every spelling the builder never enumerated.
+const aliasKeys = [];
+const aliasTokens = new Set();
+for (const entry of MODEL_ALIASES) {
+  const canonical = entry && entry.canonical;
+  if (typeof canonical !== "string" || !canonical) throw new Error("model-aliases: entry without a canonical model");
+  const canonFp = parse(canonical).fingerprint;
+  find(canonFp);
+  for (const raw of Array.isArray(entry.match) ? entry.match : []) {
+    const token = String(raw).toLowerCase();
+    if (!token) throw new Error(`model-aliases: empty match token for ${canonical}`);
+    if (aliasTokens.has(token)) throw new Error(`model-aliases: duplicate match token "${token}"`);
+    aliasTokens.add(token);
+    const fp = parse(token).fingerprint;
+    find(fp);
+    union(fp, canonFp);
+    const key = "alias:" + token;
+    keyFp.set(key, fp);
+    aliasKeys.push({ key, canonical });
+  }
+}
+
 for (const [id, rates] of Object.entries(OVERRIDE_RATES)) {
   const fp = parse(id).fingerprint;
   find(fp);
   targetCount.set(fp, (targetCount.get(fp) || 0) + 1);
   candidates.push({ key: FINGERPRINT_PREFIX + fp, fp, rates, source: "override" });
+}
+
+// --- Pass 1b: adopt a vendor catalog's canonical NAME ------------------------
+// Some vendors publish routing ids that carry deployment noise: CommandCode's
+// `nvidia/nemotron-3-ultra-550b-a55b` is "Nemotron 3 Ultra", and its id alone
+// fingerprints to a different component. Fingerprint BOTH and join the id to the
+// name's component - but only when the name already has a price, so a catalog
+// can never invent one. This is the vendor's own data, not a per-id table: a new
+// parameter-sized or renamed id needs no code change.
+//
+// Catalogues are discovered from disk (any vendors/<source>/models.snapshot.json),
+// not from SOURCES: a catalog vendor need not ship a rates.preset.json at all
+// (CommandCode prices entirely by structure).
+const pricedRoots = new Set(candidates.filter((c) => !isZeroRates(c.rates)).map((c) => find(c.fp)));
+const vendorsRoot = resolve(root, "extension/vendors");
+for (const dir of readdirSync(vendorsRoot, { withFileTypes: true })) {
+  if (!dir.isDirectory()) continue;
+  const catalogPath = resolve(vendorsRoot, dir.name, "models.snapshot.json");
+  if (!existsSync(catalogPath)) continue;
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
+  for (const entry of catalog.models || []) {
+    if (!entry || typeof entry !== "object" || !entry.id || !entry.name) continue;
+    const idFp = parse(`${dir.name}:${entry.id}`).fingerprint;
+    const nameFp = parse(entry.name).fingerprint;
+    find(idFp);
+    find(nameFp);
+    if (find(idFp) === find(nameFp)) continue;
+    if (!pricedRoots.has(find(nameFp))) continue; // the name carries no price
+    union(idFp, nameFp);
+  }
 }
 
 // --- Pass 2: pick one rate table per component -------------------------------
@@ -460,6 +526,11 @@ for (const [key, kf] of keyFp) {
 for (const fp of parent.keys()) {
   const id = rootToGroupId.get(find(fp));
   if (id) finalAssign[FINGERPRINT_PREFIX + fp] = id;
+}
+// An alias token whose canonical model has no group (unpriced) would silently
+// resolve to nothing at runtime, so refuse to ship the preset instead.
+for (const { key, canonical } of aliasKeys) {
+  if (!finalAssign[key]) throw new Error(`model-aliases: ${key} has no priced group (canonical ${canonical} is unpriced)`);
 }
 
 groups.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

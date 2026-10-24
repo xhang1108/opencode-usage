@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// tools/model-watch.mjs — daily model-id watcher (opencode Go).
-// Fetches the vendor's public models endpoint, diffs the ids against the
+// tools/model-watch.mjs - daily model-catalog watcher.
+// Fetches each vendor's public models endpoint, diffs the ids against the
 // committed snapshot (vendors/<source>/models.snapshot.json) and rewrites the
-// snapshot ONLY when the set changed. Pure fetch+diff — no pricing data.
+// snapshot ONLY when the set changed. Pure fetch+diff - no pricing data.
 //
-// The snapshot is this tool's state file (nothing in the extension runtime
-// reads it); git history of the snapshots is the dated model add/remove log.
+// The extension runtime never reads these snapshots; git history is the dated
+// model add/remove log, and tools/build-unified-preset.mjs reads the `name` of a
+// `names: true` source (CommandCode) to fingerprint routing ids against the
+// canonical model name.
 //
 // Safety: `extractIds` rejects malformed/empty payloads, but a truncated yet
 // valid list is indistinguishable from a real mass retirement — so a count
@@ -40,6 +42,18 @@ export const SOURCES = {
     // warn instead of failing the daily run.
     shrink: "warn",
   },
+  commandcode: {
+    label: "CommandCode",
+    // Public provider catalog (unauthenticated, the same one `cmd
+    // --list-models` prints). Ids are routing ids - `MiniMaxAI/MiniMax-M3`,
+    // `nvidia/nemotron-3-ultra-550b-a55b`, `stealth/glyph-cluster:free` - so the
+    // display `name` is kept too: the unified builder fingerprints it when the
+    // id alone carries deployment noise. Rotates openly, like opencode.
+    url: "https://api.commandcode.ai/provider/v1/models",
+    dir: "extension/vendors/commandcode",
+    shrink: "warn",
+    names: true,
+  },
 };
 
 // OpenAI-style list response -> sorted unique ids. Fail-closed: a malformed or
@@ -47,14 +61,23 @@ export const SOURCES = {
 // wipe a snapshot clean. This only catches wholly bad payloads; a truncated
 // but valid list is caught by the shrink guard in `watchOne`.
 export function extractIds(json) {
+  return extractModels(json).map((m) => m.id);
+}
+
+// Same payload -> [{ id, name }] sorted by id. `name` is the vendor's display
+// label ("" when absent); it is the canonical identity when the id is a routing
+// id, so sources with `names: true` keep it in the snapshot.
+export function extractModels(json) {
   if (!json || !Array.isArray(json.data)) throw new Error("unexpected response (missing data[])");
-  const ids = [];
+  const byId = new Map();
   for (const m of json.data) {
     const id = m && typeof m.id === "string" ? m.id.trim() : "";
-    if (id) ids.push(id);
+    if (!id) continue;
+    const name = typeof m.name === "string" ? m.name.trim() : "";
+    if (!byId.has(id)) byId.set(id, { id, name });
   }
-  if (ids.length === 0) throw new Error("unexpected response (no model ids)");
-  return [...new Set(ids)].sort();
+  if (byId.size === 0) throw new Error("unexpected response (no model ids)");
+  return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 // prev null (no snapshot yet) -> baseline, not "everything is new".
@@ -78,17 +101,25 @@ export function loadSnapshot(path) {
   return parsed;
 }
 
+// Snapshot entries may be bare ids (opencode) or { id, name } (commandcode).
+export function snapshotIds(snapshot) {
+  return ((snapshot && snapshot.models) || [])
+    .map((m) => (typeof m === "string" ? m : m && m.id))
+    .filter((id) => typeof id === "string" && id);
+}
+
 export function snapshotContent(models, capturedAt = new Date().toISOString()) {
   return JSON.stringify({ capturedAt, models }, null, 2) + "\n";
 }
 
-async function fetchIds(url) {
+async function fetchModels(cfg) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { headers: { accept: "application/json" }, signal: ctrl.signal });
+    const res = await fetch(cfg.url, { headers: { accept: "application/json" }, signal: ctrl.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return extractIds(await res.json());
+    const json = await res.json();
+    return cfg.names ? extractModels(json) : extractIds(json);
   } finally {
     clearTimeout(timer);
   }
@@ -128,9 +159,11 @@ export function assertNotSuspiciousShrink(prevModels, nextIds, { allowShrink = f
 export async function watchOne(source, opts = {}) {
   const cfg = SOURCES[source] || {};
   const path = opts.path || snapshotPath(source);
-  const ids = await (opts.fetchIds || fetchIds)(SOURCES[source].url);
+  const fetched = await (opts.fetchIds || (() => fetchModels(cfg)))();
+  const entries = fetched.map((m) => (typeof m === "string" ? { id: m } : m));
+  const ids = entries.map((m) => m.id);
   const prev = loadSnapshot(path); // null -> first run: establish baseline
-  const prevModels = prev ? prev.models : null;
+  const prevModels = prev ? snapshotIds(prev) : null;
   const shrink = assertNotSuspiciousShrink(prevModels, ids, {
     allowShrink: opts.allowShrink,
     policy: opts.shrink || cfg.shrink || "block",
@@ -138,7 +171,7 @@ export async function watchOne(source, opts = {}) {
   });
   const diff = diffModels(prevModels, ids);
   const wrote = diff.baseline || diff.changed;
-  if (wrote) writeFileSync(path, snapshotContent(ids));
+  if (wrote) writeFileSync(path, snapshotContent(cfg.names ? entries : ids));
   return {
     source,
     label: SOURCES[source].label,

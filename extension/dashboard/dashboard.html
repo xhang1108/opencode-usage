@@ -47,6 +47,18 @@
       margin-top: 8px;
       opacity: 0.75;
     }
+    /* Actionable row inside a notice (e.g. "Update price list" + Undo) */
+    .notice-action {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 14px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .notice-action .btn { padding: 6px 12px; font-size: 12px; }
 
     /* Responsive multi-row filter bar */
     .filter-bar {

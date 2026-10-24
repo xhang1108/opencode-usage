@@ -98,11 +98,18 @@ test("committed model snapshots list unique, non-empty ids", () => {
     assert.ok(isIso(snapshot.capturedAt), `${vendor}: models.snapshot.json capturedAt is not ISO`);
     assert.ok(Array.isArray(snapshot.models), `${vendor}: models.snapshot.json models must be an array`);
     assert.ok(snapshot.models.length > 0, `${vendor}: empty model list (partial scrape)`);
-    for (const id of snapshot.models) {
+    // Entries are bare ids (opencode) or { id, name } (commandcode).
+    const ids = snapshot.models.map((m) => (typeof m === "string" ? m : m && m.id));
+    for (const id of ids) {
       assert.ok(typeof id === "string" && id.length > 0, `${vendor}: invalid model id ${JSON.stringify(id)}`);
     }
+    for (const [i, m] of snapshot.models.entries()) {
+      if (typeof m === "string") continue;
+      assert.ok(m && typeof m === "object", `${vendor}: invalid model entry ${JSON.stringify(m)}`);
+      assert.equal(typeof m.name, "string", `${vendor}: ${ids[i]} name must be a string`);
+    }
     // An array can carry duplicates, unlike a JSON object's keys.
-    assert.equal(new Set(snapshot.models).size, snapshot.models.length, `${vendor}: duplicate model ids`);
+    assert.equal(new Set(ids).size, ids.length, `${vendor}: duplicate model ids`);
   }
 });
 

@@ -9,13 +9,14 @@ import { parsePricingModels as parseXai, snapshotFromPage as snapXai } from "../
 import { parsePricingModels as parseQwen, snapshotFromPage as snapQwen } from "../../extension/vendors/qwen-official/pricing-page.js";
 import { parsePricingModels as parseTencent, snapshotFromPage as snapTencent } from "../../extension/vendors/tencent-official/pricing-page.js";
 import { parsePricingModels as parseTypesafe, snapshotFromPage as snapTypesafe } from "../../extension/vendors/typesafe-official/pricing-page.js";
+import { parsePricingModels as parseMinimax, snapshotFromPage as snapMinimax } from "../../extension/vendors/minimax-official/pricing-page.js";
 
 // ---------------------------------------------------------------------------
 // VENDORS wiring
 // ---------------------------------------------------------------------------
 
-test("five official sources are wired with existing parser files", () => {
-  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official"]) {
+test("six official sources are wired with existing parser files", () => {
+  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official"]) {
     const cfg = VENDORS[source];
     assert.ok(cfg, `${source} missing from VENDORS`);
     assert.match(cfg.url, /^https:\/\//);
@@ -565,10 +566,90 @@ test("typesafe snapshot carries source and capturedAt", () => {
 });
 
 // ---------------------------------------------------------------------------
+// MiniMax - official pay-as-you-go markdown (lead table + Standard + Priority)
+// ---------------------------------------------------------------------------
+
+const MINIMAX_TABLE_HEADER = `| **Model** | **Input** \\$ / M tokens | **Output** \\$ / M tokens | **Prompt caching Read** \\$ / M tokens |
+| :- | :-: | :-: | :-: |`;
+
+const MINIMAX_MD = `# Pricing Overview
+
+## LLM
+
+[Recharge Now](https://platform.minimax.io/user-center/payment/balance)
+
+${MINIMAX_TABLE_HEADER}
+| **MiniMax-M3.1-Flash** | \\$0.15 | \\$0.60 | \\$0.015 |
+
+**Standard**
+
+${MINIMAX_TABLE_HEADER}
+| **MiniMax-M3** ≤ 512k input tokens Permanent 50% off | ~~\\$0.60~~ \\$0.30 | ~~\\$2.40~~ \\$1.20 | ~~\\$0.12~~ \\$0.06 |
+| **MiniMax-M3** > 512k input tokens\\* Permanent 50% off | ~~\\$1.20~~ \\$0.60 | ~~\\$4.80~~ \\$2.40 | ~~\\$0.24~~ \\$0.12 |
+
+**Priority**\\*
+
+${MINIMAX_TABLE_HEADER}
+| **MiniMax-M3** ≤ 512k input tokens Permanent 50% off | ~~\\$0.90~~ \\$0.45 | ~~\\$3.60~~ \\$1.80 | ~~\\$0.18~~ \\$0.09 |
+| **MiniMax-M3** > 512k input tokens Permanent 50% off | ~~\\$1.80~~ \\$0.90 | ~~\\$7.20~~ \\$3.60 | ~~\\$0.36~~ \\$0.18 |
+| **MiniMax-M9-Priority-Only** | \\$9.00 | \\$9.00 | \\$9.00 |
+
+\\* Priority provides priority admission for faster response times.
+
+## Video
+
+| Model | Price |
+| :- | :- |
+| MiniMax-H3 | \\$0.13 |
+`;
+
+test("minimax parser: flat M3.1-Flash, 512k tier for M3, struck price wins", () => {
+  const models = parseMinimax(MINIMAX_MD);
+  assert.deepEqual(Object.keys(models).sort(), ["MiniMax-M3", "MiniMax-M3.1-Flash"]);
+
+  // list price, not the struck-through previous price
+  assert.deepEqual(models["MiniMax-M3.1-Flash"].entry.pricing.flat, {
+    input: 0.15,
+    output: 0.6,
+    cacheRead: 0.015,
+    cacheWrite: 0,
+  });
+
+  // the "> 512k" row is the long-context leg of the same model
+  assert.deepEqual(models["MiniMax-M3"].entry.pricing.flat.tier, {
+    limit: 512000,
+    low: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 },
+    high: { input: 0.6, output: 2.4, cacheRead: 0.12, cacheWrite: 0 },
+  });
+});
+
+test("minimax parser: Priority is ignored entirely (no 1.5x table, no Priority-only models)", () => {
+  const models = parseMinimax(MINIMAX_MD);
+  assert.equal(models["MiniMax-M3"].entry.pricing.flat.tier.low.input, 0.3); // not 0.45
+  assert.equal(models["MiniMax-M3"].entry.pricing.flat.tier.high.output, 2.4); // not 3.60
+  assert.ok(!("MiniMax-M9-Priority-Only" in models), "Priority-only models must never be priced");
+});
+
+test("minimax parser fails closed on layout drift / missing anchor / zero price", () => {
+  assert.throws(() => parseMinimax("# no pricing"), /'## LLM' section missing/);
+  assert.throws(() => parseMinimax(MINIMAX_MD.replace("MiniMax-M3.1-Flash", "MiniMax-M4")), /anchor model MiniMax-M3.1-Flash missing/);
+  const zero = MINIMAX_MD.replace("| \\$0.15 | \\$0.60 |", "| \\$0.00 | \\$0.60 |");
+  assert.notEqual(zero, MINIMAX_MD, "fixture replacement must have matched");
+  assert.throws(() => parseMinimax(zero), /unexpected prices for MiniMax-M3.1-Flash/);
+});
+
+test("minimax snapshot carries source and capturedAt", () => {
+  const snap = snapMinimax(MINIMAX_MD, "2026-10-24T05:17:00.000Z");
+  assert.equal(snap.source, "minimax-official");
+  assert.equal(snap.capturedAt, "2026-10-24T05:17:00.000Z");
+  assert.ok(snap.models["MiniMax-M3.1-Flash"]);
+});
+
+// ---------------------------------------------------------------------------
 // Cross-source snapshot contract (price-history -> preset round trip)
 // ---------------------------------------------------------------------------
 
-test("all five parsers produce valid snapshot -> preset chains", async () => {
+test("all six parsers produce valid snapshot -> preset chains", async () => {
   const { versionsFromSnapshots, presetFromVersions } = await import("../../extension/shared/price-history.js");
   const cases = [
     ["openai-official", snapOpenAI(OPENAI_MD, "2026-09-24T05:17:00.000Z"), "gpt-6-luna"],
@@ -576,12 +657,13 @@ test("all five parsers produce valid snapshot -> preset chains", async () => {
     ["qwen-official", snapQwen(QWEN_HTML, "2026-09-24T05:17:00.000Z"), "qwen3.5-plus"],
     ["tencent-official", snapTencent(TENCENT_ROWS, "2026-09-24T05:17:00.000Z"), "hy3"],
     ["typesafe-official", snapTypesafe(TYPESAFE_MD, "2026-09-24T05:17:00.000Z"), "jev-1.14.0"],
+    ["minimax-official", snapMinimax(MINIMAX_MD, "2026-10-24T05:17:00.000Z"), "MiniMax-M3.1-Flash", "minimax-m3.1-flash"],
   ];
-  for (const [source, snap, id] of cases) {
+  for (const [source, snap, id, target = id] of cases) {
     const state = versionsFromSnapshots([snap]);
     const preset = presetFromVersions(state, { source });
     const key = preset.modelMap[`${source}:${id}`];
-    assert.equal(key, `${source}:${id}`, `${source}: modelMap missing ${id}`);
+    assert.equal(key, `${source}:${target}`, `${source}: modelMap missing ${id}`);
     assert.ok(preset.targets[key].rates.length >= 1, `${source}: no rates for ${id}`);
   }
 });

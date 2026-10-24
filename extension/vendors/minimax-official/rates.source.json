@@ -1,0 +1,50 @@
+{
+  "source": "minimax-official",
+  "models": [
+    {
+      "model": "MiniMax-M3",
+      "label": "MiniMax-M3",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 512000,
+                "low": {
+                  "input": 0.3,
+                  "output": 1.2,
+                  "cacheRead": 0.06,
+                  "cacheWrite": 0
+                },
+                "high": {
+                  "input": 0.6,
+                  "output": 2.4,
+                  "cacheRead": 0.12,
+                  "cacheWrite": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "MiniMax-M3.1-Flash",
+      "label": "MiniMax-M3.1-Flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.6,
+              "cacheRead": 0.015,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
