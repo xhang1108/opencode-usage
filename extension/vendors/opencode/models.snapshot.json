@@ -1,11 +1,11 @@
 {
-  "capturedAt": "2026-10-24T09:26:10.081Z",
+  "capturedAt": "2026-10-25T09:44:11.091Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
     "deepseek-v4-pro",
     "deepseek-v4.1-flash",
-    "gemini-4-argon-contributor",
+    "gemini-4-argon",
     "glm-5.1",
     "glm-5.2",
     "glm-5.3",
@@ -16,6 +16,7 @@
     "grok-4.7",
     "hy3",
     "hy4-preview",
+    "iceman-contributor-free",
     "kimi-k2.6",
     "kimi-k2.7-code",
     "kimi-k3",
