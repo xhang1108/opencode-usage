@@ -66,10 +66,15 @@ test("hasOrigins flags vendors with optional host permissions", () => {
   assert.equal(hasOrigins(null), false);
 });
 
-test("exportFilenames build the two disjoint backup names", () => {
-  assert.deepEqual(exportFilenames("2026-09-16"), {
-    settings: "opencode-usage_settings_2026-09-16.json",
-    records: "opencode-usage_records_2026-09-16.csv",
+test("exportFilenames stamp the two disjoint backup names to the minute", () => {
+  assert.deepEqual(exportFilenames(new Date(2026, 8, 16, 8, 5)), {
+    settings: "opencode-usage_settings_2026-09-16_08-05.json",
+    records: "opencode-usage_records_2026-09-16_08-05.csv",
+  });
+  // Zero-padded, so the names sort chronologically as plain strings.
+  assert.deepEqual(exportFilenames(new Date(2026, 0, 2, 3, 4)), {
+    settings: "opencode-usage_settings_2026-01-02_03-04.json",
+    records: "opencode-usage_records_2026-01-02_03-04.csv",
   });
 });
 

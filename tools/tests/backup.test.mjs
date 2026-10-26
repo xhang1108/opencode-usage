@@ -2,12 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { normalizeRecord } from "../../extension/shared/canonical.js";
+import { normalizeSpendEntry } from "../../extension/shared/spend.js";
 import {
   SETTINGS_FORMAT,
   buildSettingsPayload,
   parseSettingsPayload,
   recordsToCSV,
   csvToRecords,
+  csvToSpendEntries,
   groupBySource,
 } from "../../extension/shared/backup.js";
 
@@ -112,4 +114,26 @@ test("groupBySource separates opencode from vendors", () => {
   assert.deepEqual([...groups.keys()].sort(), ["opencode", "openrouter"]);
   assert.equal(groups.get("opencode").length, 1);
   assert.equal(groups.get("openrouter").length, 1);
+});
+
+test("records CSV carries the spend ledger and restores it separately", () => {
+  const rec = normalizeRecord(SAMPLE, { source: "openrouter" });
+  const spend = normalizeSpendEntry(
+    { platform: "opencode", platformLabel: "opencode", date: "2026-07-08", amountUSD: 12.5, note: "top-up, July" },
+    { now: () => new Date("2026-07-08T00:00:00.000Z") }
+  );
+  const csv = recordsToCSV([rec], [spend]);
+  assert.equal(csvToRecords(csv).length, 1, "spend rows must not become usage records");
+  assert.deepEqual(csvToSpendEntries(csv), [spend]);
+  assert.equal(recordsToCSV(csvToRecords(csv), csvToSpendEntries(csv)), csv);
+});
+
+test("a records-only CSV restores no spend; invalid spend rows are skipped", () => {
+  const csv = recordsToCSV([normalizeRecord(SAMPLE, { source: "openrouter" })]);
+  assert.deepEqual(csvToSpendEntries(csv), []);
+
+  const spendCsv = recordsToCSV([], [normalizeSpendEntry({ platform: "opencode", date: "2026-07-08", amountUSD: 1 })]);
+  assert.equal(csvToSpendEntries(spendCsv).length, 1);
+  const bad = spendCsv.replace('"2026-07-08"', '"bogus"');
+  assert.equal(csvToSpendEntries(bad).length, 0);
 });

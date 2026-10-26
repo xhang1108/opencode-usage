@@ -24,9 +24,10 @@ import { renderSpend } from "./settings/spend.js";
 import { renderHowItWorks } from "./settings/how-it-works.js";
 import { parseXlsx } from "../shared/xlsx.js";
 import { parseMimoSheets } from "../vendors/mimo/import-usage.js";
-import { csvToRecords, parseSettingsPayload } from "../shared/backup.js";
+import { csvToRecords, csvToSpendEntries, parseSettingsPayload } from "../shared/backup.js";
 import { normalizeRecord } from "../shared/canonical.js";
 import {
+  chunkRecords,
   classifyImport,
   isSettingsPayload,
   planRecordsImport,
@@ -522,7 +523,13 @@ async function importVendorExports(files) {
   }
   if (okCount > 0) {
     lines.push("Tip: enable each vendor in Settings -> Vendors to see it.");
-    await reloadAfterImportClear();
+    // A refresh failure must never swallow the per-file summary: one bad file
+    // silently looking like "nothing imported" is exactly what this reports.
+    try {
+      await reloadAfterImportClear();
+    } catch (err) {
+      lines.push(`Reload failed: ${(err && err.message) || err} — re-open the dashboard.`);
+    }
   }
   alert(lines.join("\n"));
 }
@@ -569,32 +576,67 @@ async function restoreSettings(payload) {
 
 // Restore the records half of a backup: group by source and stash each group
 // where its live data lives (id-keyed merge, so re-importing is idempotent).
+// The same CSV also carries spend-ledger rows (kind="spend"); those are merged
+// by id into the stored ledger instead of being treated as usage.
 async function importRecordsCSV(file) {
-  const records = csvToRecords(await file.text());
-  if (records.length === 0) throw new Error("no valid records found in the CSV");
-  const vendorSources = new Set(
-    ((settings && settings.registry && settings.registry.vendors) || [])
-      .map((v) => v && v.source)
-      .filter((s) => s && s !== "opencode")
-  );
-  const plan = planRecordsImport(records, vendorSources);
+  const text = await file.text();
+  const records = csvToRecords(text);
+  const spendEntries = csvToSpendEntries(text);
+  if (records.length === 0 && spendEntries.length === 0) {
+    throw new Error("no valid records found in the CSV");
+  }
   const parts = [];
-  const localCount = Object.keys(plan.localMap).length;
-  if (localCount > 0) {
-    const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(plan.localMap) });
-    if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
-    const dup = res.duplicates ? `, ${res.duplicates} duplicates merged` : "";
-    const enr = res.filled ? ` (${res.filled} enriched)` : "";
-    parts.push(`opencode: ${res.newRecords} new${dup}${enr}`);
-  } else {
-    parts.push("opencode: nothing to restore");
+  if (records.length > 0) {
+    const vendorSources = new Set(
+      ((settings && settings.registry && settings.registry.vendors) || [])
+        .map((v) => v && v.source)
+        .filter((s) => s && s !== "opencode")
+    );
+    const plan = planRecordsImport(records, vendorSources);
+    const localRecords = Object.values(plan.localMap);
+    if (localRecords.length > 0) {
+      // Chunked: one oversized message can hit Chrome's payload/storage ceiling
+      // and fail the whole file as a single ✗ with nothing restored.
+      let newRecords = 0;
+      let duplicates = 0;
+      let filled = 0;
+      for (const chunk of chunkRecords(localRecords)) {
+        const map = {};
+        for (const rec of chunk) map[rec.id] = rec;
+        const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(map) });
+        if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
+        newRecords += res.newRecords || 0;
+        duplicates += res.duplicates || 0;
+        filled += res.filled || 0;
+      }
+      const dup = duplicates ? `, ${duplicates} duplicates merged` : "";
+      const enr = filled ? ` (${filled} enriched)` : "";
+      const none = newRecords === 0 ? " — no new records" : "";
+      parts.push(`opencode: ${newRecords} new${dup}${enr}${none}`);
+    } else {
+      parts.push("opencode: nothing to restore");
+    }
+    for (const { source, records: recs } of plan.vendors) {
+      let added = 0;
+      let stored = 0;
+      for (const chunk of chunkRecords(recs)) {
+        const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source, records: chunk });
+        if (!res || !res.ok) throw new Error((res && res.error) || `${source} restore failed`);
+        added += res.added || 0;
+        stored = res.count || stored;
+      }
+      parts.push(`${source}: ${added} new (${stored} stored)`);
+    }
+    if (plan.unknownCount > 0) parts.push(`${plan.unknownCount} skipped (unknown source)`);
   }
-  for (const { source, records: recs } of plan.vendors) {
-    const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source, records: recs });
-    if (!res || !res.ok) throw new Error((res && res.error) || `${source} restore failed`);
-    parts.push(`${source}: ${res.added} new (${res.count} stored)`);
+  if (spendEntries.length > 0) {
+    const byId = new Map(((settings && settings.spendEntries) || []).map((e) => [e.id, e]));
+    for (const e of spendEntries) byId.set(e.id, e);
+    const merged = [...byId.values()];
+    await saveSpendEntries(merged);
+    if (settings) settings.spendEntries = merged;
+    parts.push(`spend: ${spendEntries.length} entries`);
   }
-  if (plan.unknownCount > 0) parts.push(`${plan.unknownCount} skipped (unknown source)`);
   return `records restored — ${parts.join(", ")}`;
 }
 

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  chunkRecords,
   classifyImport,
   isSettingsPayload,
   planRecordsImport,
@@ -58,6 +59,14 @@ test("planRecordsImport is id-keyed so re-import collapses duplicates", () => {
 
 test("planRecordsImport with no records is empty", () => {
   assert.deepEqual(planRecordsImport([], new Set()), { localMap: {}, vendors: [], unknownCount: 0 });
+});
+
+test("chunkRecords keeps order in fixed-size batches", () => {
+  assert.deepEqual(chunkRecords([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(chunkRecords([], 2), []);
+  assert.deepEqual(chunkRecords(null, 2), []);
+  // A bad size never yields an empty batch list or an infinite loop.
+  assert.deepEqual(chunkRecords([1, 2], 0), [[1], [2]]);
 });
 
 test("describeSettingsRestore pluralizes the section count", () => {

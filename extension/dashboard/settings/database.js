@@ -14,11 +14,16 @@ const RENDER_LIMIT = 500;
 
 // D24: split the backup into two non-overlapping files. Settings (JSON) carry
 // the user's configuration + userPricing; records (CSV) carry every stored
-// record from EVERY source (not just enabled ones) with lossless `raw`.
+// record from EVERY source (not just enabled ones) with lossless `raw`, plus
+// the spend ledger rows so a records-only file still has what the user paid.
 function exportBackup(ctx) {
-  const names = exportFilenames(new Date().toISOString().slice(0, 10));
+  const names = exportFilenames(new Date());
   downloadText(names.settings, JSON.stringify(buildSettingsPayload(ctx.settings), null, 2));
-  downloadText(names.records, "\uFEFF" + recordsToCSV(ctx.allRecords), "text/csv;charset=utf-8");
+  downloadText(
+    names.records,
+    "\uFEFF" + recordsToCSV(ctx.allRecords, ctx.settings.spendEntries),
+    "text/csv;charset=utf-8"
+  );
 }
 
 export async function renderDatabase(ctx) {

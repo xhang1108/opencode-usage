@@ -145,7 +145,7 @@ const BASE_SECTIONS = [
     ],
     notes: [
       ["Extension storage", "Every vendor's records plus settings. Tied to the extension ID — reinstalling with a different ID loses it (re-sync or re-import to restore)."],
-      ["Backup", "Settings -> General -> Export Backup writes settings (JSON, includes your pricing) and every record (CSV). Import both to restore."],
+      ["Backup", "Settings -> General -> Export Backup writes settings (JSON, includes your pricing and spend ledger) and every record (CSV, also carries spend rows). Import both to restore."],
       ["Data count", "opencode counts one per usage request; the other vendors count their own requests. Because the definitions differ, mixing vendors makes the total approximate."],
     ],
   },

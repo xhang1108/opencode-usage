@@ -2,12 +2,17 @@
 // Backup export/restore helpers (pure, P9). Splits a backup into two
 // non-overlapping files (D24):
 //   - opencode-usage_settings_<date>.json : user settings + the unified pricelist
-//   - opencode-usage_records_<date>.csv   : every record, every source (+ raw)
+//   - opencode-usage_records_<date>.csv   : every record, every source (+ raw),
+//                                           plus the manual spend ledger
+// Spend entries ride in the CSV (kind="spend") as well as in the settings JSON,
+// so a records-only restore still keeps what the user paid. Settings JSON stays
+// the compatibility path; the CSV rows are additive.
 // Only user-authored settings are stored; the derived fallback `pricing` table
 // is rebuilt from the shipped presets, so it is never backed up.
 
 import { normalizeRecord, validateRecord } from "./canonical.js";
 import { parseCSV, rowsToObjects, toCSV } from "./csv.js";
+import { normalizeSpendEntry, validateSpendEntry } from "./spend.js";
 
 export const SETTINGS_FORMAT = "opencode-usage-settings";
 export const SETTINGS_VERSION = 1;
@@ -62,8 +67,21 @@ const NUMERIC_COLUMNS = new Set([
   "requests", "tzOffset", "vendorCost", "costScale", "costMultiplier",
 ]);
 
+// The spend-ledger columns appended to the records CSV. The record columns keep
+// their exact order so existing external readers still see the same first cells;
+// `kind` distinguishes the two row types.
+export const SPEND_COLUMNS = [
+  "kind", "platform", "platformLabel", "amountUSD", "note", "createdAt", "updatedAt",
+];
+
+export const BACKUP_COLUMNS = [...RECORD_COLUMNS, ...SPEND_COLUMNS];
+
+const RECORD_COLUMN_SET = new Set(RECORD_COLUMNS);
+
 function recordRow(rec) {
-  return RECORD_COLUMNS.map((col) => {
+  return BACKUP_COLUMNS.map((col) => {
+    if (col === "kind") return "usage";
+    if (!RECORD_COLUMN_SET.has(col)) return "";
     const v = rec[col];
     if (col === "raw") return v == null ? "" : JSON.stringify(v);
     if (col === "outputExcludesReasoning") return v ? "true" : "";
@@ -71,12 +89,27 @@ function recordRow(rec) {
   });
 }
 
-export function recordsToCSV(records) {
-  const rows = [RECORD_COLUMNS, ...(records || []).map(recordRow)];
+function spendRow(entry) {
+  const e = entry || {};
+  return BACKUP_COLUMNS.map((col) => {
+    if (!RECORD_COLUMN_SET.has(col) && col !== "kind") return e[col] == null ? "" : e[col];
+    if (col === "kind") return "spend";
+    if (col === "id" || col === "v" || col === "date") return e[col] == null ? "" : e[col];
+    return "";
+  });
+}
+
+export function recordsToCSV(records, spendEntries = []) {
+  const rows = [
+    BACKUP_COLUMNS,
+    ...(records || []).map(recordRow),
+    ...(spendEntries || []).map(spendRow),
+  ];
   return toCSV(rows);
 }
 
 function rowToRecord(row) {
+  if (row.kind === "spend") return null;
   const rec = {};
   for (const col of RECORD_COLUMNS) {
     const v = row[col];
@@ -107,6 +140,28 @@ export function csvToRecords(text) {
   for (const row of rowsToObjects(parseCSV(text))) {
     const rec = rowToRecord(row);
     if (rec) out.push(rec);
+  }
+  return out;
+}
+
+// Restore the manual spend ledger from the same backup CSV. Rows that don't
+// validate are skipped, mirroring csvToRecords.
+export function csvToSpendEntries(text) {
+  const out = [];
+  for (const row of rowsToObjects(parseCSV(text))) {
+    if (row.kind !== "spend") continue;
+    const entry = normalizeSpendEntry({
+      id: row.id || undefined,
+      platform: row.platform,
+      platformLabel: row.platformLabel,
+      date: row.date,
+      amountUSD: row.amountUSD,
+      note: row.note,
+      createdAt: row.createdAt || undefined,
+      updatedAt: row.updatedAt || undefined,
+      v: row.v ? Number(row.v) : undefined,
+    });
+    if (entry && validateSpendEntry(entry).ok) out.push(entry);
   }
   return out;
 }

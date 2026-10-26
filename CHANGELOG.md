@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.0 — 2026-10-26
+
+Backups are self-contained and restore sanely on another browser: the records CSV now carries the spend ledger, a two-file restore always reports both files, and opencode's first sync after a restore no longer re-scans its whole retention window. Export filenames are stamped to the minute.
+
+### Added
+
+- **The spend ledger rides in the records CSV.** `recordsToCSV` appends `kind="spend"` rows (`SPEND_COLUMNS`, after the unchanged 27 record columns), so a records-only restore still keeps what you paid; `csvToSpendEntries` reads them back and the dashboard merges by id into `spendEntries`. The settings JSON keeps carrying the ledger too, so either half restores the full picture and older CSVs (no spend rows) restore exactly as before.
+
+### Changed
+
+- **Backup filenames are stamped to the minute, in local time**: `opencode-usage_settings_2026-10-26_14-32.json` and `opencode-usage_records_2026-10-26_14-32.csv` (`exportStamp`). Two exports in one day no longer overwrite each other, and the name reads as the moment Export was clicked.
+
+### Fixed
+
+- **A restored backup now counts as known data for the next opencode sync.** The crawler's early-stop marker (`newestStoredTime`) read only the API store (`opencodeImportData`), while a restore routes every opencode row into the local store (`localImportData`) — so the first sync after moving to another browser logged `stopAt=(none, full scan)` and re-walked the whole ~30d retention window. The marker now spans both stores through `newestTime` (shared, tested), so an incremental sync stops at the newest restored record (minus the 1-day overlap). Records were never double-counted: the store is id-keyed. The export carries no fingerprint column by design — `fingerprintOf()` derives it from model + token counts + time bucket when deduping.
+- **A two-file backup restore always reports both files, and a large records CSV no longer fails as one blob.** Records are sent to the background in 5,000-row batches (`chunkRecords`, pure + tested), so an oversized `import-local-data` payload can't take the whole restore down. The shared summary now survives a failed dashboard refresh, and a restore that adds nothing says "no new records" instead of looking like a no-op.
+
 ## 1.5.0 — 2026-10-24
 
 This release keeps prices current after an update: the dashboard now detects a saved price list that fell behind the shipped one and refreshes it in one click. Price-watch adds MiniMax and resolves every stealth label it knows, and model-watch reads ids and names separately.

@@ -10,6 +10,7 @@ import {
   hideDayAnchoredImportCopies,
   isDayAnchoredRecord,
   isLocalLooking,
+  newestTime,
 } from "../../extension/shared/merge.js";
 
 function rec(over) {
@@ -22,6 +23,16 @@ function rec(over) {
     ...over,
   };
 }
+
+test("newestTime spans every map passed (restored rows count as known)", () => {
+  const api = { a: rec({ id: "a", time: "2026-09-10T00:00:00Z" }) };
+  const local = { b: rec({ id: "b", time: "2026-09-12T00:00:00Z" }) };
+  assert.equal(newestTime(api, local), "2026-09-12T00:00:00Z");
+  assert.equal(newestTime(api), "2026-09-10T00:00:00Z");
+  // Empty/absent maps and records without a usable time are skipped, never null-poisoned.
+  assert.equal(newestTime({}, null, undefined, { c: rec({ id: "c", time: "" }) }), null);
+  assert.equal(newestTime(), null);
+});
 
 test("fingerprintOf is stable and null without a time", () => {
   const a = fingerprintOf(rec({ id: "a" }));

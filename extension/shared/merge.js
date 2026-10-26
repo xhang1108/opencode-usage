@@ -58,6 +58,21 @@ export function buildFingerprintBuckets(recs) {
 }
 
 // N-way merge of id-keyed maps; later maps override by id. Idempotent (D2).
+// Newest `time` across one or more id-keyed maps, or null. The opencode sync
+// uses this as its early-stop marker: it must span BOTH the API store and the
+// local import store, because a restored backup lands in the local store and
+// would otherwise look like "no data stored" to the crawler (full re-scan).
+export function newestTime(...maps) {
+  let max = null;
+  for (const map of maps) {
+    for (const rec of Object.values(map || {})) {
+      const t = rec && rec.time;
+      if (typeof t === "string" && t && (max == null || t > max)) max = t;
+    }
+  }
+  return max;
+}
+
 export function mergeRecords(...maps) {
   const merged = {};
   let added = 0;

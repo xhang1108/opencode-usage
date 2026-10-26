@@ -22,6 +22,7 @@ import {
   buildFingerprintBuckets,
   hideDayAnchoredImportCopies,
   isLocalLooking,
+  newestTime,
   recordFingerprints,
 } from "./shared/merge.js";
 import { STORAGE_SCHEMA_VERSION, pendingMigrations, planMigrations } from "./shared/migrate.js";
@@ -294,14 +295,13 @@ async function newestStoredDate(source) {
 // Newest stored `time` (ISO) for a vendor, or null. Used as the early-stop
 // marker for the opencode API sync: rows come newest-first, so once a page
 // reaches this timestamp everything older is already stored and the crawl stops.
+// opencode also keeps restored/imported rows in the LOCAL store, so the marker
+// spans both stores — otherwise a restored backup looks like "no data" and the
+// next sync re-scans the whole retention window.
 async function newestStoredTime(source) {
-  const map = await getVendorImportMap(source);
-  let max = null;
-  for (const rec of Object.values(map)) {
-    const t = rec && rec.time;
-    if (t && (!max || t > max)) max = t;
-  }
-  return max;
+  const maps = [await getVendorImportMap(source)];
+  if (source === "opencode") maps.push(await getLocalImportMap());
+  return newestTime(...maps);
 }
 
 async function handleVendorCrawlData(msg) {

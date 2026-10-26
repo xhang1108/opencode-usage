@@ -68,7 +68,7 @@ This is a breaking release: multi-vendor support plus a unified price list. Read
 1. Sign in at [opencode.ai](https://opencode.ai) and open a **Console** page — `https://opencode.ai/console` (it redirects to your workspace, e.g. `https://opencode.ai/console/<workspace-id>/usage`). The sync uses this signed-in session.
 2. Click the extension icon → **Sync** to fetch the latest usage records. Syncing is intentionally MANUAL to avoid hitting vendors too frequently. Hold **Shift** for a **Full Sync** (re-fetches all history).
 3. Click **Open Dashboard** to view charts, tables, and cost estimates.
-4. **Export Backup** in the dashboard downloads two files: `opencode-usage_settings_*.json` (your settings + pricing) and `opencode-usage_records_*.csv` (every record, every source). **Import Usage** restores either file.
+4. **Export Backup** in the dashboard downloads two files: `opencode-usage_settings_*.json` (your settings + pricing + spend ledger) and `opencode-usage_records_*.csv` (every record, every source, plus spend rows tagged `kind="spend"`). **Import Usage** restores either file.
 5. **Import Usage** accepts three file types, and one pick may mix them: `.xlsx` (MiMo export), `.json` (opencode local DB export, or a settings backup), `.csv` (backup records). Each file is routed by type, and a per-file failure does not abort the rest of the batch.
 
 ## How It Works

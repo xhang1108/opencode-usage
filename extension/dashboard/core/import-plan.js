@@ -18,6 +18,17 @@ export function isSettingsPayload(parsed) {
   return !!parsed && parsed.format === SETTINGS_FORMAT;
 }
 
+// Split a list into ordered, fixed-size batches. A restore sends records to the
+// background in chunks: one giant `runtime.sendMessage` payload hits Chrome's
+// message/quota ceiling on a big backup, and the whole file then fails as one.
+export function chunkRecords(records, size = 5000) {
+  const list = records || [];
+  const step = Math.max(1, Math.floor(size) || 1);
+  const out = [];
+  for (let i = 0; i < list.length; i += step) out.push(list.slice(i, i + step));
+  return out;
+}
+
 // Split a records CSV into its destinations.
 //   localMap      - opencode records (id-keyed; re-import is idempotent). Every
 //                   opencode record is kept, old crawl history included: the
