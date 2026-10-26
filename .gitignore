@@ -22,3 +22,6 @@ tools/opencode/clean_diffs.txt
 
 # Scratch fixtures for manual browser checks
 /manual-test/
+
+# Graphify knowledge graph (regenerable: graphify extract . --code-only)
+graphify-out/

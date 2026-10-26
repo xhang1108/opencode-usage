@@ -1,0 +1,3 @@
+# Vendored minified libs dominate the graph with meaningless symbols (tn/n()/s()).
+# Exclude them so god-nodes and communities reflect project architecture.
+extension/lib/chart.umd.min.js
