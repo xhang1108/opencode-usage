@@ -20,7 +20,7 @@
   },
   "notes": [
     "Primary source: GET https://api.groq.com/platform/v1/organizations/{org}/activity?start_date=<unix-sec>&end_date=<unix-sec> (the same endpoint the dashboard Usage page uses). One row per day x model x API key; timestamp is a UTC-midnight unix second.",
-    "Auth: `Authorization: Bearer <stytch_session_jwt cookie>` + `groq-organization: <org_id>` headers, read live from the signed-in console.groq.com tab. The JWT rotates every ~5 minutes, so the crawler re-reads the cookie on every request. Org ids come from GET /platform/v1/user/profile (user.orgs.data[].id).",
+    "Auth: `Authorization: Bearer <stytch_session_jwt cookie>` + `groq-organization: <org_id>` headers, read live from the signed-in console.groq.com tab. The JWT rotates every ~5 minutes (and the console provisions a fresh one right after page load), so the crawler re-reads the cookie on every request and, on a missing/401/403 key, waits up to 20s for it to appear or rotate before retrying — first sync after opening the tab needs no second click. Org ids come from GET /platform/v1/user/profile (user.orgs.data[].id).",
     "Fields: input=n_non_cached_context_tokens_total, cacheRead=n_context_tokens_total - n_non_cached, output=n_generated_tokens_total (no separate reasoning field), requests=num_requests. Cost is vendor-reported (cost, USD) via registry costSource:\"vendor\".",
     "api_key_redacted is a masked credential and is dropped; api_key_id/name, project_id, service_tier and num_seconds* are kept in raw only.",
     "The Enterprise Prometheus endpoint (api.groq.com/v1/metrics/prometheus) returns 404 for standard keys, so it is not used. Range limit unprobed; the crawler slices into <=31-day windows. Cost/Activity tabs both read the same /activity endpoint.",

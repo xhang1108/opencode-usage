@@ -327,3 +327,71 @@ test("groq: discovers orgs, slices the range and streams mapped rows", async () 
   assert.equal(data.records[0].requests, 2);
   assert.equal(data.records[0].vendorCost, 0.5);
 });
+
+const JWT = (tag) => `${tag}-${"j".repeat(120)}`;
+
+// A just-opened console tab still holds the previous (now rejected) JWT while the
+// page provisions a fresh one; the crawl must wait for the rotation, not fail.
+test("groq: waits for the rotated session JWT instead of failing the first sync", async () => {
+  const OLD = JWT("old");
+  const NEW = JWT("new");
+  let cookie = `stytch_session_jwt=${OLD}`;
+  let profileCalls = 0;
+  const auths = [];
+  const route = (req) => {
+    if (req.url.includes("/user/profile")) {
+      profileCalls++;
+      auths.push(req.headers.authorization);
+      if (req.headers.authorization === `Bearer ${OLD}`) {
+        cookie = `stytch_session_jwt=${NEW}`; // the console refreshes its key after load
+        return { status: 401, text: "expired" };
+      }
+      return { status: 200, text: JSON.stringify({ user: { orgs: { data: [{ id: "org_a" }] } } }) };
+    }
+    if (req.url.includes("/activity")) {
+      auths.push(req.headers.authorization);
+      return { status: 200, text: JSON.stringify({ object: "list", data: [GROQ_ROW] }) };
+    }
+    return undefined;
+  };
+  const b = bootContent("vendors/groq-official/content.js", {
+    route,
+    sendMessage: (msg) => (msg.type === "vendor-crawl-data" ? { added: 1 } : {}),
+    extra: {
+      document: {
+        get cookie() { return cookie; },
+        querySelector: () => null,
+        querySelectorAll: () => [],
+      },
+    },
+  });
+  const { terminal } = await startVendor(b, { vendor: "groq-official", days: 2 });
+
+  assert.equal(terminal.type, "vendor-crawl-done");
+  assert.equal(profileCalls, 2); // rejected once with the old key, then retried
+  assert.equal(auths[0], `Bearer ${OLD}`);
+  assert.equal(auths.at(-1), `Bearer ${NEW}`);
+});
+
+// The content script can be injected before the console has written the cookie
+// at all; that is a wait, not an error.
+test("groq: waits for the session cookie when the tab has just opened", async () => {
+  const LATE = JWT("late");
+  let reads = 0;
+  const { route } = groqRoute();
+  const b = bootContent("vendors/groq-official/content.js", {
+    route,
+    sendMessage: (msg) => (msg.type === "vendor-crawl-data" ? { added: 1 } : {}),
+    extra: {
+      document: {
+        get cookie() { return reads++ < 2 ? "" : `stytch_session_jwt=${LATE}`; },
+        querySelector: () => null,
+        querySelectorAll: () => [],
+      },
+    },
+  });
+  const { terminal } = await startVendor(b, { vendor: "groq-official", days: 2 });
+
+  assert.equal(terminal.type, "vendor-crawl-done");
+  assert.equal(terminal.records, 1);
+});

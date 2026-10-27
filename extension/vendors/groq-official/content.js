@@ -28,6 +28,8 @@
   const MAX_SCAN_DAYS = 365; // first-run backfill cap (range limit unprobed)
   const WINDOW_DAYS = 31; // conservative slice; the page itself fetches ~2 months
   const DELAY_MS = 600; // pace requests
+  const AUTH_WAIT_MS = 20000; // a freshly opened console tab provisions/rotates its JWT
+  const AUTH_POLL_MS = 500;
 
   let crawling = false;
 
@@ -63,12 +65,42 @@
     return null;
   }
 
+  // A tab that was just opened (or idle for a while) can still carry the
+  // previous stytch_session_jwt: the console swaps it for a fresh one while it
+  // boots. Wait for the change instead of failing the whole sync, which used to
+  // need a second click once the page had finished loading.
+  async function waitForFreshJwt(staleJwt, deadline) {
+    for (;;) {
+      const jwt = readJwt();
+      if (jwt && jwt !== staleJwt) return jwt;
+      if (Date.now() >= deadline) return null;
+      await sleep(AUTH_POLL_MS);
+    }
+  }
+
+  // Auth failures are not worth retrying per window: flag them so the crawl
+  // aborts at once instead of waiting AUTH_WAIT_MS for every window.
+  function authError(message) {
+    const err = new Error(message);
+    err.auth = true;
+    return err;
+  }
+
   async function fetchJson(url, org, { retries = 3 } = {}) {
     let lastErr = null;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      if (attempt > 0) await sleep(1000 * attempt);
-      const jwt = readJwt();
-      if (!jwt) throw new Error("Groq: not logged in (no stytch_session_jwt cookie) — open console.groq.com and sign in");
+    let attempt = 0; // network / 429 / 5xx retries
+    let authDeadline = 0; // 401/403: retry until the page hands out a new JWT
+    let staleJwt = null;
+    for (;;) {
+      if (attempt > 0) await sleep(Math.min(1000 * attempt, 3000));
+      let jwt;
+      if (authDeadline) {
+        jwt = await waitForFreshJwt(staleJwt, authDeadline);
+        if (!jwt) throw authError("Groq: session expired or access denied — reload the console tab and sync again");
+      } else {
+        jwt = readJwt() || (await waitForFreshJwt(null, Date.now() + AUTH_WAIT_MS));
+        if (!jwt) throw authError("Groq: not logged in (no stytch_session_jwt cookie) — open console.groq.com and sign in");
+      }
       let res;
       try {
         res = await fetch(url, {
@@ -76,21 +108,29 @@
         });
       } catch (e) {
         lastErr = e;
-        continue; // network error
+        if (attempt++ < retries) continue;
+        break;
       }
       const text = await res.text();
       if (res.status === 401 || res.status === 403) {
-        throw new Error("Groq: session expired — reload the console tab and sync again");
+        lastErr = new Error(`Groq ${res.status} (session key not ready)`);
+        if (!authDeadline) authDeadline = Date.now() + AUTH_WAIT_MS;
+        staleJwt = jwt;
+        if (Date.now() < authDeadline) continue;
+        throw authError("Groq: session expired or access denied — reload the console tab and sync again");
       }
       if (res.status === 429 || res.status >= 500) {
         lastErr = new Error(`Groq ${res.status} (rate limited / blocked)`);
-        continue;
+        if (attempt++ < retries) continue;
+        break;
       }
       if (!res.ok) throw new Error(`Groq usage ${res.status}: ${text.slice(0, 120)}`);
       try {
         return JSON.parse(text);
       } catch (e) {
         lastErr = new Error(`Groq non-JSON (${res.status}): ${text.slice(0, 120)}`);
+        if (attempt++ < retries) continue;
+        break;
       }
     }
     throw lastErr || new Error("Groq request failed");
@@ -142,6 +182,7 @@
           const json = await fetchJson(`${API}/organizations/${org}/activity?start_date=${start}&end_date=${end}`, org);
           batch = mapper.mapRows(mapper.rowsFromResponse(json)).filter((rec) => !seen.has(rec.id));
         } catch (e) {
+          if (e && e.auth) throw e; // session key gone: stop, do not wait per window
           failures.push(`${org.slice(0, 12)}…: ${(e && e.message) || e}`);
         }
         for (const rec of batch) seen.add(rec.id);

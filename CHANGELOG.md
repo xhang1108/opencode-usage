@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **Groq sync no longer needs a second click after it opens the console tab.** The first click created the tab and messaged the content script after a fixed 1.5 s, so the crawl often read the console's *previous* `stytch_session_jwt` (the page provisions/rotates it while booting) and failed with "session expired" — the retry only worked once the page had finished loading. The background now waits for the tab's `status === "complete"` (event-driven, 15 s cap, no fixed delay) before messaging, and the Groq crawler treats a missing or rejected key as a wait rather than a failure: it polls up to 20 s for the cookie to appear or rotate, then retries with the new JWT; a genuinely dead session aborts the crawl immediately instead of stalling on every window. Both paths are covered by tests.
 - **The unpriced notice offers "Update price list" even for a single recoverable model.** The saved-list drift prompt only fired at ≥3 recoverable or ≥5 repriced models, so a new model that the shipped list *can* price (e.g. `longcat-2.5-preview-free`, one record) sat in the unpriced badge with no way to act: the badge said "assign it in Settings → Pricing" while the shipped list already had the rate. `computePresetDrift()` now also reports `offer` (the drift is material **or** the notice is already listing models the shipped list can price), and the dashboard's unpriced notice keys its button off that — one new model is enough, because the user is looking at the unpriced list anyway.
 
 ### Added

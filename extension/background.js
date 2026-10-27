@@ -188,6 +188,33 @@ function notifyCrawl(title, message) {
   } catch (e) {}
 }
 
+// Wait for a tab to finish loading (status "complete"). A freshly opened vendor
+// tab writes its session cookie/key only once the page has booted; messaging it
+// earlier made the first sync fail, so the user had to click twice. Resolves
+// even on timeout: the caller then falls back to injecting the content script.
+function waitForTabComplete(tabId, timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer = null;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      try { chrome.tabs.onUpdated.removeListener(onUpdated); } catch (e) {}
+      clearTimeout(timer);
+      resolve(true);
+    };
+    function onUpdated(id, info) {
+      if (id === tabId && info && info.status === "complete") finish();
+    }
+    timer = setTimeout(finish, timeoutMs);
+    try { chrome.tabs.onUpdated.addListener(onUpdated); } catch (e) { finish(); return; }
+    // Already complete (reused tab / very fast page).
+    Promise.resolve(chrome.tabs.get(tabId))
+      .then((t) => { if (t && t.status === "complete") finish(); })
+      .catch(finish);
+  });
+}
+
 // Send a message to the tab's content script; if it isn't injected yet (the tab was
 // opened before the extension loaded), inject it first and retry.
 async function sendMessageToTab(tabId, msg) {
@@ -266,10 +293,11 @@ async function sendStartVendorCrawl(vendor, days, full) {
   // (D12, one-day overlap). No stored data -> full range.
   const since = full ? null : await newestStoredDate(vendor);
   let tab = (await chrome.tabs.query({ url: cfg.origins }))[0] || null;
-  if (!tab) {
-    tab = await chrome.tabs.create({ url: cfg.home });
-    await new Promise((r) => setTimeout(r, 1500));
-  }
+  if (!tab) tab = await chrome.tabs.create({ url: cfg.home });
+  // Wait for the page instead of a fixed delay: the vendor's app writes the
+  // session cookie/key it needs after load (Groq rotates its Stytch JWT), so a
+  // message sent too early fails and needs a second click.
+  await waitForTabComplete(tab.id);
   const message = { type: "start-crawl", vendor, days: days || cfg.defaultDays, since, full: !!full };
   try {
     return await chrome.tabs.sendMessage(tab.id, message);
