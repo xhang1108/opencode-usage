@@ -1,15 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.7.0 — 2026-10-28
+
+Groq syncs on the first click after opening its console tab, LongCat-2.5-Preview is priced from an official crawl, and the unpriced notice can refresh an out-of-date price list even when only one model is recoverable.
+
+### Added
+
+- **Price-watch: LongCat official (`longcat-official`)** — the first source that fetches more than one page: LongCat (Meituan) publishes one VitePress pricing page per model, so `VENDORS[...].pages` fetches `longcat.ai/platform/docs/pricing/longcat-2.5` and `/longcat-2.0` and `mergeSnapshots()` folds them into one committed snapshot under `extension/vendors/longcat-official/price-snapshots/` (a model named by two pages refuses, rather than letting the last page win). Each page renders its table twice — USD for the `longcat.ai` edition, CNY (`¥`) for `longcat.chat`/`longcat.com` — so the parser keys off the `$` cells and the model identity comes from the page `<title>`; a missing title, a missing row or a non-USD-only page fails closed. The published column is the limited-time discounted price, which is the current pay price. `PREFERRED_BY_SERIES.longcat` now points here, so the hand-transcribed LongCat-2.0 override is gone and **LongCat-2.5-Preview** ($0.30 / $1.20 / $0.006 per 1M input / output / cached input) is priced for the first time.
 
 ### Fixed
 
 - **Groq sync no longer needs a second click after it opens the console tab.** The first click created the tab and messaged the content script after a fixed 1.5 s, so the crawl often read the console's *previous* `stytch_session_jwt` (the page provisions/rotates it while booting) and failed with "session expired" — the retry only worked once the page had finished loading. The background now waits for the tab's `status === "complete"` (event-driven, 15 s cap, no fixed delay) before messaging, and the Groq crawler treats a missing or rejected key as a wait rather than a failure: it polls up to 20 s for the cookie to appear or rotate, then retries with the new JWT; a genuinely dead session aborts the crawl immediately instead of stalling on every window. Both paths are covered by tests.
 - **The unpriced notice offers "Update price list" even for a single recoverable model.** The saved-list drift prompt only fired at ≥3 recoverable or ≥5 repriced models, so a new model that the shipped list *can* price (e.g. `longcat-2.5-preview-free`, one record) sat in the unpriced badge with no way to act: the badge said "assign it in Settings → Pricing" while the shipped list already had the rate. `computePresetDrift()` now also reports `offer` (the drift is material **or** the notice is already listing models the shipped list can price), and the dashboard's unpriced notice keys its button off that — one new model is enough, because the user is looking at the unpriced list anyway.
-
-### Added
-
-- **Price-watch: LongCat official (`longcat-official`)** — the first source that fetches more than one page: LongCat (Meituan) publishes one VitePress pricing page per model, so `VENDORS[...].pages` fetches `longcat.ai/platform/docs/pricing/longcat-2.5` and `/longcat-2.0` and `mergeSnapshots()` folds them into one committed snapshot under `extension/vendors/longcat-official/price-snapshots/` (a model named by two pages refuses, rather than letting the last page win). Each page renders its table twice — USD for the `longcat.ai` edition, CNY (`¥`) for `longcat.chat`/`longcat.com` — so the parser keys off the `$` cells and the model identity comes from the page `<title>`; a missing title, a missing row or a non-USD-only page fails closed. The published column is the limited-time discounted price, which is the current pay price. `PREFERRED_BY_SERIES.longcat` now points here, so the hand-transcribed LongCat-2.0 override is gone and **LongCat-2.5-Preview** ($0.30 / $1.20 / $0.006 per 1M input / output / cached input) is priced for the first time.
 
 ## 1.6.0 — 2026-10-26
 
