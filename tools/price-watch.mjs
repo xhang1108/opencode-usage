@@ -28,13 +28,21 @@ import {
   writeSnapshot,
   rebuildPreset,
   assertNotSuspiciousShrink,
+  mergeSnapshots,
 } from "./price-watch-lib.mjs";
 
+// Sources fetch one URL by default; `pages` (LongCat's per-model pricing docs)
+// fetches each page and merges them into a single snapshot.
 export async function watchOne(source, cfg, { allowShrink = false } = {}) {
   const parser = await loadParser(cfg);
-  const res = await fetch(cfg.url);
-  if (!res.ok) throw new Error(`${source}: fetch failed ${res.status}`);
-  const snapshot = parser.snapshotFromPage(await res.text(), new Date().toISOString(), { source });
+  const capturedAt = new Date().toISOString();
+  const parts = [];
+  for (const url of cfg.pages && cfg.pages.length ? cfg.pages : [cfg.url]) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${source}: fetch failed ${res.status} (${url})`);
+    parts.push(parser.snapshotFromPage(await res.text(), capturedAt, { source }));
+  }
+  const snapshot = mergeSnapshots(source, capturedAt, parts);
 
   const files = listSnapshots(cfg);
   let wrote = false;

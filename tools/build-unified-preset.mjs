@@ -40,6 +40,7 @@ const SOURCES = [
   "typesafe-official",
   "minimax-official",
   "zai-official",
+  "longcat-official",
 ];
 const FINGERPRINT_PREFIX = "fp:";
 
@@ -103,6 +104,7 @@ const PREFERRED_BY_SERIES = {
   jev: "typesafe-official",
   minimax: "minimax-official",
   glm: "zai-official",
+  longcat: "longcat-official",
 };
 function preferredSource(fp) {
   return PREFERRED_BY_SERIES[String(fp).split(":")[0]] || null;
@@ -249,11 +251,9 @@ const OVERRIDE_RATES = {
   "muse-1.2-spark": [{ from: null, pricing: { flat: { input: 1.25, output: 4.25, cacheRead: 0.15, cacheWrite: 0 } } }],
   "muse-1.2-spark-contributor": [{ from: null, pricing: { flat: { input: 0.1, output: 0.2, cacheRead: 0.002, cacheWrite: 0 } } }],
 
-  // LongCat-2.0 — official limited-time discount (current pay price; the
-  // standard list 0.75/2.95/0.015 is not used, no discount end date is
-  // published — re-verify when the promo ends).
-  // (https://longcat.ai/platform/docs/pricing/longcat-2.0)
-  "longcat-2.0": [{ from: null, pricing: { flat: { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0 } } }],
+  // LongCat — no longer hand-transcribed: `longcat-official` owns both published
+  // price pages (longcat-2.5, longcat-2.0 in extension/vendors/longcat-official).
+  // Do not re-add a LongCat override here; it would outrank the daily parser.
 
   // Omen Alpha — deprecated; last official price from the anomalyco repo
   // (https://github.com/anomalyco/models.dev/blob/dev/providers/opencode-go/models/omen-alpha.toml).

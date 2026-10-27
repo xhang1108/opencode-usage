@@ -95,10 +95,38 @@ export const VENDORS = {
     dir: "extension/vendors/typesafe-official",
     parser: "extension/vendors/typesafe-official/pricing-page.js",
   },
+  "longcat-official": {
+    // LongCat (Meituan) publishes ONE PAGE PER MODEL instead of one table, so
+    // this source fetches every model page and merges them into one snapshot.
+    // Both pricing pages render the price table twice (USD for the longcat.ai
+    // edition, CNY for longcat.chat/com); the parser keeps the USD rows only.
+    url: "https://longcat.ai/platform/docs/pricing/longcat-2.5",
+    pages: [
+      "https://longcat.ai/platform/docs/pricing/longcat-2.5",
+      "https://longcat.ai/platform/docs/pricing/longcat-2.0",
+    ],
+    dir: "extension/vendors/longcat-official",
+    parser: "extension/vendors/longcat-official/pricing-page.js",
+  },
 };
 
 export function snapshotFilename(capturedAt) {
   return `${String(capturedAt).replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z")}.json`;
+}
+
+// A source with `pages` (one URL per model, e.g. LongCat's per-model pricing
+// docs) is captured as ONE snapshot: same capturedAt, every page's models
+// merged. Two pages naming the same model is a vendor layout change, not a
+// price - refuse rather than let the last page silently win.
+export function mergeSnapshots(source, capturedAt, parts) {
+  const models = {};
+  for (const part of parts) {
+    for (const [id, model] of Object.entries((part && part.models) || {})) {
+      if (models[id]) throw new Error(`${source}: duplicate model ${id} across pages`);
+      models[id] = model;
+    }
+  }
+  return { capturedAt, source, models };
 }
 
 export function isoFromWayback(ts) {

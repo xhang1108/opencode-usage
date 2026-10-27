@@ -275,7 +275,7 @@ function renderDashboard(skipCharts, aggOverride) {
     // (or mispriced) with no hint that a newer shipped list fixes it. Offer the
     // refresh right here so the user never has to find Settings -> Pricing.
     const drift = globalPresetDrift();
-    const offerUpdate = !!(drift && drift.suggest && presetResetState === "idle");
+    const offerUpdate = !!(drift && drift.offer && presetResetState === "idle");
     const showUndo = presetResetState === "done";
     if (unpricedModels.size > 0 || offerUpdate || showUndo) {
       const head =

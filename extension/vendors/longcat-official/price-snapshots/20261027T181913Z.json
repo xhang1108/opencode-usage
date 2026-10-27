@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-10-27T18:19:13.858Z",
+  "source": "longcat-official",
+  "models": {
+    "longcat-2.5-preview": {
+      "label": "LongCat-2.5-Preview",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.3,
+            "output": 1.2,
+            "cacheRead": 0.006,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "longcat-2.0": {
+      "label": "LongCat-2.0",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.3,
+            "output": 1.2,
+            "cacheRead": 0.006,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

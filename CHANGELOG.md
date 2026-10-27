@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **The unpriced notice offers "Update price list" even for a single recoverable model.** The saved-list drift prompt only fired at ≥3 recoverable or ≥5 repriced models, so a new model that the shipped list *can* price (e.g. `longcat-2.5-preview-free`, one record) sat in the unpriced badge with no way to act: the badge said "assign it in Settings → Pricing" while the shipped list already had the rate. `computePresetDrift()` now also reports `offer` (the drift is material **or** the notice is already listing models the shipped list can price), and the dashboard's unpriced notice keys its button off that — one new model is enough, because the user is looking at the unpriced list anyway.
+
+### Added
+
+- **Price-watch: LongCat official (`longcat-official`)** — the first source that fetches more than one page: LongCat (Meituan) publishes one VitePress pricing page per model, so `VENDORS[...].pages` fetches `longcat.ai/platform/docs/pricing/longcat-2.5` and `/longcat-2.0` and `mergeSnapshots()` folds them into one committed snapshot under `extension/vendors/longcat-official/price-snapshots/` (a model named by two pages refuses, rather than letting the last page win). Each page renders its table twice — USD for the `longcat.ai` edition, CNY (`¥`) for `longcat.chat`/`longcat.com` — so the parser keys off the `$` cells and the model identity comes from the page `<title>`; a missing title, a missing row or a non-USD-only page fails closed. The published column is the limited-time discounted price, which is the current pay price. `PREFERRED_BY_SERIES.longcat` now points here, so the hand-transcribed LongCat-2.0 override is gone and **LongCat-2.5-Preview** ($0.30 / $1.20 / $0.006 per 1M input / output / cached input) is priced for the first time.
+
 ## 1.6.0 — 2026-10-26
 
 Backups are self-contained and restore sanely on another browser: the records CSV now carries the spend ledger, a two-file restore always reports both files, and opencode's first sync after a restore no longer re-scans its whole retention window. Export filenames are stamped to the minute.

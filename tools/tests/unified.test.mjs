@@ -233,8 +233,8 @@ test("the board agrees with pricing: structurally-priced vendor ids are assigned
     const priced = priceUnified({ ...rec, source, model }, index);
     assert.equal(priced.unpriced, false, `${key} should be priced`);
   }
-  // Structurally known, has no daily parser, but is priced by the hand-
-  // transcribed official LongCat limited-time-discount override.
+  // Structurally known and priced by the daily `longcat-official` crawl, which
+  // replaced the hand-transcribed LongCat limited-time-discount override.
   const longcat = groupIdForKey(unified.assign, "commandcode:meituan/LongCat-2.0:free");
   assert.equal(longcat, "longcat-2.0", "LongCat resolves via fingerprint fallback");
   assert.equal(

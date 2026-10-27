@@ -27,9 +27,14 @@ const recordKey = (rec) => `${(rec && rec.source) || "opencode"}:${rec && rec.mo
 //   repricedCount    how many models the shipped list prices differently (cost moved)
 //   lostCount        models only the stored list prices (a reset would unprice them)
 //   addedGroups      groups in the shipped list that the stored one does not have
-//   suggest          true when the drift is big enough to prompt
+//   suggest          true when the drift is big enough to prompt on its own
+//   offer            true when the in-notice refresh is worth offering: either the
+//                    drift is material, or the notice is already listing models
+//                    the shipped list can price (one new model is enough there —
+//                    the user is looking at the unpriced badge anyway, and
+//                    leaving them without the button strands it forever)
 export function computePresetDrift({ stored, shipped, records } = {}) {
-  const out = { recoverable: [], recoverableCount: 0, repricedCount: 0, lostCount: 0, addedGroups: 0, suggest: false };
+  const out = { recoverable: [], recoverableCount: 0, repricedCount: 0, lostCount: 0, addedGroups: 0, suggest: false, offer: false };
   if (!stored || !shipped) return out;
 
   const storedIndex = buildUnifiedIndex(stored);
@@ -69,5 +74,6 @@ export function computePresetDrift({ stored, shipped, records } = {}) {
   out.repricedCount = repriced.size;
   out.lostCount = lost.size;
   out.suggest = out.recoverableCount >= MIN_RECOVERABLE || out.repricedCount >= MIN_REPRICED;
+  out.offer = out.suggest || out.recoverableCount > 0;
   return out;
 }

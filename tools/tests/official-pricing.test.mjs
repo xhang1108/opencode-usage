@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { VENDORS, ROOT } from "../price-watch-lib.mjs";
+import { VENDORS, ROOT, mergeSnapshots } from "../price-watch-lib.mjs";
 import { parseStandardTable as parseOpenAI, snapshotFromPage as snapOpenAI } from "../../extension/vendors/openai-official/pricing-page.js";
 import { parsePricingModels as parseXai, snapshotFromPage as snapXai } from "../../extension/vendors/xai-official/pricing-page.js";
 import { parsePricingModels as parseQwen, snapshotFromPage as snapQwen } from "../../extension/vendors/qwen-official/pricing-page.js";
@@ -11,16 +11,21 @@ import { parsePricingModels as parseTencent, snapshotFromPage as snapTencent } f
 import { parsePricingModels as parseTypesafe, snapshotFromPage as snapTypesafe } from "../../extension/vendors/typesafe-official/pricing-page.js";
 import { parsePricingModels as parseMinimax, snapshotFromPage as snapMinimax } from "../../extension/vendors/minimax-official/pricing-page.js";
 import { parsePricingModels as parseZai, snapshotFromPage as snapZai } from "../../extension/vendors/zai-official/pricing-page.js";
+import { parsePricingModels as parseLongcat, snapshotFromPage as snapLongcat } from "../../extension/vendors/longcat-official/pricing-page.js";
 
 // ---------------------------------------------------------------------------
 // VENDORS wiring
 // ---------------------------------------------------------------------------
 
-test("seven official sources are wired with existing parser files", () => {
-  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official", "zai-official"]) {
+test("eight official sources are wired with existing parser files", () => {
+  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official", "zai-official", "longcat-official"]) {
     const cfg = VENDORS[source];
     assert.ok(cfg, `${source} missing from VENDORS`);
     assert.match(cfg.url, /^https:\/\//);
+    if (cfg.pages) {
+      assert.ok(Array.isArray(cfg.pages) && cfg.pages.length > 0, `${source} pages must be a non-empty array`);
+      for (const url of cfg.pages) assert.match(url, /^https:\/\//);
+    }
     assert.ok(existsSync(resolve(ROOT, cfg.parser)), `${source} parser not found: ${cfg.parser}`);
     assert.ok(existsSync(resolve(ROOT, cfg.dir)), `${source} vendor dir not found: ${cfg.dir}`);
     assert.ok(!existsSync(resolve(ROOT, cfg.dir, "vendor.json")), `${source} is price-only and must not ship vendor.json`);
@@ -754,10 +759,90 @@ test("zai snapshot carries source and capturedAt", () => {
 });
 
 // ---------------------------------------------------------------------------
+// LongCat (Meituan) — one model per VitePress page, USD edition table only
+// ---------------------------------------------------------------------------
+
+const LONGCAT_25_HTML = `<html><head><title>LongCat-2.5-Preview | LongCat API Docs</title></head><body>
+<h1>Models &amp; Pricing</h1>
+<h2>Pay-As-You-Go currently supports LongCat-2.5-Preview.</h2>
+<div data-edition-only="ai"><table>
+<tr><th>Item</th><th>Discounted Price $/1M Tokens (limited-time)</th></tr>
+<tr><td>Uncached Input</td><td>$0.30</td></tr>
+<tr><td>Cached Input</td><td>$0.006</td></tr>
+<tr><td>Output</td><td>$1.20</td></tr>
+</table></div>
+<div data-edition-only="chat com"><table>
+<tr><th>Item</th><th>Discounted Price $/1M Tokens (limited-time)</th></tr>
+<tr><td>Uncached Input</td><td>¥2</td></tr>
+<tr><td>Cached Input</td><td>¥0.04</td></tr>
+<tr><td>Output</td><td>¥8</td></tr>
+</table></div>
+</body></html>`;
+
+const LONGCAT_20_HTML = LONGCAT_25_HTML.replace(/LongCat-2\.5-Preview/g, "LongCat-2.0");
+
+test("longcat parser: title names the model, USD table prices it, ¥ edition ignored", () => {
+  const models = parseLongcat(LONGCAT_25_HTML);
+  assert.deepEqual(Object.keys(models), ["longcat-2.5-preview"]);
+  assert.equal(models["longcat-2.5-preview"].label, "LongCat-2.5-Preview");
+  assert.deepEqual(models["longcat-2.5-preview"].entry.pricing.flat, {
+    input: 0.3,
+    output: 1.2,
+    cacheRead: 0.006,
+    cacheWrite: 0,
+  });
+});
+
+test("longcat parser fails closed on missing title / no USD table / bad prices", () => {
+  assert.throws(
+    () => parseLongcat(LONGCAT_25_HTML.replace(/<title>[\s\S]*?<\/title>/, "")),
+    /title does not name the model/,
+  );
+  assert.throws(
+    () => parseLongcat(LONGCAT_25_HTML.replace(/<table[\s\S]*?<\/table>/g, "")),
+    /no price table found/,
+  );
+  // every table in CNY -> the USD row is gone, so nothing may be priced
+  assert.throws(
+    () => parseLongcat(LONGCAT_25_HTML.replace(/\$0\.30/g, "¥2").replace(/\$1\.20/g, "¥8")),
+    /no USD token table found/,
+  );
+  // a row silently dropped must not fall back to 0
+  assert.throws(
+    () => parseLongcat(LONGCAT_25_HTML.replace("<tr><td>Output</td><td>$1.20</td></tr>", "")),
+    /no USD token table found/,
+  );
+  // cached input can never exceed the uncached price
+  assert.throws(
+    () => parseLongcat(LONGCAT_25_HTML.replace("$0.006", "$3.00")),
+    /invalid cached input for longcat-2.5-preview/,
+  );
+});
+
+test("longcat snapshot carries source and capturedAt", () => {
+  const snap = snapLongcat(LONGCAT_25_HTML, "2026-10-28T06:00:00.000Z");
+  assert.equal(snap.source, "longcat-official");
+  assert.equal(snap.capturedAt, "2026-10-28T06:00:00.000Z");
+  assert.ok(snap.models["longcat-2.5-preview"]);
+});
+
+test("longcat pages merge into one snapshot; a duplicated model refuses", () => {
+  const a = snapLongcat(LONGCAT_25_HTML, "2026-10-28T06:00:00.000Z");
+  const b = snapLongcat(LONGCAT_20_HTML, "2026-10-28T06:00:00.000Z");
+  const merged = mergeSnapshots("longcat-official", "2026-10-28T06:00:00.000Z", [a, b]);
+  assert.deepEqual(Object.keys(merged.models).sort(), ["longcat-2.0", "longcat-2.5-preview"]);
+  assert.equal(merged.models["longcat-2.0"].entry.pricing.flat.output, 1.2);
+  assert.throws(
+    () => mergeSnapshots("longcat-official", "2026-10-28T06:00:00.000Z", [a, a]),
+    /duplicate model longcat-2.5-preview across pages/,
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Cross-source snapshot contract (price-history -> preset round trip)
 // ---------------------------------------------------------------------------
 
-test("all seven parsers produce valid snapshot -> preset chains", async () => {
+test("all eight parsers produce valid snapshot -> preset chains", async () => {
   const { versionsFromSnapshots, presetFromVersions } = await import("../../extension/shared/price-history.js");
   const cases = [
     ["openai-official", snapOpenAI(OPENAI_MD, "2026-09-24T05:17:00.000Z"), "gpt-6-luna"],
@@ -767,6 +852,7 @@ test("all seven parsers produce valid snapshot -> preset chains", async () => {
     ["typesafe-official", snapTypesafe(TYPESAFE_MD, "2026-09-24T05:17:00.000Z"), "jev-1.14.0"],
     ["minimax-official", snapMinimax(MINIMAX_MD, "2026-10-24T05:17:00.000Z"), "MiniMax-M3.1-Flash", "minimax-m3.1-flash"],
     ["zai-official", snapZai(ZAI_HTML, "2026-10-24T11:47:24.986Z"), "glm-5.3"],
+    ["longcat-official", snapLongcat(LONGCAT_25_HTML, "2026-10-28T06:00:00.000Z"), "longcat-2.5-preview"],
   ];
   for (const [source, snap, id, target = id] of cases) {
     const state = versionsFromSnapshots([snap]);

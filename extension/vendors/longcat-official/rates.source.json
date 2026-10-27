@@ -1,0 +1,39 @@
+{
+  "source": "longcat-official",
+  "models": [
+    {
+      "model": "longcat-2.0",
+      "label": "LongCat-2.0",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "longcat-2.5-preview",
+      "label": "LongCat-2.5-Preview",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

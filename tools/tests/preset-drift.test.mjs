@@ -9,6 +9,7 @@ const rec = (model, source = "opencode") => ({ source, model, time: "2026-01-01T
 test("no lists or no records means no drift", () => {
   const empty = computePresetDrift({});
   assert.equal(empty.suggest, false);
+  assert.equal(empty.offer, false);
   assert.equal(empty.recoverableCount, 0);
   assert.equal(computePresetDrift({ stored: { groups: [], assign: {} }, records: [rec("a")] }).suggest, false);
 });
@@ -30,7 +31,7 @@ test("counts unpriced models the shipped list can price", () => {
   assert.equal(drift.suggest, drift.recoverableCount >= MIN_RECOVERABLE);
 });
 
-test("a small gap stays quiet", () => {
+test("a small gap stays quiet but still offers the in-notice refresh", () => {
   const stored = { groups: [{ id: "g1", rates: flat(1) }], assign: {} };
   const shipped = {
     groups: [{ id: "g1", rates: flat(1) }],
@@ -39,6 +40,15 @@ test("a small gap stays quiet", () => {
   const drift = computePresetDrift({ stored, shipped, records: [rec("b"), rec("c")] });
   assert.equal(drift.recoverableCount, 2);
   assert.equal(drift.suggest, false);
+  // Below the global prompt threshold, but the notice is already listing these
+  // models, so the one-click update must be there (a single new model, e.g.
+  // longcat-2.5-preview-free, would otherwise stay unpriced forever).
+  assert.equal(drift.offer, true);
+
+  const one = computePresetDrift({ stored, shipped, records: [rec("b")] });
+  assert.equal(one.recoverableCount, 1);
+  assert.equal(one.suggest, false);
+  assert.equal(one.offer, true);
 });
 
 test("rate changes count as repriced, not as unpriced", () => {
@@ -61,6 +71,7 @@ test("identical lists report a clean drift", () => {
   assert.equal(drift.repricedCount, 0);
   assert.equal(drift.addedGroups, 0);
   assert.equal(drift.suggest, false);
+  assert.equal(drift.offer, false);
 });
 
 test("records from other sources keep their own key", () => {

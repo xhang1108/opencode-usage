@@ -2068,6 +2068,22 @@
       ]
     },
     {
+      "id": "longcat-2.5-preview",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "mimo-2-flash",
       "rates": [
         {
@@ -3636,6 +3652,8 @@
     "zai-official:glm-5.3-flashx": "glm-5.3-flashx",
     "zai-official:glm-5.3-flashx-legal": "glm-5.3-flashx-legal",
     "zai-official:glm-ocr": "glm-ocr",
+    "longcat-official:longcat-2.0": "longcat-2.0",
+    "longcat-official:longcat-2.5-preview": "longcat-2.5-preview",
     "alias:space-bunny": "minimax-3.1-flash-m",
     "alias:ox-alpha": "glm-5.3-flash",
     "alias:x-preview-f": "glm-5.3-flash",
@@ -3804,6 +3822,7 @@
     "fp:glm:5.3:base:flashx": "glm-5.3-flashx",
     "fp:glm:5.3:base:flashx-legal": "glm-5.3-flashx-legal",
     "fp:glm:0:base:ocr": "glm-ocr",
+    "fp:longcat:2.5:preview:": "longcat-2.5-preview",
     "fp:muse:0:base:spark-contributor": "muse-1.2-spark-contributor",
     "fp:space:0:base:bunny": "minimax-3.1-flash-m",
     "fp:gpt:20:base:ossb": "gpt-20-ossb",

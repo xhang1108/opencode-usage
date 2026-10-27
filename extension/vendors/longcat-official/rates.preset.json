@@ -1,0 +1,44 @@
+{
+  "presetVersion": 2,
+  "source": "longcat-official",
+  "modelMap": {
+    "longcat-official:longcat-2.0": "longcat-official:longcat-2.0",
+    "longcat-official:longcat-2.5-preview": "longcat-official:longcat-2.5-preview"
+  },
+  "targets": {
+    "longcat-official:longcat-2.0": {
+      "label": "LongCat-2.0",
+      "scope": "longcat-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "longcat-official:longcat-2.5-preview": {
+      "label": "LongCat-2.5-Preview",
+      "scope": "longcat-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.3,
+              "output": 1.2,
+              "cacheRead": 0.006,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  }
+}
