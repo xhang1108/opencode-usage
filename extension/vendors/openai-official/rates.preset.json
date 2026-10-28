@@ -36,6 +36,7 @@
     "openai-official:gpt-6-luna": "openai-official:gpt-6-luna",
     "openai-official:gpt-6-sol": "openai-official:gpt-6-sol",
     "openai-official:gpt-6.1-sol": "openai-official:gpt-6.1-sol",
+    "openai-official:gpt-6.1-terra": "openai-official:gpt-6.1-terra",
     "openai-official:o1": "openai-official:o1",
     "openai-official:o1-pro": "openai-official:o1-pro",
     "openai-official:o3": "openai-official:o3",
@@ -736,6 +737,34 @@
                   "output": 15,
                   "cacheRead": 0.2,
                   "cacheWrite": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "openai-official:gpt-6.1-terra": {
+      "label": "gpt-6.1-terra",
+      "scope": "openai-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 1,
+                  "output": 5,
+                  "cacheRead": 0.05,
+                  "cacheWrite": 1.25
+                },
+                "high": {
+                  "input": 2,
+                  "output": 7.5,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 2.5
                 }
               }
             }

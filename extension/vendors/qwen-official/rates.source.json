@@ -1379,6 +1379,23 @@
       ]
     },
     {
+      "model": "qwen3.8-omni-flash",
+      "label": "qwen3.8-omni-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.016,
+              "cacheRead": 0.015,
+              "cacheWrite": 0.1875
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "qwq-plus",
       "label": "qwq-plus",
       "rates": [

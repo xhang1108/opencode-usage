@@ -72,6 +72,7 @@
     "qwen-official:qwen3.8-flash": "qwen-official:qwen3.8-flash",
     "qwen-official:qwen3.8-max": "qwen-official:qwen3.8-max",
     "qwen-official:qwen3.8-max-0902": "qwen-official:qwen3.8-max-0902",
+    "qwen-official:qwen3.8-omni-flash": "qwen-official:qwen3.8-omni-flash",
     "qwen-official:qwq-plus": "qwen-official:qwq-plus"
   },
   "targets": {
@@ -1447,6 +1448,23 @@
               "output": 6,
               "cacheRead": 0.2,
               "cacheWrite": 2.5
+            }
+          }
+        }
+      ]
+    },
+    "qwen-official:qwen3.8-omni-flash": {
+      "label": "qwen3.8-omni-flash",
+      "scope": "qwen-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.016,
+              "cacheRead": 0.015,
+              "cacheWrite": 0.1875
             }
           }
         }

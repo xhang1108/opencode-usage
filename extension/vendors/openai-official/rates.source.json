@@ -701,6 +701,34 @@
       ]
     },
     {
+      "model": "gpt-6.1-terra",
+      "label": "gpt-6.1-terra",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 1,
+                  "output": 5,
+                  "cacheRead": 0.05,
+                  "cacheWrite": 1.25
+                },
+                "high": {
+                  "input": 2,
+                  "output": 7.5,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 2.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "o1",
       "label": "o1",
       "rates": [

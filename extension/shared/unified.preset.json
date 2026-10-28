@@ -1675,6 +1675,33 @@
       ]
     },
     {
+      "id": "gpt-6.1-terra",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 1,
+                  "output": 5,
+                  "cacheRead": 0.05,
+                  "cacheWrite": 1.25
+                },
+                "high": {
+                  "input": 2,
+                  "output": 7.5,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 2.5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "grok-0.1-build",
       "rates": [
         {
@@ -3138,6 +3165,22 @@
       ]
     },
     {
+      "id": "qwen-3.8-flash-omni",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.15,
+              "output": 0.016,
+              "cacheRead": 0.015,
+              "cacheWrite": 0.1875
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "qwen-3.8-max",
       "rates": [
         {
@@ -3550,6 +3593,7 @@
     "openai-official:gpt-6-luna": "gpt-6-luna",
     "openai-official:gpt-6-sol": "gpt-6-sol",
     "openai-official:gpt-6.1-sol": "gpt-6.1-sol",
+    "openai-official:gpt-6.1-terra": "gpt-6.1-terra",
     "openai-official:o1": "o-1",
     "openai-official:o1-pro": "o-1-pro",
     "openai-official:o3": "o-3",
@@ -3626,6 +3670,7 @@
     "qwen-official:qwen3.8-flash": "qwen-3.8-flash",
     "qwen-official:qwen3.8-max": "qwen-3.8-max",
     "qwen-official:qwen3.8-max-0902": "qwen-3.8-max-0902",
+    "qwen-official:qwen3.8-omni-flash": "qwen-3.8-flash-omni",
     "qwen-official:qwq-plus": "qwq-plus",
     "tencent-official:hy3": "hy-3",
     "tencent-official:hy4-preview": "hy-4-preview",
@@ -3749,6 +3794,7 @@
     "fp:gpt:6:base:luna": "gpt-6-luna",
     "fp:gpt:6:base:sol": "gpt-6-sol",
     "fp:gpt:6.1:base:sol": "gpt-6.1-sol",
+    "fp:gpt:6.1:base:terra": "gpt-6.1-terra",
     "fp:o:1:base:": "o-1",
     "fp:o:1:pro:": "o-1-pro",
     "fp:o:3:base:": "o-3",
@@ -3804,6 +3850,7 @@
     "fp:qwen:3.8:base:2.4t-a95b": "qwen-3.8-2.4t-a95b",
     "fp:qwen:3.8:base:27b": "qwen-3.8-27b",
     "fp:qwen:3.8:base:max-0902": "qwen-3.8-max-0902",
+    "fp:qwen:3.8:flash:omni": "qwen-3.8-flash-omni",
     "fp:qwq:0:plus:": "qwq-plus",
     "fp:jev:1.13:base:": "jev-1.13",
     "fp:jev:1.14:base:": "jev-1.14",
