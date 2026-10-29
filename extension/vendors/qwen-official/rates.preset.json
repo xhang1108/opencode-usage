@@ -23,6 +23,7 @@
     "qwen-official:qwen-turbo": "qwen-official:qwen-turbo",
     "qwen-official:qwen-vl-max": "qwen-official:qwen-vl-max",
     "qwen-official:qwen-vl-ocr": "qwen-official:qwen-vl-ocr",
+    "qwen-official:qwen-vl-ocr-2025-11-20": "qwen-official:qwen-vl-ocr-2025-11-20",
     "qwen-official:qwen-vl-plus": "qwen-official:qwen-vl-plus",
     "qwen-official:qwen3-14b": "qwen-official:qwen3-14b",
     "qwen-official:qwen3-235b-a22b": "qwen-official:qwen3-235b-a22b",
@@ -495,6 +496,23 @@
     },
     "qwen-official:qwen-vl-ocr": {
       "label": "qwen-vl-ocr",
+      "scope": "qwen-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.07,
+              "output": 0.16,
+              "cacheRead": 0.007,
+              "cacheWrite": 0.0875
+            }
+          }
+        }
+      ]
+    },
+    "qwen-official:qwen-vl-ocr-2025-11-20": {
+      "label": "qwen-vl-ocr-2025-11-20",
       "scope": "qwen-official",
       "rates": [
         {

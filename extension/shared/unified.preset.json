@@ -3621,6 +3621,7 @@
     "qwen-official:qwen-turbo": "qwen-turbo",
     "qwen-official:qwen-vl-max": "qwen-max-vl",
     "qwen-official:qwen-vl-ocr": "qwen-vl-ocr",
+    "qwen-official:qwen-vl-ocr-2025-11-20": "qwen-vl-ocr",
     "qwen-official:qwen-vl-plus": "qwen-plus-vl",
     "qwen-official:qwen3-14b": "qwen-3-14b",
     "qwen-official:qwen3-235b-a22b": "qwen-3-235b-a22b",
