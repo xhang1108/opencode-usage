@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-27T10:24:09.473Z",
+  "capturedAt": "2026-10-31T10:51:03.799Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -204,6 +204,10 @@
     {
       "id": "inclusionai/ling-3.1-flash",
       "name": "Ling 3.1 Flash"
+    },
+    {
+      "id": "inclusionai/ling-3.1-flash-1019:free",
+      "name": "Ling 3.1 Flash 1019"
     },
     {
       "id": "meituan/LongCat-2.0",
