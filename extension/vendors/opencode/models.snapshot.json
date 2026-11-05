@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-29T11:26:39.414Z",
+  "capturedAt": "2026-11-05T13:04:00.686Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
@@ -13,6 +13,7 @@
     "gpt-6-luna",
     "grok-4.7",
     "hy3",
+    "hy4",
     "hy4-preview",
     "iceman-contributor-free",
     "kimi-k2.7-code",

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-31T10:51:03.799Z",
+  "capturedAt": "2026-11-05T13:04:00.759Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -206,7 +206,7 @@
       "name": "Ling 3.1 Flash"
     },
     {
-      "id": "inclusionai/ling-3.1-flash-1019:free",
+      "id": "inclusionai/ling-3.1-flash-1019",
       "name": "Ling 3.1 Flash 1019"
     },
     {
@@ -286,16 +286,16 @@
       "name": "Ornith 1.5 122B"
     },
     {
-      "id": "poolside/laguna-s-2.1-free",
-      "name": "Laguna S 2.1"
-    },
-    {
       "id": "reflection/beam:free",
       "name": "Beam 1.0"
     },
     {
       "id": "sakana/fugu-ultra",
       "name": "Fugu Ultra"
+    },
+    {
+      "id": "stealth/crouton-alpha",
+      "name": "Crouton Alpha"
     },
     {
       "id": "stealth/glyph-cluster:free",
