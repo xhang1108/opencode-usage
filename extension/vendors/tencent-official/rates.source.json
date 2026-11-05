@@ -19,6 +19,23 @@
       ]
     },
     {
+      "model": "hy4",
+      "label": "hy4",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.834,
+              "output": 2.501,
+              "cacheRead": 0.042,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "hy4-preview",
       "label": "hy4-preview",
       "rates": [
