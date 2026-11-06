@@ -1,8 +1,9 @@
 {
-  "capturedAt": "2026-11-05T13:04:00.686Z",
+  "capturedAt": "2026-11-06T12:51:35.589Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
+    "crouton-alpha-free",
     "deepseek-v4-pro",
     "deepseek-v4.1-flash",
     "gemini-4-argon",
