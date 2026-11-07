@@ -19,7 +19,9 @@ export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export const VENDORS = {
   "deepseek-official": {
-    url: "https://api-docs.deepseek.com/quick_start/pricing",
+    // The trailing slash is required: Docusaurus answers the slash-less path
+    // with the docs home page (HTTP 200, no redirect), which has no price table.
+    url: "https://api-docs.deepseek.com/quick_start/pricing/",
     dir: "extension/vendors/deepseek-official",
     parser: "extension/vendors/deepseek-official/pricing-page.js",
     // legacy / alias API model ids folded into the canonical target.

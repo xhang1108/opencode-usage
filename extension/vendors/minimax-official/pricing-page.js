@@ -52,15 +52,24 @@ function rowModel(cell) {
   return { id: m[0], limit: tier ? Math.round(Number(tier[1]) * 1000) : null };
 }
 
-// md -> [{ label, header, rows }] ; label is the last standalone **Bold** line,
-// "" for the lead table that sits directly under "## LLM".
+// md -> [{ label, header, rows }] ; label is the last standalone **Bold** line or
+// "> [tab] Standard" banner, "" for the lead table under "## LLM".
 function tables(section) {
   const out = [];
   let label = "";
   let table = null;
   for (const raw of section.split("\n")) {
-    const line = raw.trim();
-    // "**Standard**" / "**Priority**\*" (footnote marker) start a new block.
+    // The docs renderer wraps the Standard/Priority tables in a blockquote
+    // ("> | ..."), so strip one quote marker before reading the line.
+    const line = raw.trim().replace(/^>\s?/, "").trim();
+    // "**Standard**" / "**Priority**\*" (footnote marker) or "> [tab] Standard"
+    // start a new block.
+    const tab = /^\[tab\]\s*(.+)$/i.exec(line);
+    if (tab) {
+      label = tab[1].trim();
+      table = null;
+      continue;
+    }
     const bold = /^\*\*([^*]+)\*\*(?:\\\*+)?\s*$/.exec(line);
     if (bold) {
       label = bold[1].trim();

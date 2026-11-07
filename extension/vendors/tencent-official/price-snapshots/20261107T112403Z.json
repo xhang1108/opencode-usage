@@ -1,0 +1,45 @@
+{
+  "capturedAt": "2026-11-07T11:24:03.155Z",
+  "source": "tencent-official",
+  "models": {
+    "hy4": {
+      "label": "hy4",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.834,
+            "output": 2.501,
+            "cacheRead": 0.042,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "hy3": {
+      "label": "hy3",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.132,
+            "output": 0.528,
+            "cacheRead": 0.033,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
+    "hy4-preview": {
+      "label": "hy4-preview",
+      "entry": {
+        "pricing": {
+          "flat": {
+            "input": 0.834,
+            "output": 2.501,
+            "cacheRead": 0.042,
+            "cacheWrite": 0
+          }
+        }
+      }
+    }
+  }
+}

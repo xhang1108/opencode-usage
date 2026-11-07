@@ -18,6 +18,10 @@ import { parsePricingModels as parseLongcat, snapshotFromPage as snapLongcat } f
 // ---------------------------------------------------------------------------
 
 test("eight official sources are wired with existing parser files", () => {
+  assert.ok(
+    VENDORS["deepseek-official"].url.endsWith("/quick_start/pricing/"),
+    "deepseek-official url needs the trailing slash (the slash-less Docusaurus path serves the docs home page with no price table)",
+  );
   for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official", "zai-official", "longcat-official"]) {
     const cfg = VENDORS[source];
     assert.ok(cfg, `${source} missing from VENDORS`);
@@ -649,6 +653,21 @@ test("minimax snapshot carries source and capturedAt", () => {
   assert.equal(snap.source, "minimax-official");
   assert.equal(snap.capturedAt, "2026-10-24T05:17:00.000Z");
   assert.ok(snap.models["MiniMax-M3.1-Flash"]);
+});
+
+test("minimax parser reads blockquote [tab] Standard tables (live docs layout)", () => {
+  // The live docs wrap the Standard/Priority tables in "> [tab] ..." quotes;
+  // the bare-**Standard** fixture above would otherwise parse only the lead
+  // table (1 model) and trip the MIN_MODELS guard.
+  const quoted = MINIMAX_MD.replaceAll("**Standard**", "[tab] Standard")
+    .replaceAll("**Priority**\\*", "[tab] Priority*")
+    .split("\n")
+    .map((l) => (l.startsWith("|") || l.startsWith("[tab]") ? `> ${l}` : l))
+    .join("\n");
+  assert.ok(quoted.includes("> [tab] Standard"), "fixture must carry the quoted tab marker");
+  const models = parseMinimax(quoted);
+  assert.deepEqual(Object.keys(models).sort(), ["MiniMax-M3", "MiniMax-M3.1-Flash"]);
+  assert.equal(models["MiniMax-M3"].entry.pricing.flat.tier.low.input, 0.3);
 });
 
 // ---------------------------------------------------------------------------
