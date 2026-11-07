@@ -66,3 +66,11 @@ test("v2 is idempotent: an already-normalized store is left alone", () => {
   const { patch } = planMigrations({ schemaVersion: 1, localImportData: fixed });
   assert.deepEqual(patch, {});
 });
+
+test("v3 is a no-op marker: the bytes move in background, the stamp here", () => {
+  assert.equal(STORAGE_SCHEMA_VERSION, 3);
+  const { version, applied, patch } = planMigrations({ schemaVersion: 2 });
+  assert.deepEqual(applied, [3]);
+  assert.deepEqual(patch, {}, "v3 must not load or rewrite record maps itself");
+  assert.equal(version, 3);
+});

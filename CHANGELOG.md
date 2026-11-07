@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.0 — 2026-11-07
+
+### Added
+
+- **Backup is one `.zip` package.** Export downloads `opencode-usage_backup_<stamp>.zip` holding the settings JSON plus the records CSV split into 4MiB parts (every part repeats the header). Import reads the zip and restores both halves; old loose files (single `records.csv`, settings JSON, opencode JSON) still restore, and the opencode JSON path is chunked like the CSV path so big files no longer fail as one message.
+- **Oversized record stores shard automatically.** Maps over 3MiB split into `base_YYYY-MM_NNNN` shards (small stores stay one key); readers merge legacy + shards with shards winning, writers re-shard, and a v3 migration moves old monoliths in one-base-per-startup runs with legacy read-through until done.
+
+### Fixed
+
+- **The dashboard loads large stores again instead of failing with a 64MiB message error.** `get-dashboard-data` used to return the whole merged snapshot in one `chrome.runtime.sendMessage` response, so a large local import plus API store crossed Chrome's 64MiB message cap and the dashboard stopped at "Failed to load data". The background now slices the snapshot into 4M-character chunks (never splitting a surrogate pair) and the dashboard joins them before parsing; the records stay in `chrome.storage.local` and nothing is deleted. Tests cover lossless reassembly and the surrogate boundary.
+- **Hardened the new paths.** Chunked transfers are pinned by id (concurrent loads and worker restarts restart cleanly instead of interleaving), record stores treat `__proto__` ids as plain keys, and byte budgets are measured in UTF-8 bytes.
+
+> **Please update.** If your dashboard shows "Failed to load data" (or your stored data is approaching 64MiB), update to 1.8.0 and reopen the dashboard: loading, export and import work again with no action needed — old monoliths migrate to shards automatically in the background and nothing is deleted.
+
 ## 1.7.0 — 2026-10-28
 
 Groq syncs on the first click after opening its console tab, LongCat-2.5-Preview is priced from an official crawl, and the unpriced notice can refresh an out-of-date price list even when only one model is recoverable.

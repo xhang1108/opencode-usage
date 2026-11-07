@@ -24,7 +24,8 @@ import { renderSpend } from "./settings/spend.js";
 import { renderHowItWorks } from "./settings/how-it-works.js";
 import { parseXlsx } from "../shared/xlsx.js";
 import { parseMimoSheets } from "../vendors/mimo/import-usage.js";
-import { csvToRecords, csvToSpendEntries, parseSettingsPayload } from "../shared/backup.js";
+import { csvToRecords, csvToSpendEntries, parseSettingsPayload, splitBackupEntries } from "../shared/backup.js";
+import { unzipText } from "../shared/zip.js";
 import { normalizeRecord } from "../shared/canonical.js";
 import {
   chunkRecords,
@@ -437,14 +438,48 @@ async function loadFromExtension() {
     await yieldToMain();
 
     report("Reading stored data");
-    const res = await chrome.runtime.sendMessage({ type: "get-dashboard-data" });
-    if (!res || !res.ok || !res.data) {
-      showEmptyStateIfNeeded();
-      return;
+    // The snapshot travels in chunks: one 64MiB+ response is rejected by Chrome
+    // before the dashboard ever sees it. Chunks are joined and parsed once here.
+    // transferId pins one server snapshot: a concurrent load or a worker
+    // restart starts a new transfer, and the dashboard drops stale chunks.
+    const chunks = [];
+    let offset = 0;
+    let transferId = null;
+    let total = -1;
+    let restarts = 0;
+    for (;;) {
+      const res = await chrome.runtime.sendMessage({ type: "get-dashboard-data", chunked: true, offset, transferId });
+      if (!res || !res.ok || typeof res.data !== "string" || typeof res.nextOffset !== "number") {
+        throw new Error((res && res.error) || "Could not read stored data");
+      }
+      if (transferId != null && res.transferId !== transferId) {
+        if (++restarts > 2) throw new Error("dashboard transfer kept restarting");
+        chunks.length = 0;
+        offset = 0;
+        transferId = null;
+        total = -1;
+        continue;
+      }
+      transferId = res.transferId;
+      if (total !== -1 && res.total !== total) {
+        if (++restarts > 2) throw new Error("dashboard transfer kept restarting");
+        chunks.length = 0;
+        offset = 0;
+        transferId = null;
+        total = -1;
+        continue;
+      }
+      total = res.total;
+      chunks.push(res.data);
+      if (!res.done && res.nextOffset <= offset) throw new Error("dashboard transfer stalled");
+      offset = res.nextOffset;
+      if (res.done) break;
+      report("Reading stored data", offset, res.total);
+      await yieldToMain();
     }
 
     report("Parsing records");
-    const data = JSON.parse(res.data);
+    const data = JSON.parse(chunks.join(""));
     await yieldToMain();
 
     // Normalize on ingest (chunked so the main thread can breathe) so every
@@ -536,13 +571,15 @@ async function importVendorExports(files) {
 
 // Dispatch one file to its parser by extension. A .csv or an
 // opencode-usage-settings .json is our own backup (D24) and is restored;
-// any other .json is an opencode local DB export; .xlsx is a MiMo export.
+// any other .json is an opencode local DB export; .xlsx is a MiMo export;
+// .zip is our own backup package (settings JSON + records CSV parts).
 async function importVendorExport(file) {
   const kind = classifyImport(file && file.name);
   if (kind === "xlsx") return await importMimoXlsx(file);
+  if (kind === "zip") return await importBackupZip(file);
   if (kind === "csv") return await importRecordsCSV(file);
   if (kind === "json") return await importJSONFile(file);
-  throw new Error("unsupported type (expected .csv, .json or .xlsx)");
+  throw new Error("unsupported type (expected .zip, .csv, .json or .xlsx)");
 }
 
 async function importJSONFile(file) {
@@ -585,8 +622,14 @@ async function importRecordsCSV(file) {
   if (records.length === 0 && spendEntries.length === 0) {
     throw new Error("no valid records found in the CSV");
   }
+  return await restoreParsedRecords(records, spendEntries);
+}
+
+// Shared restore path for a loose .csv and for every CSV part inside a
+// backup .zip (old single-file backups and new multi-part ones alike).
+async function restoreParsedRecords(records, spendEntries) {
   const parts = [];
-  if (records.length > 0) {
+  if ((records || []).length > 0) {
     const vendorSources = new Set(
       ((settings && settings.registry && settings.registry.vendors) || [])
         .map((v) => v && v.source)
@@ -635,25 +678,107 @@ async function importRecordsCSV(file) {
     const merged = [...byId.values()];
     await saveSpendEntries(merged);
     if (settings) settings.spendEntries = merged;
-    parts.push(`spend: ${spendEntries.length} entries`);
+    parts.push(`spend: ${merged.length} entries`);
   }
   return `records restored — ${parts.join(", ")}`;
+}
+
+// Restore a backup .zip: a settings JSON plus one or more records CSV parts.
+// Old loose files keep working (single records.csv, settings JSON, opencode
+// JSON); the zip just carries the same entries in one package.
+async function importBackupZip(file) {
+  let entries;
+  try {
+    entries = await unzipText(await file.arrayBuffer());
+  } catch (e) {
+    throw new Error(`invalid backup zip (${(e && e.message) || e})`);
+  }
+  const names = Object.keys(entries);
+  if (names.length === 0) throw new Error("backup zip is empty");
+  const summaries = [];
+  const { settingsName, csvNames } = splitBackupEntries(entries);
+  if (settingsName) {
+    try {
+      summaries.push(await restoreSettings(JSON.parse(entries[settingsName])));
+    } catch (e) {
+      summaries.push(`settings skipped (${(e && e.message) || e})`);
+    }
+  }
+  if (csvNames.length > 0) {
+    const records = [];
+    const spendEntries = [];
+    for (const n of csvNames) {
+      for (const r of csvToRecords(entries[n])) records.push(r);
+      for (const e of csvToSpendEntries(entries[n])) spendEntries.push(e);
+    }
+    if (records.length === 0 && spendEntries.length === 0) {
+      throw new Error("no valid records found in the backup zip");
+    }
+    summaries.push(await restoreParsedRecords(records, spendEntries));
+  }
+  if (summaries.length === 0) throw new Error("backup zip holds neither settings nor records");
+  return summaries.join("; ");
 }
 
 async function importMimoXlsx(file) {
   const { sheets } = await parseXlsx(await file.arrayBuffer());
   const records = parseMimoSheets(sheets);
   if (records.length === 0) throw new Error("no MiMo usage rows found in the XLSX; ensure the file contains daily data (YYYY-MM-DD), not monthly summaries (YYYY-MM)");
-  const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source: "mimo", records });
-  if (!res || !res.ok) throw new Error((res && res.error) || "unknown error");
+  // Chunked like every other vendor path: one giant message can cross the cap.
+  let added = 0;
+  let count = 0;
+  for (const chunk of chunkRecords(records)) {
+    const res = await chrome.runtime.sendMessage({ type: "vendor-crawl-data", source: "mimo", records: chunk });
+    if (!res || !res.ok) throw new Error((res && res.error) || "unknown error");
+    added += res.added || 0;
+    count = res.count || count;
+  }
   await chrome.runtime.sendMessage({ type: "vendor-crawl-done", source: "mimo" });
-  return `MiMo: ${res.added} new (${res.count} stored)`;
+  return `MiMo: ${added} new (${count} stored)`;
 }
 
 async function importOpencodeJSON(text) {
-  const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: text });
-  if (!res || !res.ok) throw new Error((res && res.error) || "unknown error");
-  return `opencode: ${res.imported} imported (${res.newRecords} new)`;
+  // Chunked like the CSV path: one giant sendMessage crosses Chrome's 64MiB
+  // cap and fails the whole file. Merges are idempotent, so per-chunk sums
+  // equal one big import.
+  let incoming;
+  try {
+    incoming = JSON.parse(text);
+    if (incoming && typeof incoming.data === "string") incoming = JSON.parse(incoming.data);
+  } catch (e) {
+    throw new Error(`invalid JSON (${(e && e.message) || e})`);
+  }
+  // Chunked like the CSV path: one giant sendMessage crosses Chrome's 64MiB
+  // cap and fails the whole file. Merges are idempotent, so per-chunk writes
+  // converge to the same store; sums may differ from one big import because a
+  // later chunk dedupes against records an earlier chunk already stored.
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
+    throw new Error("JSON must be an object of { id: record }");
+  }
+  const entries = Object.entries(incoming).filter(([, r]) => r && typeof r === "object" && r.model);
+  if (entries.length === 0) throw new Error("no valid records found in the JSON");
+  let imported = 0;
+  let newRecords = 0;
+  let duplicates = 0;
+  let filled = 0;
+  for (let i = 0; i < entries.length; i += 5000) {
+    const map = {};
+    for (const [k, rec] of entries.slice(i, i + 5000)) {
+      const key = rec.id || k;
+      if (key === "__proto__") {
+        Object.defineProperty(map, key, { value: rec, enumerable: true, configurable: true, writable: true });
+      } else {
+        map[key] = rec;
+      }
+    }
+    const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(map) });
+    if (!res || !res.ok) throw new Error((res && res.error) || "unknown error");
+    imported += res.imported || 0;
+    newRecords += res.newRecords || 0;
+    duplicates += res.duplicates || 0;
+    filled += res.filled || 0;
+  }
+  return `opencode: ${imported} imported (${newRecords} new)`;
 }
 // Per-store deletion (incl. local records) lives in Settings -> Database; the
 // local import how-to and export command live in Settings -> How it works

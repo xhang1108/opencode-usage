@@ -27,6 +27,7 @@ import {
 } from "./shared/merge.js";
 import { STORAGE_SCHEMA_VERSION, pendingMigrations, planMigrations } from "./shared/migrate.js";
 import { LOCAL_STORE_KEY, VENDOR_STORE_PREFIX } from "./shared/stores.js";
+import { DASHBOARD_CHUNK_CHARS, chunkEnd } from "./shared/dashboard-transfer.js";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -109,7 +110,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "get-dashboard-data":
       // Dashboard page always fetches from here (on every load/refresh), so it
       // never depends on a one-shot payload that can be consumed once.
-      sendDashboardData()
+      sendDashboardData(msg)
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
@@ -342,14 +343,14 @@ async function handleVendorCrawlData(msg) {
   let added = 0;
   for (const rec of records) {
     if (!rec || typeof rec !== "object" || !rec.id || !rec.model) continue;
-    if (!map[rec.id]) added++;
-    map[rec.id] = rec;
+    if (!Object.hasOwn(map, rec.id)) added++;
+    putRecord(map, rec.id, rec);
   }
   const count = Object.keys(map).length;
   try {
-    await chrome.storage.local.set({
-      [`${source}ImportData`]: JSON.stringify(map),
-      [`${source}ImportMeta`]: { count, updatedAt: Date.now() },
+    await writeBaseMap(`${source}ImportData`, map, {
+      key: `${source}ImportMeta`,
+      value: { count, updatedAt: Date.now() },
     });
   } catch (e) {
     return { ok: false, error: `Storage quota exceeded - cannot keep ${count} ${source} records (${e.message || e})` };
@@ -402,7 +403,7 @@ async function handleClearVendorData(msg) {
   const source = msg && msg.source;
   if (!(await getVendorImportSources()).includes(source)) return { ok: false, error: `Unknown source: ${source}` };
   const removed = Object.keys(await getVendorImportMap(source)).length;
-  await chrome.storage.local.remove([`${source}ImportData`, `${source}ImportMeta`]);
+  await clearBaseMap(`${source}ImportData`, [`${source}ImportMeta`]);
   let total = 0;
   try {
     const res = await sendDashboardData();
@@ -463,7 +464,7 @@ async function handleGetDatabase() {
     databaseStoreFrom({
       key: LOCAL_STORE_KEY,
       label: "opencode local import",
-      location: "chrome.storage.local · localImportData",
+      location: "chrome.storage.local · localImportData (+shards)",
       managed: true,
       source: "opencode",
       map: localMap,
@@ -476,7 +477,7 @@ async function handleGetDatabase() {
       databaseStoreFrom({
         key: `${VENDOR_STORE_PREFIX}${source}`,
         label: (vendor && vendor.label) || source,
-        location: `chrome.storage.local · ${source}ImportData`,
+        location: `chrome.storage.local · ${source}ImportData (+shards)`,
         managed: true,
         source,
         map,
@@ -503,9 +504,9 @@ async function handleRemoveRecords(msg) {
     let changed = false;
     for (const id of ids) if (localMap[id]) { delete localMap[id]; removed++; changed = true; }
     if (changed) {
-      await chrome.storage.local.set({
-        localImportData: JSON.stringify(localMap),
-        localImportMeta: { count: Object.keys(localMap).length, updatedAt: Date.now() },
+      await writeBaseMap("localImportData", localMap, {
+        key: "localImportMeta",
+        value: { count: Object.keys(localMap).length, updatedAt: Date.now() },
       });
       fpCache = { key: null, buckets: null }; // fingerprint cache is now stale
     }
@@ -517,9 +518,9 @@ async function handleRemoveRecords(msg) {
     let changed = false;
     for (const id of ids) if (map[id]) { delete map[id]; removed++; changed = true; }
     if (changed) {
-      await chrome.storage.local.set({
-        [`${source}ImportData`]: JSON.stringify(map),
-        [`${source}ImportMeta`]: { count: Object.keys(map).length, updatedAt: Date.now() },
+      await writeBaseMap(`${source}ImportData`, map, {
+        key: `${source}ImportMeta`,
+        value: { count: Object.keys(map).length, updatedAt: Date.now() },
       });
     }
   } else if (source !== "opencode") {
@@ -558,24 +559,171 @@ async function sendGetStatus() {
   return { ok: false, error: "No cached data - open the opencode.ai Console and sync first" };
 }
 
-// ===== Local SQLite import (tools/import-local.mjs) =====
-// Local records live in chrome.storage.local under "localImportData" (a JSON
-// string of { id: record }) and are merged into every dashboard/status
-// response. Merging is idempotent (keyed by record id), so re-importing the
-// same file never duplicates.
-async function getLocalImportMap() {
+// ===== Sharded record maps =====
+// One storage key must never approach Chrome caps, so oversized
+// { id: record } maps shard by month and count: shards hold at most
+// SHARD_BYTES of JSON, named `${base}_${YYYY-MM}_${NNNN}`, indexed by
+// `${base}Shards` ({ shards: [...] }). Small maps stay one legacy key.
+// Readers merge legacy + shards (shards win on overlap) so migration is
+// invisible; writers re-shard and drop the legacy key once durable.
+const SHARD_BYTES = 3 * 1024 * 1024;
+const shardEnc = new TextEncoder();
+const shardByteLen = (s) => shardEnc.encode(s).length;
+const SHARD_MONTH_RE = /^\d{4}-\d{2}$/;
+const shardMonthOf = (rec) => {
+  const ym = String((rec && (rec.time || rec.date)) || "").slice(0, 7);
+  return SHARD_MONTH_RE.test(ym) ? ym : "unknown";
+};
+const shardKeyFor = (base, ym, idx) => `${base}_${ym}_${String(idx).padStart(4, "0")}`;
+
+async function getShardKeys(base) {
   try {
-    const { localImportData } = await chrome.storage.local.get("localImportData");
-    if (!localImportData) return {};
-    const parsed = JSON.parse(localImportData);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    const meta = await chrome.storage.local.get(`${base}Shards`);
+    const entry = meta && meta[`${base}Shards`];
+    const list = Array.isArray(entry) ? entry : entry && entry.shards;
+    if (Array.isArray(list)) return list.filter((k) => typeof k === "string");
   } catch (e) {}
-  return {};
+  return [];
+}
+
+// Legacy monolith first, then shards in index order (newer wins on overlap).
+// Spread (not Object.assign): a crafted record id of `__proto__` must stay a
+// plain key instead of invoking the prototype setter.
+async function readBaseMap(base) {
+  let out = {};
+  try {
+    const stored = await chrome.storage.local.get(base);
+    const raw = stored && stored[base];
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) out = { ...out, ...parsed };
+    }
+  } catch (e) {}
+  const keys = await getShardKeys(base);
+  for (let i = 0; i < keys.length; i += 10) {
+    const slice = keys.slice(i, i + 10);
+    let batch = {};
+    try {
+      batch = await chrome.storage.local.get(slice);
+    } catch (e) {
+      continue;
+    }
+    for (const k of slice) {
+      const raw = batch[k];
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) out = { ...out, ...parsed };
+      } catch (e) {}
+    }
+  }
+  return out;
+}
+
+// Group map entries into month+count shards under SHARD_BYTES each.
+// Returns { shards: { key: json }, keys: [...] } in deterministic order.
+function shardMap(base, map) {
+  const byMonth = new Map();
+  for (const [id, rec] of Object.entries(map || {})) {
+    const ym = shardMonthOf(rec);
+    if (!byMonth.has(ym)) byMonth.set(ym, []);
+    byMonth.get(ym).push([id, rec]);
+  }
+  const shards = {};
+  const keys = [];
+  for (const ym of [...byMonth.keys()].sort()) {
+    const entries = byMonth.get(ym).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    let idx = 0;
+    let cur = [];
+    let curLen = 2;
+    const flush = () => {
+      const key = shardKeyFor(base, ym, idx++);
+      shards[key] = `{${cur.map(([id, rec]) => `${JSON.stringify(id)}:${JSON.stringify(rec)}`).join(",")}}`;
+      keys.push(key);
+      cur = [];
+      curLen = 2;
+    };
+    for (const [id, rec] of entries) {
+      const piece = shardByteLen(`${JSON.stringify(id)}:${JSON.stringify(rec)}`) + 1;
+      if (cur.length > 0 && curLen + piece > SHARD_BYTES) flush();
+      cur.push([id, rec]);
+      curLen += piece;
+    }
+    if (cur.length > 0) flush();
+  }
+  return { shards, keys };
+}
+
+// Persist map: small maps stay one legacy key (shards cleared); oversized
+// maps shard and the legacy key is dropped once the shards are durable.
+async function writeBaseMap(base, map, metaPatch) {
+  let legacy = null;
+  try {
+    legacy = JSON.stringify(map || {});
+  } catch (e) {
+    legacy = "{}";
+  }
+  const prevKeys = await getShardKeys(base);
+  if (legacy.length <= SHARD_BYTES) {
+    const patch = { [base]: legacy };
+    if (metaPatch) patch[metaPatch.key] = metaPatch.value;
+    await chrome.storage.local.set(patch);
+    const stale = prevKeys.length > 0 ? [...prevKeys, `${base}Shards`] : [];
+    for (let i = 0; i < stale.length; i += 50) {
+      try {
+        await chrome.storage.local.remove(stale.slice(i, i + 50));
+      } catch (e) {}
+    }
+    return;
+  }
+  const { shards, keys } = shardMap(base, map || {});
+  const entries = Object.entries(shards);
+  for (let i = 0; i < entries.length; i += 4) {
+    const batch = {};
+    for (const [k, v] of entries.slice(i, i + 4)) batch[k] = v;
+    await chrome.storage.local.set(batch);
+  }
+  const stale = prevKeys.filter((k) => !keys.includes(k));
+  for (let i = 0; i < stale.length; i += 50) {
+    try {
+      await chrome.storage.local.remove(stale.slice(i, i + 50));
+    } catch (e) {}
+  }
+  const patch = { [`${base}Shards`]: { shards: keys, updatedAt: Date.now() } };
+  if (metaPatch) patch[metaPatch.key] = metaPatch.value;
+  await chrome.storage.local.set(patch);
+  try {
+    await chrome.storage.local.remove(base);
+  } catch (e) {}
+}
+
+// Drop a base entirely: legacy key, shards, index and extra meta keys.
+async function clearBaseMap(base, extraKeys = []) {
+  const keys = await getShardKeys(base);
+  const all = [...keys, base, `${base}Shards`, ...extraKeys];
+  for (let i = 0; i < all.length; i += 50) {
+    try {
+      await chrome.storage.local.remove(all.slice(i, i + 50));
+    } catch (e) {}
+  }
+}
+
+// ===== Local SQLite import (tools/import-local.mjs) =====
+// Local records live in chrome.storage.local as sharded month+count maps
+// ("localImportData_YYYY-MM_NNNN", JSON strings of { id: record }) with a
+// "localImportDataShards" index, and are merged into every dashboard/status
+// response. Merging is idempotent (keyed by record id), so re-importing the
+// same file never duplicates. Small stores stay a single "localImportData"
+// key; only oversized maps shard. Readers always merge the legacy key (if
+// any) with every shard, shards winning on overlap.
+async function getLocalImportMap() {
+  return await readBaseMap("localImportData");
 }
 
 // ===== Generic vendor import maps (crawl/API vendors) =====
-// Records live under "<source>ImportData" ({ id: record } JSON) and are merged
-// into every dashboard/status response like localImportData. Merging is keyed
+// Records live sharded like localImportData ("<source>ImportData_YYYY-MM_NNNN"
+// + "<source>ImportDataShards"), small stores as one "<source>ImportData"
+// key, and are merged into every dashboard/status response. Merging is keyed
 // by record id so re-syncing is idempotent. Every vendor, opencode included,
 // keeps its synced records this way.
 async function getVendorImportSources() {
@@ -586,21 +734,26 @@ async function getVendorImportSources() {
 }
 
 async function getVendorImportMap(source) {
-  try {
-    const key = `${source}ImportData`;
-    const stored = await chrome.storage.local.get(key);
-    const raw = stored[key];
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
-  } catch (e) {}
-  return {};
+  return await readBaseMap(`${source}ImportData`);
 }
 
 async function getAllVendorRecords() {
   const sources = await getVendorImportSources();
   const maps = await Promise.all(sources.map((s) => getVendorImportMap(s)));
-  return Object.assign({}, ...maps);
+  let out = {};
+  // Spread (not assign): a `__proto__` record id must stay a plain key.
+  for (const m of maps) out = { ...out, ...(m || {}) };
+  return out;
+}
+
+function putRecord(map, id, rec) {
+  // `__proto__` as a key must stay a plain own property (assignment would
+  // invoke the prototype setter and lose the record).
+  if (id === "__proto__") {
+    Object.defineProperty(map, id, { value: rec, enumerable: true, configurable: true, writable: true });
+  } else {
+    map[id] = rec;
+  }
 }
 
 function mergeRecords(base, extra) {
@@ -608,14 +761,14 @@ function mergeRecords(base, extra) {
   let added = 0;
   for (const [id, rec] of Object.entries(extra || {})) {
     if (!rec || typeof rec !== "object" || !rec.model) continue;
-    if (!merged[id]) added++;
-    merged[id] = normalizeLocalRecord(rec);
+    if (!Object.hasOwn(merged, id)) added++;
+    putRecord(merged, id, normalizeLocalRecord(rec));
   }
   // Previously imported local records used per-project workspace names
   // ("local:<project>"); remap them to the single "Local" workspace too.
   for (const [id, rec] of Object.entries(merged)) {
     if (rec && typeof rec === "object" && typeof rec.workspaceID === "string" && rec.workspaceID.startsWith("local:")) {
-      merged[id] = normalizeLocalRecord(rec);
+      putRecord(merged, id, normalizeLocalRecord(rec));
     }
   }
   return { merged, added };
@@ -727,7 +880,7 @@ function normalizeImportPayload(data) {
 async function handleClearLocal() {
   const localMap = await getLocalImportMap();
   const cleared = Object.keys(localMap).length;
-  await chrome.storage.local.remove(["localImportData", "localImportMeta"]);
+  await clearBaseMap("localImportData", ["localImportMeta"]);
   fpCache = { key: null, buckets: null }; // drop cached fingerprints with the data
   const res = await sendDashboardData();
   return { ok: true, cleared, total: res.count || 0 };
@@ -795,7 +948,7 @@ function reconcileOpencodeImport(incoming, existingLocal, existingVendor) {
         if (hit.kind === "vendor") vendorChanged = true;
       }
     } else {
-      keep[id] = rec;
+      putRecord(keep, id, rec);
     }
   }
   return { keep, duplicates, filled, vendorChanged };
@@ -818,11 +971,14 @@ async function handleLocalImport(msg) {
   const { merged: nextLocal, added } = mergeRecords(existing, keep);
   const totalLocal = Object.keys(nextLocal).length;
   try {
-    await chrome.storage.local.set({ localImportData: JSON.stringify(nextLocal) });
+    await writeBaseMap("localImportData", nextLocal, {
+      key: "localImportMeta",
+      value: { count: totalLocal, updatedAt: Date.now() },
+    });
     if (vendorChanged) {
-      await chrome.storage.local.set({
-        opencodeImportData: JSON.stringify(existingVendor),
-        opencodeImportMeta: { count: Object.keys(existingVendor).length, updatedAt: Date.now() },
+      await writeBaseMap("opencodeImportData", existingVendor, {
+        key: "opencodeImportMeta",
+        value: { count: Object.keys(existingVendor).length, updatedAt: Date.now() },
       });
     }
   } catch (e) {
@@ -840,7 +996,7 @@ async function handleLocalImport(msg) {
   const crawlerPart = {};
   const localPart = {};
   for (const [id, rec] of Object.entries(merged)) {
-    ((rec && typeof rec === "object" && isLocalLooking(id, rec)) ? localPart : crawlerPart)[id] = rec;
+    putRecord((rec && typeof rec === "object" && isLocalLooking(id, rec)) ? localPart : crawlerPart, id, rec);
   }
   const { map: dedupedSnap } = await hideCrawlerDuplicates(crawlerPart, { ...localPart, ...nextLocal });
   const snapshot = { ...dedupedSnap, ...localPart, ...nextLocal };
@@ -858,7 +1014,7 @@ async function handleLocalImport(msg) {
   try {
     const crawlerPart = {};
     for (const [id, rec] of Object.entries(base)) {
-      if (!isLocalLooking(id, rec)) crawlerPart[id] = rec;
+      if (!isLocalLooking(id, rec)) putRecord(crawlerPart, id, rec);
     }
     overlap = (await hideCrawlerDuplicates(crawlerPart, keep)).dropped;
   } catch (e) {}
@@ -890,16 +1046,16 @@ async function buildMergedSnapshot() {
   const otherPart = {};
   for (const [id, rec] of Object.entries(vendorRecords)) {
     const src = (rec && rec.source) || "opencode";
-    (src === "opencode" ? opencodePart : otherPart)[id] = rec;
+    putRecord(src === "opencode" ? opencodePart : otherPart, id, rec);
   }
   const { map: dedupedOpencode, dropped } = await hideCrawlerDuplicates(opencodePart, localMap);
   const { merged } = mergeRecords({ ...dedupedOpencode, ...otherPart }, localMap);
   return { merged, dropped };
 }
 
-async function sendDashboardData() {
+async function buildDashboardSnapshot() {
   const { merged, dropped } = await buildMergedSnapshot();
-  const mergedStr = JSON.stringify(merged);
+  const json = JSON.stringify(merged);
   const count = Object.keys(merged).length;
   // `cachedData` (the full merged snapshot) is deliberately NOT persisted: it is
   // derived, only the dashboard consumed it, and the dashboard fetches it live.
@@ -911,7 +1067,67 @@ async function sendDashboardData() {
       updatedAt: Date.now(),
     },
   });
-  return { ok: true, data: mergedStr, count, fileCount: 0, deduped: dropped };
+  return { json, count, dropped };
+}
+
+// The dashboard requests the snapshot in chunks (`chunked: true`) so one
+// response can never cross Chrome's 64MiB message cap. Each transfer gets its
+// own id so concurrent dashboard loads cannot interleave; a service-worker
+// restart drops the map and the dashboard restarts the transfer from 0.
+let dashboardTransfers = new Map();
+let dashboardTransferSeq = 0;
+
+async function sendDashboardData(msg) {
+  if (!msg || !msg.chunked) {
+    const snapshot = await buildDashboardSnapshot();
+    return {
+      ok: true,
+      data: snapshot.json,
+      count: snapshot.count,
+      fileCount: 0,
+      deduped: snapshot.dropped,
+    };
+  }
+
+  let offset = Number.isInteger(msg.offset) ? msg.offset : 0;
+  if (offset < 0) offset = 0;
+  let snapshot = (msg.transferId != null && dashboardTransfers.get(msg.transferId)) || null;
+  if (offset === 0 || !snapshot) {
+    snapshot = await buildDashboardSnapshot();
+    snapshot.id = `${Date.now()}-${++dashboardTransferSeq}`;
+    dashboardTransfers.set(snapshot.id, snapshot);
+    if (dashboardTransfers.size > 4) {
+      const oldest = [...dashboardTransfers.keys()][0];
+      dashboardTransfers.delete(oldest);
+    }
+    offset = 0;
+  }
+
+  const size = Math.min(
+    Math.max(Number.isInteger(msg.size) ? msg.size : DASHBOARD_CHUNK_CHARS, 1),
+    DASHBOARD_CHUNK_CHARS
+  );
+  const end = chunkEnd(snapshot.json, offset, size);
+  const done = end >= snapshot.json.length;
+  const res = {
+    ok: true,
+    data: snapshot.json.slice(offset, end),
+    transferId: snapshot.id,
+    offset,
+    nextOffset: end,
+    total: snapshot.json.length,
+    count: snapshot.count,
+    fileCount: 0,
+    deduped: snapshot.dropped,
+    done,
+  };
+  if (done) dashboardTransfers.delete(snapshot.id);
+  else if (snapshot.json.length > 64 * 1024 * 1024) {
+    // Bound memory: only one in-flight snapshot is kept; older ones are dropped
+    // and their owners restart (expired transfer below).
+    for (const k of [...dashboardTransfers.keys()]) if (k !== snapshot.id) dashboardTransfers.delete(k);
+  }
+  return res;
 }
 
 async function handleOpenDashboard() {
@@ -1217,6 +1433,39 @@ async function seedVendorSettings(reason) {
   return seeded;
 }
 
+// One oversized legacy monolith per run: parse + re-shard a 40MB map takes
+// seconds, and a service-worker startup must stay bounded. Returns true when
+// another run is still needed. Partial work is safe: legacy is dropped only
+// after its shards are durable, and readers merge both meanwhile.
+async function migrateOneOversizedBase() {
+  const bases = ["localImportData", ...(await getVendorImportSources()).map((s) => `${s}ImportData`)];
+  for (const base of bases) {
+    let bytes = 0;
+    try {
+      if (typeof chrome.storage.local.getBytesInUse === "function") {
+        bytes = (await chrome.storage.local.getBytesInUse(base)) || 0;
+      } else {
+        // No byte accounting (unit stubs, some browsers): fall back to the
+        // legacy raw length so migration still runs instead of stamping v3.
+        const stored = await chrome.storage.local.get(base);
+        const raw = stored && stored[base];
+        bytes = typeof raw === "string" ? raw.length : 0;
+      }
+    } catch (e) {
+      continue;
+    }
+    if (!bytes || bytes <= SHARD_BYTES) continue;
+    const map = await readBaseMap(base);
+    if (Object.keys(map).length === 0) {
+      await clearBaseMap(base);
+      continue;
+    }
+    await writeBaseMap(base, map);
+    return true;
+  }
+  return false;
+}
+
 // Storage-level schema migrations (additive + idempotent; see shared/migrate.js).
 // Reads only the keys the pending steps declare, then writes every patched key
 // plus the new version in a single set. Legacy keys are never deleted, and a
@@ -1224,6 +1473,17 @@ async function seedVendorSettings(reason) {
 async function ensureStorageSchema() {
   try {
     const { schemaVersion } = await chrome.storage.local.get("schemaVersion");
+    // v3 (sharded maps) migrates data in bounded background runs BEFORE the
+    // version stamp: migrate.js to:3 is a no-op marker, the bytes move here.
+    if ((Number(schemaVersion) || 0) < 3) {
+      let needMore = false;
+      try {
+        needMore = await migrateOneOversizedBase();
+      } catch (e) {
+        return { version: Number(schemaVersion) || 0, applied: [], error: String((e && e.message) || e) };
+      }
+      if (needMore) return { version: Number(schemaVersion) || 0, applied: [], pending: true };
+    }
     const pending = pendingMigrations(schemaVersion);
     if (pending.length === 0) return { version: Number(schemaVersion) || 0, applied: [] };
     const keys = [...new Set(pending.flatMap((s) => s.keys || []))];

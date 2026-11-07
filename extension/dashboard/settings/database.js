@@ -5,25 +5,32 @@
 // sync, the local DB import, and each other vendor) and supports per-record
 // and full delete.
 
-import { downloadText, escHTML } from "../views/format.js";
+import { downloadBytes, escHTML } from "../views/format.js";
 import { clearMessageFor } from "../../shared/stores.js";
-import { buildSettingsPayload, recordsToCSV } from "../../shared/backup.js";
-import { exportFilenames, pagedRows } from "./database-model.js";
+import { buildSettingsPayload, recordsToCSVParts, BACKUP_PART_BYTES } from "../../shared/backup.js";
+import { zipWrite } from "../../shared/zip-write.js";
+import { backupPartName, exportFilenames, exportZipFilename, pagedRows } from "./database-model.js";
 
 const RENDER_LIMIT = 500;
+const BOM = "\uFEFF";
+const enc = new TextEncoder();
 
-// D24: split the backup into two non-overlapping files. Settings (JSON) carry
-// the user's configuration + userPricing; records (CSV) carry every stored
-// record from EVERY source (not just enabled ones) with lossless `raw`, plus
-// the spend ledger rows so a records-only file still has what the user paid.
+// Single-file backup: one .zip holding the settings JSON plus the records CSV
+// split into 4MiB parts (every part repeats the header). Settings carry the
+// user's configuration + userPricing; records carry every stored record from
+// EVERY source (not just enabled ones) with lossless `raw`, plus the spend
+// ledger rows on the last part so a records-only restore still keeps paid cost.
 function exportBackup(ctx) {
-  const names = exportFilenames(new Date());
-  downloadText(names.settings, JSON.stringify(buildSettingsPayload(ctx.settings), null, 2));
-  downloadText(
-    names.records,
-    "\uFEFF" + recordsToCSV(ctx.allRecords, ctx.settings.spendEntries),
-    "text/csv;charset=utf-8"
-  );
+  const now = new Date();
+  const names = exportFilenames(now);
+  const settingsText = JSON.stringify(buildSettingsPayload(ctx.settings), null, 2);
+  // 64 bytes of headroom for the per-part BOM the entries carry.
+  const parts = recordsToCSVParts(ctx.allRecords, ctx.settings.spendEntries, BACKUP_PART_BYTES - 64);
+  const files = [
+    { name: names.settings, data: enc.encode(settingsText) },
+    ...parts.map((csv, i) => ({ name: backupPartName(names.records, i, parts.length), data: enc.encode(BOM + csv) })),
+  ];
+  downloadBytes(exportZipFilename(now), zipWrite(files));
 }
 
 export async function renderDatabase(ctx) {

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { workspaceList, summaryModel } from "../../extension/dashboard/settings/general-model.js";
 import { vendorMeta, hasOrigins } from "../../extension/dashboard/settings/vendors-model.js";
-import { exportFilenames, pagedRows } from "../../extension/dashboard/settings/database-model.js";
+import { exportFilenames, exportZipFilename, backupPartName, pagedRows } from "../../extension/dashboard/settings/database-model.js";
 
 test("workspaceList groups by source:workspaceID and sorts", () => {
   const list = workspaceList([
@@ -76,6 +76,18 @@ test("exportFilenames stamp the two disjoint backup names to the minute", () => 
     settings: "opencode-usage_settings_2026-01-02_03-04.json",
     records: "opencode-usage_records_2026-01-02_03-04.csv",
   });
+});
+
+test("backup zip keeps one package name with numbered CSV parts", () => {
+  assert.equal(exportZipFilename(new Date(2026, 8, 16, 8, 5)), "opencode-usage_backup_2026-09-16_08-05.zip");
+  assert.equal(
+    backupPartName("opencode-usage_records_2026-09-16_08-05.csv", 0, 1),
+    "opencode-usage_records_2026-09-16_08-05.csv"
+  );
+  assert.equal(
+    backupPartName("opencode-usage_records_2026-09-16_08-05.csv", 1, 3),
+    "opencode-usage_records_2026-09-16_08-05-part-002.csv"
+  );
 });
 
 test("pagedRows slices and reports whether the store holds more", () => {

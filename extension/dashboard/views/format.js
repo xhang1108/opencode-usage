@@ -52,3 +52,14 @@ export function downloadText(filename, text, type = "application/json") {
   URL.revokeObjectURL(url);
 }
 
+// Trigger a client-side download of a binary payload (e.g. a backup .zip).
+export function downloadBytes(filename, bytes, type = "application/zip") {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+

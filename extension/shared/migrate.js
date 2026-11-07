@@ -15,7 +15,7 @@
 
 import { normalizeRecord } from "./canonical.js";
 
-export const STORAGE_SCHEMA_VERSION = 2;
+export const STORAGE_SCHEMA_VERSION = 3;
 
 // Storage keys that hold `{ id: record }` JSON maps and may contain records
 // written before canonical normalization stamped `time`/`v`.
@@ -93,6 +93,17 @@ export const MIGRATIONS = [
         if (fixed !== null) patch[key] = fixed;
       }
       return patch;
+    },
+  },
+  {
+    to: 3,
+    // Sharded record maps (month + count shards, no key near Chrome caps).
+    // The bytes move in background.js (migrateOneOversizedBase, bounded runs
+    // with legacy read-through), so this step is a no-op marker: it declares
+    // no keys and writes nothing. Small monoliths are never rewritten.
+    keys: [],
+    apply() {
+      return {};
     },
   },
 ];

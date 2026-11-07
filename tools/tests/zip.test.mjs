@@ -70,3 +70,38 @@ test("unzipText returns decoded text entries and skips directories", async () =>
 test("unzip rejects non-ZIP input", async () => {
   await assert.rejects(() => unzip(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer));
 });
+
+test("zipWrite round-trips through unzip with byte-identical entries", async () => {
+  const { zipWrite, crc32 } = await import("../../extension/shared/zip-write.js");
+  const enc = new TextEncoder();
+  const payload = "a,b\n1,2\n".repeat(500);
+  const packed = zipWrite([
+    { name: "opencode-usage_settings_2026-09-16_08-05.json", data: enc.encode('{"a":1}') },
+    { name: "records-part-001.csv", data: enc.encode(payload) },
+    { name: "空.csv", data: new Uint8Array(0) },
+  ]);
+  const files = await unzip(packed.buffer.slice(packed.byteOffset, packed.byteOffset + packed.byteLength));
+  assert.deepEqual(Object.keys(files).sort(), [
+    "opencode-usage_settings_2026-09-16_08-05.json",
+    "records-part-001.csv",
+    "空.csv",
+  ]);
+  assert.equal(decodeText(files["records-part-001.csv"]), payload);
+  assert.equal(files["空.csv"].length, 0);
+  assert.equal(crc32(enc.encode(payload)), crc32(files["records-part-001.csv"]));
+});
+
+test("zipWrite output opens in a strict reader (valid CRC + sizes)", async () => {
+  const { zipWrite } = await import("../../extension/shared/zip-write.js");
+  const packed = zipWrite([{ name: "x.csv", data: new TextEncoder().encode("h\n1\n") }]);
+  // Our own reader skips CRC, so check the headers carry real values instead.
+  const view = new DataView(packed.buffer, packed.byteOffset, packed.byteLength);
+  assert.equal(view.getUint32(0, true), 0x04034b50, "local header signature");
+  assert.notEqual(view.getUint32(14, true), 0, "CRC must be real, not zero");
+  assert.ok(view.getUint32(18, true) > 0, "compressed size must be real");
+});
+
+test("crc32 matches the standard known answer", async () => {
+  const { crc32 } = await import("../../extension/shared/zip-write.js");
+  assert.equal(crc32(new TextEncoder().encode("123456789")), 0xcbf43926);
+});

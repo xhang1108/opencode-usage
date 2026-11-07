@@ -1,12 +1,10 @@
 // extension/shared/backup.js
-// Backup export/restore helpers (pure, P9). Splits a backup into two
-// non-overlapping files (D24):
-//   - opencode-usage_settings_<date>.json : user settings + the unified pricelist
-//   - opencode-usage_records_<date>.csv   : every record, every source (+ raw),
-//                                           plus the manual spend ledger
-// Spend entries ride in the CSV (kind="spend") as well as in the settings JSON,
-// so a records-only restore still keeps what the user paid. Settings JSON stays
-// the compatibility path; the CSV rows are additive.
+// Backup export/restore helpers (pure, P9). One `.zip` holds the two halves:
+//   - settings JSON : user-authored settings + the unified pricelist
+//   - records CSV parts (4MiB each): every record, every source (+ raw),
+//     plus the manual spend ledger rows so a records-only restore still keeps
+//     what the user paid. Settings JSON stays the compatibility path; the CSV
+//     rows are additive.
 // Only user-authored settings are stored; the derived fallback `pricing` table
 // is rebuilt from the shipped presets, so it is never backed up.
 
@@ -108,6 +106,43 @@ export function recordsToCSV(records, spendEntries = []) {
   return toCSV(rows);
 }
 
+// Split the same payload into parts that each stay under maxBytes UTF-8
+// encoded. Every part repeats the header so parts are independently readable;
+// spend-ledger rows ride on the trailing part(s). Pure (P9).
+export const BACKUP_PART_BYTES = 4 * 1024 * 1024;
+
+const partEnc = new TextEncoder();
+const byteLen = (s) => partEnc.encode(s).length;
+
+export function recordsToCSVParts(records, spendEntries = [], maxBytes = BACKUP_PART_BYTES) {
+  const cap = Math.max(1024, Math.floor(maxBytes) || BACKUP_PART_BYTES);
+  const headerText = toCSV([BACKUP_COLUMNS]);
+  const usageRows = (records || []).map(recordRow);
+  const spendRows = (spendEntries || []).map(spendRow);
+  const parts = [];
+  let cur = [];
+  let curLen = byteLen(headerText);
+  const flush = () => {
+    parts.push(toCSV([BACKUP_COLUMNS, ...cur]));
+    cur = [];
+    curLen = byteLen(headerText);
+  };
+  for (const row of usageRows) {
+    const rowLen = 1 + byteLen(toCSV([row])); // +\n join
+    if (cur.length > 0 && curLen + rowLen > cap) flush();
+    cur.push(row);
+    curLen += rowLen;
+  }
+  for (const row of spendRows) {
+    const rowLen = 1 + byteLen(toCSV([row]));
+    if (cur.length > 0 && curLen + rowLen > cap) flush();
+    cur.push(row);
+    curLen += rowLen;
+  }
+  flush();
+  return parts;
+}
+
 function rowToRecord(row) {
   if (row.kind === "spend") return null;
   const rec = {};
@@ -175,4 +210,24 @@ export function groupBySource(records) {
     map.get(src).push(rec);
   }
   return map;
+}
+
+// Split unzipped backup entries into the settings payload (if any) and the
+// records CSVs in restore order: our own numbered parts first (zero-padded,
+// so lexical order is numeric), then any other CSV (old loose backups,
+// foreign files). OS metadata entries are ignored. Pure (P9).
+export function splitBackupEntries(entries) {
+  const names = Object.keys(entries || {});
+  const base = (n) => String(n).split("/").pop();
+  const settingsName =
+    names.find((n) => /^opencode-usage_settings_.*\.json$/i.test(base(n))) ||
+    names.find((n) => /settings.*\.json$/i.test(n) && !/__MACOSX\//.test(n));
+  const ownParts = names.filter((n) => /^opencode-usage_records_.*\.csv$/i.test(base(n)));
+  const otherCsv = names.filter(
+    (n) => /\.csv$/i.test(n) && !/__MACOSX\//.test(n) && !ownParts.includes(n)
+  );
+  return {
+    settingsName: settingsName || null,
+    csvNames: [...ownParts.sort(), ...otherCsv.sort()],
+  };
 }

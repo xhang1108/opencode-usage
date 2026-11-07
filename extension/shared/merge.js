@@ -81,8 +81,12 @@ export function mergeRecords(...maps) {
       if (!rec || typeof rec !== "object" || !rec.model) continue;
       const normalized = normalizeRecord(rec);
       if (!normalized) continue;
-      if (!merged[id]) added++;
-      merged[id] = normalized;
+      if (!Object.hasOwn(merged, id)) added++;
+      if (id === "__proto__") {
+        Object.defineProperty(merged, id, { value: normalized, enumerable: true, configurable: true, writable: true });
+      } else {
+        merged[id] = normalized;
+      }
     }
   }
   return { merged, added };
@@ -128,7 +132,11 @@ export function hideDayAnchoredImportCopies(records) {
       dropped++;
       continue;
     }
-    out[id] = rec;
+    if (id === "__proto__") {
+      Object.defineProperty(out, id, { value: rec, enumerable: true, configurable: true, writable: true });
+    } else {
+      out[id] = rec;
+    }
   }
   return { map: out, dropped };
 }

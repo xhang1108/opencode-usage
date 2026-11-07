@@ -8,9 +8,12 @@ import {
   buildSettingsPayload,
   parseSettingsPayload,
   recordsToCSV,
+  recordsToCSVParts,
+  BACKUP_PART_BYTES,
   csvToRecords,
   csvToSpendEntries,
   groupBySource,
+  splitBackupEntries,
 } from "../../extension/shared/backup.js";
 
 const SAMPLE = {
@@ -136,4 +139,54 @@ test("a records-only CSV restores no spend; invalid spend rows are skipped", () 
   assert.equal(csvToSpendEntries(spendCsv).length, 1);
   const bad = spendCsv.replace('"2026-07-08"', '"bogus"');
   assert.equal(csvToSpendEntries(bad).length, 0);
+});
+
+test("recordsToCSVParts keeps every part under budget with a header each", () => {
+  const recs = [];
+  for (let i = 0; i < 200; i++) {
+    recs.push(normalizeRecord({ ...SAMPLE, id: `openrouter:${i}`, raw: { k: "x".repeat(50) } }, { source: "openrouter" }));
+  }
+  const spend = [normalizeSpendEntry({ platform: "opencode", date: "2026-07-08", amountUSD: 1 })];
+  const parts = recordsToCSVParts(recs, spend, 4096);
+  assert.ok(parts.length > 1, "200 records must not fit one 4KiB part");
+  const enc = new TextEncoder();
+  for (const p of parts) assert.ok(enc.encode(p).length <= 4096, "no part may cross the budget");
+  const rejoined = parts.map((p) => csvToRecords(p)).flat();
+  assert.equal(rejoined.length, 200, "no record may be lost between parts");
+  assert.deepEqual(
+    rejoined.map((r) => r.id).sort(),
+    recs.map((r) => r.id).sort()
+  );
+  const lastSpend = csvToSpendEntries(parts[parts.length - 1]);
+  assert.equal(lastSpend.length, 1, "spend rides on the last part");
+});
+
+test("recordsToCSVParts budgets UTF-8 bytes, not string units", () => {
+  const recs = [];
+  for (let i = 0; i < 60; i++) {
+    recs.push(
+      normalizeRecord({ ...SAMPLE, id: `openrouter:中${i}`, raw: { note: "測試".repeat(20) } }, { source: "openrouter" })
+    );
+  }
+  const enc = new TextEncoder();
+  const parts = recordsToCSVParts(recs, [], 4096);
+  assert.ok(parts.length > 1, "CJK bytes must force more parts than a unit count would");
+  for (const p of parts) assert.ok(enc.encode(p).length <= 4096, "no part may cross the byte budget");
+  assert.equal(parts.map((p) => csvToRecords(p)).flat().length, 60);
+});
+
+test("splitBackupEntries prefers our entries and skips OS metadata", () => {
+  const { settingsName, csvNames } = splitBackupEntries({
+    "backup/__MACOSX/._opencode-usage_records_2026-09-16_08-05.csv": "junk",
+    "backup/opencode-usage_records_2026-09-16_08-05-part-002.csv": "b",
+    "backup/opencode-usage_records_2026-09-16_08-05-part-001.csv": "a",
+    "backup/opencode-usage_settings_2026-09-16_08-05.json": "{}",
+    "backup/other.csv": "c",
+  });
+  assert.equal(settingsName, "backup/opencode-usage_settings_2026-09-16_08-05.json");
+  assert.deepEqual(csvNames, [
+    "backup/opencode-usage_records_2026-09-16_08-05-part-001.csv",
+    "backup/opencode-usage_records_2026-09-16_08-05-part-002.csv",
+    "backup/other.csv",
+  ]);
 });

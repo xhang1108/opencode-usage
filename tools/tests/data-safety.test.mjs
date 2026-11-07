@@ -267,6 +267,107 @@ test("import writes cachedMeta but no longer persists cachedData", async () => {
   );
 });
 
+test("dashboard data is served in chunks that reassemble losslessly", async () => {
+  const local = {};
+  for (let i = 0; i < 40; i++) {
+    local[`msg_${i}`] = record(`msg_${i}`, `m-${i}`, { input: i + 1, time: `2026-06-${String((i % 28) + 1).padStart(2, "0")}T10:00:00.000Z` });
+  }
+  stub.store.set(KEY_LOCAL, JSON.stringify(local));
+
+  const chunks = [];
+  let offset = 0;
+  let transferId = null;
+  let last = null;
+  for (let guard = 0; guard < 500; guard++) {
+    const res = await send({ type: "get-dashboard-data", chunked: true, offset, transferId, size: 97 });
+    assert.equal(res.ok, true, JSON.stringify(res));
+    assert.equal(res.offset, offset);
+    if (transferId == null) transferId = res.transferId;
+    else assert.equal(res.transferId, transferId, "one transfer keeps one snapshot");
+    assert.ok(res.data.length <= 97, "each chunk must stay at the requested size");
+    chunks.push(res.data);
+    last = res;
+    offset = res.nextOffset;
+    if (res.done) break;
+  }
+
+  const joined = chunks.join("");
+  assert.equal(last.done, true, "the last response must mark the transfer done");
+  assert.equal(offset, joined.length);
+  assert.equal(last.total, joined.length);
+  assert.equal(last.count, 40);
+  assert.equal(Object.keys(JSON.parse(joined)).length, 40, "no record may be lost between chunks");
+  assert.equal(
+    stub.writes.some((keys) => keys.includes(KEY_CACHED)),
+    false,
+    "chunked transfer must not persist cachedData"
+  );
+});
+
+test("sharded reads merge legacy and shards with shards winning", async () => {
+  stub.store.set(KEY_VENDOR, JSON.stringify({
+    "opencode:old": record("opencode:old", "m-a", { input: 1 }),
+    "opencode:both": record("opencode:both", "m-a", { input: 1 }),
+  }));
+  stub.store.set("opencodeImportData_2026-06_0000", JSON.stringify({
+    "opencode:both": record("opencode:both", "m-a", { input: 2 }),
+    "opencode:new": record("opencode:new", "m-a", { input: 3 }),
+  }));
+  stub.store.set("opencodeImportDataShards", { shards: ["opencodeImportData_2026-06_0000"], updatedAt: 1 });
+
+  const res = await send({ type: "get-database" });
+  assert.equal(res.ok, true, JSON.stringify(res));
+  const vendor = res.stores.find((s) => s.key === "vendor:opencode");
+  assert.equal(vendor.count, 3, "legacy + shard records merge");
+  const both = vendor.rows.find((r) => r.id === "opencode:both");
+  assert.equal(both.input, 2, "shard copy wins on id overlap");
+});
+
+test("oversized vendor store shards on write and drops the monolith", async () => {
+  const big = {};
+  for (let i = 0; i < 16000; i++) big[`opencode:r${i}`] = record(`opencode:r${i}`, "m-a", { input: i });
+  stub.store.set(KEY_VENDOR, JSON.stringify(big));
+
+  const res = await send({ type: "vendor-crawl-data", source: "opencode", records: [record("opencode:fresh", "m-a")] });
+  assert.equal(res.ok, true, JSON.stringify(res));
+  assert.equal(res.count, 16001);
+
+  assert.equal(stub.store.has(KEY_VENDOR), false, "legacy monolith must go once shards are durable");
+  const meta = stub.store.get("opencodeImportDataShards");
+  assert.ok(meta && Array.isArray(meta.shards) && meta.shards.length > 1, "one big key becomes many shards");
+  for (const k of meta.shards) {
+    assert.ok(stub.store.get(k).length <= 3 * 1024 * 1024, `${k} must stay under the shard budget`);
+  }
+  const db = await send({ type: "get-database" });
+  assert.equal(db.stores.find((s) => s.key === "vendor:opencode").count, 16001);
+});
+
+test("concurrent dashboard transfers do not interleave", async () => {
+  const local = {};
+  for (let i = 0; i < 40; i++) local[`msg_${i}`] = record(`msg_${i}`, `m-${i}`, { input: i + 1 });
+  stub.store.set(KEY_LOCAL, JSON.stringify(local));
+
+  const a0 = await send({ type: "get-dashboard-data", chunked: true, offset: 0, size: 500 });
+  const b0 = await send({ type: "get-dashboard-data", chunked: true, offset: 0, size: 500 });
+  assert.equal(a0.done, false, "size 500 must force multiple chunks");
+  assert.notEqual(a0.transferId, b0.transferId, "each transfer gets its own snapshot");
+  const a1 = await send({ type: "get-dashboard-data", chunked: true, offset: a0.nextOffset, transferId: a0.transferId, size: 500 });
+  assert.equal(a1.transferId, a0.transferId);
+  assert.equal(a0.total, a1.total, "a transfer keeps one generation");
+});
+
+test("a __proto__ record id stays a plain key", async () => {
+  const res = await send({
+    type: "vendor-crawl-data",
+    source: "opencode",
+    records: [{ id: "__proto__", source: "opencode", model: "m-a", time: "2026-06-01T10:00:00.000Z" }],
+  });
+  assert.equal(res.ok, true, JSON.stringify(res));
+  const db = await send({ type: "get-database" });
+  const vendor = db.stores.find((s) => s.key === "vendor:opencode");
+  assert.ok(vendor.rows.some((r) => r.id === "__proto__"), "the record must be listed, not swallowed by the prototype");
+});
+
 // NOTE (open decision, §5.4): background.js does NOT canonically normalize on
 // read or write — only the vendor mappers / backup parser upstream do. The
 // page-side normalize loop (§5.4 / Step 3) is therefore the ONLY reader-side

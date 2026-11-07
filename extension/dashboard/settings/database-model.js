@@ -24,6 +24,18 @@ export function exportFilenames(when = new Date()) {
   };
 }
 
+// The single backup package for a moment. Inside: the settings JSON plus one
+// or more records CSV parts (see backup.js recordsToCSVParts).
+export function exportZipFilename(when = new Date()) {
+  return `opencode-usage_backup_${exportStamp(when)}.zip`;
+}
+
+// Entry name for part `index` (0-based) of `total` parts.
+export function backupPartName(recordsName, index, total) {
+  if (total <= 1) return recordsName;
+  return String(recordsName).replace(/\.csv$/i, `-part-${String(index + 1).padStart(3, "0")}.csv`);
+}
+
 // The first `limit` rows plus whether the store actually holds more (the store's
 // own count can exceed the rows it returned).
 export function pagedRows(rows, count, limit) {

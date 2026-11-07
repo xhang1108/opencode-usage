@@ -13,6 +13,7 @@ import { SETTINGS_FORMAT } from "../../extension/shared/backup.js";
 
 test("classifyImport dispatches by extension", () => {
   assert.equal(classifyImport("mimo-usage.xlsx"), "xlsx");
+  assert.equal(classifyImport("opencode-usage_backup_2026-09-16_08-05.zip"), "zip");
   assert.equal(classifyImport("opencode-usage_records_2026-09-16.CSV"), "csv");
   assert.equal(classifyImport("local.json"), "json");
   assert.equal(classifyImport("notes.txt"), "unsupported");

@@ -8,6 +8,7 @@ import { groupBySource, SETTINGS_FORMAT } from "../../shared/backup.js";
 export function classifyImport(name) {
   const n = name || "";
   if (/\.xlsx$/i.test(n)) return "xlsx";
+  if (/\.zip$/i.test(n)) return "zip";
   if (/\.csv$/i.test(n)) return "csv";
   if (/\.json$/i.test(n)) return "json";
   return "unsupported";
