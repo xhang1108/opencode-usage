@@ -1,6 +1,29 @@
 # Changelog
 
-## 1.8.0 — 2026-11-07
+## 1.8.1 - 2026-11-09
+
+### Fixed
+
+- **The dashboard works again.** The sender check no longer excludes extension pages opened in a tab. `chrome.tabs.create` sets `sender.tab`, so `get-status`, `get-database`, import and clear were all rejected with `forbidden`. Content scripts remain limited to the allowlisted message types and their vendor host.
+- **Vendor crawls load their mappers again.** Web-accessible resources no longer set `use_dynamic_url`; the dynamic URL made `import(chrome.runtime.getURL("vendors/.../mapper.js"))` fail for every crawl vendor.
+- **An invalid `costScale` is unpriced instead of billed at the raw 1e8 value.** A zero/non-finite scale now returns `unpriced` (visible in the dashboard's unpriced badge) instead of dividing by 1.
+- **DeepSeek includes today's usage.** The scan ends at tomorrow's +08 midnight, and a failed hourly request is reported as partial data instead of discarding the whole sync.
+- **CommandCode retries transient failures and keeps successful days.** 429/5xx/network errors get backoff; 401/403 report "not logged in"; one bad day no longer aborts the batch.
+- **The CSV formula guard accepts real numeric spellings.** `-.5`, `+.5`, `1.` and `1e3` are preserved; text such as `+1_000` still gets the `'` prefix.
+- **Zip and backup imports are bounded.** Entry/total/entry-count limits and truncated-entry checks prevent zip bombs; files over 256MiB are rejected before parsing.
+
+### Security
+
+- Content scripts can no longer clear, import or read the whole database; `vendor-crawl-data` is pinned to its source host.
+- `__proto__` record ids stay own keys; dashboard escaping uses the full `escHTML`; update links are restricted to GitHub; the extension CSP now uses `object-src 'none'`.
+
+### Changed
+
+- Removed the unused DeepSeek export-import module and its tests, and pruned dead CommandCode mapper tests.
+
+> **Upgrade note.** No storage migration is required; existing records and old backups remain readable. A backup larger than 256MiB (or a truncated zip) is now rejected instead of partially imported.
+
+## 1.8.0 - 2026-11-07
 
 ### Added
 
