@@ -21,7 +21,7 @@ A Chrome extension that aggregates token usage from several AI vendors into one 
 
 Enable more in **Settings → Vendors**. Each additional vendor may ask for host permission the first time you turn it on.
 
-Only **opencode** and **MiMo** accept a vendor-native import file (opencode local DB JSON, MiMo XLSX). OpenRouter, DeepSeek, CommandCode and Groq have no export format to import — their records come from **Crawl Now**, or from a backup records CSV.
+Only **opencode** and **MiMo** accept a vendor-native import file (opencode local DB JSON, MiMo XLSX). OpenRouter, DeepSeek, CommandCode and Groq have no export format to import — their records come from **Crawl Now**, or from a backup package (`.zip`) or its records CSV.
 
 ## Features
 
@@ -68,8 +68,8 @@ This is a breaking release: multi-vendor support plus a unified price list. Read
 1. Sign in at [opencode.ai](https://opencode.ai) and open a **Console** page — `https://opencode.ai/console` (it redirects to your workspace, e.g. `https://opencode.ai/console/<workspace-id>/usage`). The sync uses this signed-in session.
 2. Click the extension icon → **Sync** to fetch the latest usage records. Syncing is intentionally MANUAL to avoid hitting vendors too frequently. Hold **Shift** for a **Full Sync** (re-fetches all history).
 3. Click **Open Dashboard** to view charts, tables, and cost estimates.
-4. **Export Backup** in the dashboard downloads two files: `opencode-usage_settings_*.json` (your settings + pricing + spend ledger) and `opencode-usage_records_*.csv` (every record, every source, plus spend rows tagged `kind="spend"`). **Import Usage** restores either file.
-5. **Import Usage** accepts three file types, and one pick may mix them: `.xlsx` (MiMo export), `.json` (opencode local DB export, or a settings backup), `.csv` (backup records). Each file is routed by type, and a per-file failure does not abort the rest of the batch.
+4. **Export Backup** in the dashboard downloads one `.zip` package: `opencode-usage_backup_<stamp>.zip`. It holds `opencode-usage_settings_*.json` (settings + pricing + spend ledger) and one or more `opencode-usage_records_*.csv` parts (every record, every source, plus spend rows tagged `kind="spend"`). **Import Usage** restores the package; old loose files still work.
+5. **Import Usage** accepts `.zip` (backup package), `.xlsx` (MiMo export), `.json` (opencode local DB export or a settings backup), and `.csv` (backup records); one pick may mix them. Each file is routed by type, and a per-file failure does not abort the rest of the batch. A backup over 256MiB, or a truncated zip, is rejected instead of partially imported.
 
 ## How It Works
 
@@ -100,7 +100,12 @@ Per-vendor detail (endpoints, fields, limits) lives in the dashboard's **Setting
 - Syncing is MANUAL by default (click **Sync** each time); hold **Shift** for a Full Sync. opencode can optionally auto-sync every 6h (**Settings → Vendors → opencode**), but only while Chrome is open and you're signed in at opencode.ai — it reuses an open Console tab, or opens a background one and closes it once the sync ends.
 - opencode reads its Console Usage API for the signed-in workspace (one record per request) and can backfill all history, so a manual sync only when you need fresh data is usually enough. It authenticates with the Console tab's session cookie; no API key is stored.
 - Prices live in the dashboard's **Settings → Pricing** tab; **Settings → Database** lists every stored usage store and what can be deleted.
+- Backup CSVs are for restore. Text that starts with a spreadsheet formula marker (`=`, `+`, `-`, `@`) is prefixed with `'` so opening the CSV in Excel/Sheets cannot execute it; numeric values such as `-12.5` are unchanged.
 - The Rescan button is hidden by default; uncomment it in `popup/popup.html` and `popup/popup.js` to show it.
+
+## Release notes
+
+See [`CHANGELOG.md`](CHANGELOG.md) for what changed in each version.
 
 ## License
 
