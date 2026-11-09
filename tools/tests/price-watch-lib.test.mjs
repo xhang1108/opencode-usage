@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   snapshotFilename,
@@ -8,6 +10,8 @@ import {
   assertNotSuspiciousShrink,
   isGeneratedSourceMirror,
   sourceMirrorDecision,
+  listSnapshots,
+  snapshotsDir,
 } from "../price-watch-lib.mjs";
 import { parsePricingModels as parseDeepSeek } from "../../extension/vendors/deepseek-official/pricing-page.js";
 
@@ -103,6 +107,22 @@ test("sourceMirrorDecision refuses to clobber a hand-authored source file", () =
   const foreign = mirrorText("xai-official", [{ model: "grok-4.7", rates: [{ from: null, pricing: {} }] }]);
   assert.deepEqual(sourceMirrorDecision(foreign, next, "xai-official"), { write: false, reason: "foreign" });
   assert.deepEqual(sourceMirrorDecision("not json", next, "xai-official"), { write: false, reason: "foreign" });
+});
+
+// --- read-only snapshot loading ----------------------------------------------
+
+test("listSnapshots returns [] for a missing dir without creating it", () => {
+  const cfg = { dir: `tools/tests/.tmp-pw-${process.pid}-${Date.now()}` };
+  const dir = snapshotsDir(cfg);
+  try {
+    assert.equal(existsSync(dir), false);
+    assert.deepEqual(listSnapshots(cfg), []);
+    // Loading snapshots must not mkdir: the dashboard/read path stays read-only.
+    assert.equal(existsSync(dir), false);
+  } finally {
+    // If the implementation regressed and created the dir, do not leave it behind.
+    rmSync(resolve(dir, ".."), { recursive: true, force: true });
+  }
 });
 
 test("isGeneratedSourceMirror only accepts this generator's own shape", () => {

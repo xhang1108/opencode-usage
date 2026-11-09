@@ -33,14 +33,29 @@ import {
 
 // Sources fetch one URL by default; `pages` (LongCat's per-model pricing docs)
 // fetches each page and merges them into a single snapshot.
+const FETCH_TIMEOUT_MS = 30000;
+const MAX_PAGE_CHARS = 8 * 1024 * 1024;
+
+async function fetchPage(url, source) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctl.signal });
+    if (!res.ok) throw new Error(`${source}: fetch failed ${res.status} (${url})`);
+    const text = await res.text();
+    if (text.length > MAX_PAGE_CHARS) throw new Error(`${source}: page too large (${text.length} chars)`);
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function watchOne(source, cfg, { allowShrink = false } = {}) {
   const parser = await loadParser(cfg);
   const capturedAt = new Date().toISOString();
   const parts = [];
   for (const url of cfg.pages && cfg.pages.length ? cfg.pages : [cfg.url]) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${source}: fetch failed ${res.status} (${url})`);
-    parts.push(parser.snapshotFromPage(await res.text(), capturedAt, { source }));
+    parts.push(parser.snapshotFromPage(await fetchPage(url, source), capturedAt, { source }));
   }
   const snapshot = mergeSnapshots(source, capturedAt, parts);
 

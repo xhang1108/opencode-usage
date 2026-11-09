@@ -562,6 +562,8 @@ const serialized = JSON.stringify(preset, null, 2) + "\n";
 const outPath = resolve(root, "extension/shared/unified.preset.json");
 const stats = `groups=${groups.length} assign=${Object.keys(finalAssign).length} fingerprints=${parent.size}`;
 
+const hasDisagreements = disagreements.length > 0;
+
 if (process.argv.includes("--check")) {
   const current = existsSync(outPath) ? readFileSync(outPath, "utf8") : "";
   if (current !== serialized) {
@@ -571,12 +573,17 @@ if (process.argv.includes("--check")) {
   } else {
     console.log(`unified preset in sync (${stats})`);
   }
+} else if (hasDisagreements) {
+  // Fail closed: never write a preset whose groups are ambiguous. The old file
+  // stays in place and CI's preset-sync check catches the mismatch.
+  console.error("ERR: not writing extension/shared/unified.preset.json while rate-table disagreements exist.");
+  console.error(stats);
 } else {
   writeFileSync(outPath, serialized);
   console.log("wrote extension/shared/unified.preset.json");
   console.log(stats);
 }
-if (disagreements.length) {
+if (hasDisagreements) {
   console.error(`\nERR: ${disagreements.length} model(s) resolve to the same group with conflicting rate tables.`);
   console.error("Fix the source preset, or the group price is ambiguous (Fail-Closed):");
   for (const d of disagreements) console.error(`  ${d.keys.join("  vs  ")}  <- ${d.sources.join(", ")}`);

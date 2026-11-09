@@ -16,6 +16,17 @@ const ARCHIVED = {
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const FETCH_TIMEOUT_MS = 30000;
+
+async function fetchWithTimeout(url, opts = {}) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...opts, signal: ctl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function withRetry(label, fn, attempts = 4) {
   for (let i = 1; i <= attempts; i++) {
@@ -33,17 +44,20 @@ async function withRetry(label, fn, attempts = 4) {
 async function cdxTimestamps(url) {
   const api = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(url)}&output=json&fl=timestamp,digest&filter=statuscode:200&collapse=digest`;
   return withRetry(`CDX ${url}`, async () => {
-    const res = await fetch(api, { headers: { "user-agent": "Mozilla/5.0" } });
+    const res = await fetchWithTimeout(api, { headers: { "user-agent": "Mozilla/5.0" } });
     if (!res.ok) throw new Error(`CDX ${res.status}`);
     const rows = JSON.parse(await res.text());
-    return rows.slice(1).map((r) => r[0]);
+    return rows.slice(1).map((r) => r[0]).filter((ts) => /^\d{14}$/.test(String(ts)));
   });
 }
 
 async function fetchArchived(url, ts) {
+  if (!/^\d{14}$/.test(String(ts))) return null;
   try {
     return await withRetry(`wayback ${ts}`, async () => {
-      const res = await fetch(`https://web.archive.org/web/${ts}id_/https://${url}`, { headers: { "user-agent": "Mozilla/5.0" } });
+      const res = await fetchWithTimeout(`https://web.archive.org/web/${ts}id_/https://${url}`, {
+        headers: { "user-agent": "Mozilla/5.0" },
+      });
       if (!res.ok) throw new Error(`wayback ${res.status}`);
       return res.text();
     }, 3);

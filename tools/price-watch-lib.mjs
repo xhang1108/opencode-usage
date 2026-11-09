@@ -199,13 +199,13 @@ export function sourceMirrorDecision(existingText, nextText, source) {
 }
 
 export function snapshotsDir(cfg) {
-  const dir = resolve(ROOT, cfg.dir, "price-snapshots");
-  mkdirSync(dir, { recursive: true });
-  return dir;
+  return resolve(ROOT, cfg.dir, "price-snapshots");
 }
 
 export function listSnapshots(cfg) {
-  return readdirSync(snapshotsDir(cfg))
+  const dir = snapshotsDir(cfg);
+  if (!existsSync(dir)) return []; // read-only: do not create dirs on load
+  return readdirSync(dir)
     .filter((f) => f.endsWith(".json"))
     .sort();
 }
@@ -219,8 +219,10 @@ export function loadSnapshots(cfg) {
 }
 
 export function writeSnapshot(cfg, snapshot) {
+  const dir = snapshotsDir(cfg);
+  mkdirSync(dir, { recursive: true });
   const name = snapshotFilename(snapshot.capturedAt);
-  writeFileSync(resolve(snapshotsDir(cfg), name), JSON.stringify(snapshot, null, 2) + "\n");
+  writeFileSync(resolve(dir, name), JSON.stringify(snapshot, null, 2) + "\n");
   return name;
 }
 

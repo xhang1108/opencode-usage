@@ -15,7 +15,7 @@
 //   node tools/verify-cost-gap.mjs --csv records.csv --source opencode --model deepseek-v4-flash --start 2026-07-01 --end 2026-10-01
 
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseCSV, rowsToObjects } from "../extension/shared/csv.js";
@@ -25,7 +25,7 @@ import { normalizeUnifiedPricing, buildUnifiedIndex, priceUnified } from "../ext
 import { buildPricing } from "../extension/shared/preset.js";
 import { localDateOf } from "../extension/dashboard/core/time.js";
 
-const ROOT = process.cwd();
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const readJSON = (p) => JSON.parse(readFileSync(resolve(ROOT, p), "utf8"));
 
 export function arg(name, fallback = null) {

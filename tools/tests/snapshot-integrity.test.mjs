@@ -207,8 +207,9 @@ test("committed preset/source artifacts match the snapshots they were built from
 // gitignored and absent in CI, so the direct builder check in preset-sync is
 // skipped there. Close the gap read-only: validate the shipped preset and prove
 // it still prices every model the committed builder input (rates.source.json)
-// declares. tools/extract-preset.mjs writes on import, so its transform is
-// mirrored rather than imported.
+// declares. tools/extract-preset.mjs no longer writes on import (the builder is
+// guarded by invokedDirectly), so its transform could be imported; this test
+// mirrors it to stay read-only.
 test("opencode preset is valid and keeps every committed source model priced", () => {
   const dir = resolve(vendorsDir, "opencode");
   const preset = readJson(resolve(dir, "rates.preset.json"));

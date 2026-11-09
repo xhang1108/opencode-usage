@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { buildPricing, validatePreset } from "../../extension/shared/preset.js";
+import { safeSourceName } from "../extract-preset.mjs";
 
 const OPENCODE = {
   source: "opencode",
@@ -42,6 +43,13 @@ test("validatePreset flags missing source, bad maps and rate-less targets", () =
   const noRates = validatePreset({ source: "x", targets: { t: { label: "t" } } });
   assert.equal(noRates.ok, false);
   assert.equal(noRates.errors.includes("no-rates:t"), true);
+});
+
+test("safeSourceName accepts a vendor dir name and rejects paths", () => {
+  assert.equal(safeSourceName("opencode"), "opencode");
+  for (const bad of ["../../x", "..", "a/b", ""]) {
+    assert.throws(() => safeSourceName(bad), /invalid source name/);
+  }
 });
 
 test("validatePreset runs the rate-table rules (top-level tier is rejected)", () => {
