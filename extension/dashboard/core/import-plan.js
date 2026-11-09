@@ -3,6 +3,7 @@
 // records CSV splits across stores, and the settings-restore summary. Pure: no
 // chrome, no DOM (the caller does the actual storage writes).
 import { groupBySource, SETTINGS_FORMAT } from "../../shared/backup.js";
+import { putRecord } from "../../shared/stores.js";
 
 // Dispatch a file to its parser by extension.
 export function classifyImport(name) {
@@ -45,7 +46,7 @@ export function planRecordsImport(records, vendorSources) {
   const known = new Set(vendorSources || []);
   for (const [source, recs] of groupBySource(records)) {
     if (source === "opencode") {
-      for (const rec of recs) localMap[rec.id] = rec;
+      for (const rec of recs) putRecord(localMap, rec.id, rec);
     } else if (known.has(source)) {
       vendors.push({ source, records: recs });
     } else {

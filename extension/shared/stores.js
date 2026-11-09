@@ -11,6 +11,18 @@
 export const LOCAL_STORE_KEY = "local";
 export const VENDOR_STORE_PREFIX = "vendor:";
 
+// Write a record under an arbitrary id without letting a `__proto__` id invoke
+// the prototype setter (assignment would silently drop the record). Every
+// id-keyed record map should go through this.
+export function putRecord(map, id, rec) {
+  if (id === "__proto__") {
+    Object.defineProperty(map, id, { value: rec, enumerable: true, configurable: true, writable: true });
+  } else {
+    map[id] = rec;
+  }
+  return map;
+}
+
 // The message that clears a managed store, or null when there is none.
 export function clearMessageFor(storeKey) {
   if (storeKey === LOCAL_STORE_KEY) return { type: "clear-local-data" };

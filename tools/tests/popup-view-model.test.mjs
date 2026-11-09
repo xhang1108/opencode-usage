@@ -2,12 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  RELEASES_URL,
   crawlButtonText,
   crawlStatusText,
   crawlableVendors,
   defaultCrawlLabel,
   formatDateTime,
   pickUsageWorkspace,
+  safeReleaseUrl,
   usageUrl,
 } from "../../extension/popup/view-model.js";
 
@@ -55,6 +57,14 @@ test("pickUsageWorkspace ignores a visited/synced id that is not an org_/wrk_ id
   // record and crawl state are accepted as-is (they were never gated).
   assert.equal(pickUsageWorkspace({ lastVisitedWorkspace: "abc", cachedMeta: { lastRecord: { workspaceID: "wrk_c" } } }), "wrk_c");
   assert.equal(pickUsageWorkspace({ lastVisitedWorkspace: "org_a" }), "org_a");
+});
+
+test("safeReleaseUrl only follows https github.com release links", () => {
+  assert.equal(safeReleaseUrl("https://github.com/x/y/releases/tag/v1"), "https://github.com/x/y/releases/tag/v1");
+  assert.equal(safeReleaseUrl("https://www.github.com/x/y/releases/tag/v1"), "https://www.github.com/x/y/releases/tag/v1");
+  for (const bad of ["http://github.com/x/y", "https://evil.example/x", "javascript:alert(1)", "", null]) {
+    assert.equal(safeReleaseUrl(bad), RELEASES_URL);
+  }
 });
 
 test("usageUrl builds the console usage link", () => {

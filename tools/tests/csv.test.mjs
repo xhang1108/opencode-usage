@@ -43,3 +43,8 @@ test("rowsToObjects maps header to values and skips blank lines", () => {
   const objs = rowsToObjects(parseCSV("model,amount\nm1,10\n\n"));
   assert.deepEqual(objs, [{ model: "m1", amount: "10" }]);
 });
+
+test("toCSV neutralizes formula-leading text but keeps numeric values intact", () => {
+  const text = toCSV([["=cmd", "-12.5", "-.5", "+.5", "+1.", "-1e3", "+1_000", "@x", "plain"]]);
+  assert.deepEqual(parseCSV(text)[0], ["'=cmd", "-12.5", "-.5", "+.5", "+1.", "-1e3", "'+1_000", "'@x", "plain"]);
+});

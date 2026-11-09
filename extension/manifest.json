@@ -101,5 +101,8 @@
     "https://commandcode.ai/*",
     "https://console.groq.com/*",
     "https://openrouter.ai/*"
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  }
 }

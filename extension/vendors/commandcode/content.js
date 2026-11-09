@@ -38,10 +38,36 @@
   async function fetchCharts(mapper, fromMs, toMs, granularity) {
     const qs = new URLSearchParams({ from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString() });
     if (granularity) qs.set("granularity", granularity);
-    const res = await fetch(`${CHARTS}?${qs.toString()}`, { credentials: "include", headers: { accept: "application/json" } });
-    if (!res.ok) throw new Error(`usage/charts ${res.status}`);
-    const json = await res.json();
-    return mapper.mapChartBuckets(json.data || []);
+    const url = `${CHARTS}?${qs.toString()}`;
+    let lastErr = null;
+    for (let attempt = 0; attempt <= 3; attempt++) {
+      if (attempt > 0) await sleep(1000 * attempt);
+      let res;
+      try {
+        res = await fetch(url, { credentials: "include", headers: { accept: "application/json" } });
+      } catch (e) {
+        lastErr = e; // network error: retry
+        continue;
+      }
+      if (res.status === 429 || res.status >= 500) {
+        lastErr = new Error(`usage/charts ${res.status} (rate limited)`);
+        continue;
+      }
+      if (!res.ok) {
+        const err = new Error(`usage/charts ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+      let json;
+      try {
+        json = await res.json();
+      } catch (e) {
+        lastErr = new Error("usage/charts returned non-JSON (WAF/login page?)");
+        continue;
+      }
+      return mapper.mapChartBuckets(json.data || []);
+    }
+    throw lastErr || new Error("usage/charts request failed");
   }
 
   async function crawl(opts) {
@@ -61,18 +87,42 @@
     try {
       dayRecords = await fetchCharts(mapper, startMs, endMs, "day");
     } catch (e) {
-      // Very wide ranges can be rejected; retry against a conservative window.
+      // Auth failures are not a range problem: report them instead of burning
+      // another request against a window that can never succeed.
+      if (e && (e.status === 401 || e.status === 403)) throw new Error("CommandCode: not logged in");
+      // Only a range rejection degrades to a conservative window; other errors
+      // (404/500 after retries) must fail loudly.
+      if (e && e.status && e.status !== 400 && e.status !== 422) throw e;
       dayRecords = await fetchCharts(mapper, now - 400 * 86400000, endMs, "day");
     }
-    const days = [...new Set(dayRecords.map((r) => String(r.time).slice(0, 10)))].sort().slice(-SAFETY_DAYS);
+    const sinceDay = opts && opts.since ? String(opts.since).slice(0, 10) : null;
+    let days = [...new Set(dayRecords.map((r) => String(r.time).slice(0, 10)))]
+      .filter((d) => !sinceDay || d >= sinceDay)
+      .sort();
+    if (days.length > SAFETY_DAYS) {
+      notify({
+        type: "info",
+        message: `CommandCode: ${days.length - SAFETY_DAYS} older day(s) truncated at the ${SAFETY_DAYS}-day safety cap`,
+      });
+      days = days.slice(-SAFETY_DAYS);
+    }
 
     // 2) per-day 5-minute buckets, paced; stops when every discovered day is done.
     let records = 0;
     let added = 0; // records actually new in storage (not already stored)
+    const failures = [];
     for (let i = 0; i < days.length; i++) {
       const day = days[i];
       const from = Date.parse(`${day}T00:00:00Z`);
-      const recs = await fetchCharts(mapper, from, from + 86400000, null);
+      let recs = [];
+      try {
+        recs = await fetchCharts(mapper, from, from + 86400000, null);
+      } catch (e) {
+        failures.push(`${day}: ${(e && e.message) || e}`);
+        notify({ type: "progress", page: i + 1, message: `${day} FAILED (${i + 1}/${days.length})` });
+        if (i < days.length - 1) await sleep(CHUNK_DELAY_MS);
+        continue;
+      }
       if (recs.length > 0) {
         records += recs.length;
         try {
@@ -86,7 +136,10 @@
       notify({ type: "progress", page: i + 1, message: `${day} (${i + 1}/${days.length}, ${recs.length} rows)` });
       if (i < days.length - 1) await sleep(CHUNK_DELAY_MS);
     }
-    return { days: days.length, records, added };
+    if (failures.length > 0) {
+      notify({ type: "info", message: `CommandCode: ${failures.length} day(s) failed — partial data saved` });
+    }
+    return { days: days.length, records, added, failures: failures.length };
   }
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -99,7 +152,7 @@
     crawling = true;
     notify({ type: "crawl-start", workspace: "" });
     crawl({ since: msg.since })
-      .then((res) => notify({ type: "vendor-crawl-done", source: SOURCE, records: res.records, newRecords: res.added }))
+      .then((res) => notify({ type: "vendor-crawl-done", source: SOURCE, records: res.records, newRecords: res.added, failures: res.failures }))
       .catch((e) => notify({ type: "error", message: String((e && e.message) || e) }))
       .finally(() => {
         crawling = false;

@@ -59,7 +59,8 @@ export async function renderDatabase(ctx) {
   intro.className = "modal-hint";
   intro.innerHTML =
     "Every usage store the extension knows about, all in <code>chrome.storage.local</code>. " +
-    "Click a store to expand it; records can be deleted per row or cleared entirely.";
+    "Click a store to expand it; records can be deleted per row or cleared entirely. " +
+    "Backups include each record's raw vendor payload — treat the exported .zip as private.";
   wrap.appendChild(intro);
 
   for (const store of res.stores) wrap.appendChild(renderStore(ctx, store));

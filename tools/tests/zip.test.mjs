@@ -71,6 +71,44 @@ test("unzip rejects non-ZIP input", async () => {
   await assert.rejects(() => unzip(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer));
 });
 
+test("unzip refuses an entry that inflates past the size limit", async () => {
+  const buf = makeZip([{ name: "bomb.csv", data: "a".repeat(4096) }]);
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  await assert.rejects(() => unzip(ab, { maxEntryBytes: 1024 }), /inflates past|too large/);
+});
+
+test("unzip rejects an archive with too many entries", async () => {
+  const buf = makeZip([
+    { name: "a.csv", data: "a", store: true },
+    { name: "b.csv", data: "b", store: true },
+    { name: "c.csv", data: "c", store: true },
+  ]);
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  await assert.rejects(() => unzip(ab, { maxEntries: 2 }), /too many entries/);
+});
+
+test("unzip rejects an archive that inflates past the total limit", async () => {
+  const buf = makeZip([
+    { name: "a.csv", data: "a".repeat(80), store: true },
+    { name: "b.csv", data: "b".repeat(80), store: true },
+  ]);
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  await assert.rejects(() => unzip(ab, { maxTotalBytes: 100 }), /inflates to more/);
+});
+
+test("unzip rejects a truncated entry", async () => {
+  const buf = makeZip([{ name: "x.csv", data: "hello", store: true }]);
+  // Point the central-directory compSize past the end of the buffer. The local
+  // header is ignored for sizing by the reader, so this reliably truncates.
+  const eocd = buf.length - 22;
+  assert.equal(buf.readUInt32LE(eocd), 0x06054b50, "EOCD signature");
+  const cd = buf.readUInt32LE(eocd + 16);
+  assert.equal(buf.readUInt32LE(cd), 0x02014b50, "central directory signature");
+  buf.writeUInt32LE(buf.length, cd + 20);
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  await assert.rejects(() => unzip(ab), /truncated ZIP entry/);
+});
+
 test("zipWrite round-trips through unzip with byte-identical entries", async () => {
   const { zipWrite, crc32 } = await import("../../extension/shared/zip-write.js");
   const enc = new TextEncoder();

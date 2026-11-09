@@ -57,6 +57,11 @@ export function usageUrl(workspaceID) {
   return `https://opencode.ai/console/${workspaceID}/usage`;
 }
 
+// The update banner only follows links from the GitHub release feed. The
+// allowlist lives in shared/update-url.js so the service worker's stored URL
+// and the popup's rendered URL cannot drift.
+export { RELEASES_URL, safeReleaseUrl } from "../shared/update-url.js";
+
 // Vendors that are enabled AND have a crawler — the choices in the crawl picker.
 export function crawlableVendors(vendors, vendorSettings) {
   return (vendors || []).filter((v) => v && v.crawl && isSourceEnabled(v.source, vendorSettings));

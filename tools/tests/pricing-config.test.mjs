@@ -107,6 +107,19 @@ test("priceWithConfig divides the raw vendor cost by costScale at compute time",
   assert.equal(priceWithConfig(usd, pricing).cost, 0.05);
 });
 
+test("a non-positive costScale is unpriced, never silently divided by 1", () => {
+  const pricing = { modelMap: {}, targets: {} };
+  for (const costScale of [0, -1, "", "nope"]) {
+    const out = priceWithConfig(
+      { source: "opencode", model: "m", time: "2026-09-01T00:00:00Z", input: 1, vendorCost: 242499948, costScale },
+      pricing,
+    );
+    assert.equal(out.cost, 0, `costScale=${JSON.stringify(costScale)} must not bill the raw amount`);
+    assert.equal(out.unpriced, true);
+    assert.equal(out.priceBasis, "invalid-scale");
+  }
+});
+
 test("priceWithConfig bills 0 when vendorCost is missing (no rate-table estimate)", () => {
   const pricing = { modelMap: { "opencode:m1": "t1" }, targets: { t1: { rates: [VENDOR_RATE] } } };
   // opencode server sends `cost: null` on many records; there is nothing to

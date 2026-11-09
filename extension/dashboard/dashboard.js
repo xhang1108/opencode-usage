@@ -14,6 +14,7 @@ import { initDecorBg } from "./views/decor.js";
 import { fmtMoney, escHTML, workspaceName } from "./views/format.js";
 import { readSettings, loadPricing, loadUnifiedPreset, isSourceEnabled, saveVendorSettings, saveUnifiedPricing, saveUnifiedPricingBackup, loadUnifiedPricingBackup, saveDefaultCrawl, saveWorkspaceLabels, saveUnmappedFirstSeen, saveSpendEntries } from "./settings/store.js";
 import { normalizeUnifiedPricing, buildUnifiedIndex, priceUnified, unifiedRateModels } from "../shared/unified.js";
+import { putRecord } from "../shared/stores.js";
 import { computePresetDrift } from "../shared/preset-drift.js";
 import { createSettingsModal } from "./settings/tabs.js";
 import { renderGeneral } from "./settings/general.js";
@@ -490,7 +491,7 @@ async function loadFromExtension() {
       for (let j = i; j < end; j++) {
         const [id, rec] = entries[j];
         const src = rec.source ? rec : { ...rec, source: "opencode" };
-        globalCache[id] = normalizeRecord(src) || src;
+        putRecord(globalCache, id, normalizeRecord(src) || src);
       }
       report("Preparing records", end, entries.length);
       if (end < entries.length) await yieldToMain();
@@ -573,7 +574,14 @@ async function importVendorExports(files) {
 // opencode-usage-settings .json is our own backup (D24) and is restored;
 // any other .json is an opencode local DB export; .xlsx is a MiMo export;
 // .zip is our own backup package (settings JSON + records CSV parts).
+// Refuse absurdly large import files before reading them into memory: the
+// parsers are synchronous and a multi-hundred-MB file freezes the dashboard.
+const MAX_IMPORT_BYTES = 256 * 1024 * 1024;
+
 async function importVendorExport(file) {
+  if (file && typeof file.size === "number" && file.size > MAX_IMPORT_BYTES) {
+    throw new Error(`file too large (${(file.size / 1048576).toFixed(0)} MB > ${MAX_IMPORT_BYTES / 1048576} MB)`);
+  }
   const kind = classifyImport(file && file.name);
   if (kind === "xlsx") return await importMimoXlsx(file);
   if (kind === "zip") return await importBackupZip(file);
@@ -645,7 +653,7 @@ async function restoreParsedRecords(records, spendEntries) {
       let filled = 0;
       for (const chunk of chunkRecords(localRecords)) {
         const map = {};
-        for (const rec of chunk) map[rec.id] = rec;
+        for (const rec of chunk) putRecord(map, rec.id, rec);
         const res = await chrome.runtime.sendMessage({ type: "import-local-data", data: JSON.stringify(map) });
         if (!res || !res.ok) throw new Error((res && res.error) || "opencode restore failed");
         newRecords += res.newRecords || 0;

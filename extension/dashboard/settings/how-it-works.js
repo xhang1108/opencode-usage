@@ -15,6 +15,7 @@
 //   extra       -> optional HTML appended after the tables (vendor-specific how-to).
 import { flashButton } from "../../shared/dom-ui.js";
 import { renderFlow } from "../views/flow-diagram.js";
+import { escHTML } from "../views/format.js";
 
 // Extra how-to appended to the opencode vendor section.
 const OPENCODE_EXTRA =
@@ -181,9 +182,6 @@ async function loadVendorSections(registry) {
   return sections;
 }
 
-function escHTML(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 // Escape a vendor note, then turn `code` spans into <code>.
 function formatNote(s) {
   return escHTML(s).replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -224,11 +222,11 @@ export async function renderHowItWorks(registry) {
   const table = (s, rows) => (s.head ? headTable({ ...s, rows }) : kvTable(rows));
 
   const jump = sections.map((s) =>
-    `<button type="button" class="hw-jump" data-hw="${s.id}">${s.title}</button>`
+    `<button type="button" class="hw-jump" data-hw="${escHTML(s.id)}">${escHTML(s.title)}</button>`
   ).join("");
   const sectionsHtml = sections.map((s) => `
-    <section class="hw-sec" id="hw-${s.id}">
-      <h4>${s.title}</h4>
+    <section class="hw-sec" id="hw-${escHTML(s.id)}">
+      <h4>${escHTML(s.title)}</h4>
       ${(s.diagrams || [])
         .map((d, j) => `${d.label ? `<div class="hw-diagram-label">${d.label}</div>` : ""}
       <div class="hw-diagram" data-idx="${j}"></div>`)

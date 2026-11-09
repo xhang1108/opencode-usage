@@ -49,7 +49,9 @@ export function downloadText(filename, text, type = "application/json") {
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  // Revoke on the next task: revoking synchronously can cancel the download in
+  // some browsers before it starts reading the blob URL.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // Trigger a client-side download of a binary payload (e.g. a backup .zip).
@@ -60,6 +62,6 @@ export function downloadBytes(filename, bytes, type = "application/zip") {
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 

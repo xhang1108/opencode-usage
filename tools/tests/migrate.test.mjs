@@ -67,6 +67,19 @@ test("v2 is idempotent: an already-normalized store is left alone", () => {
   assert.deepEqual(patch, {});
 });
 
+test("v2 heal preserves a __proto__ record id", () => {
+  // Raw JSON (not an object literal) so JSON.parse defines an own
+  // `__proto__` property instead of invoking the prototype setter.
+  const raw = '{"__proto__":{"model":"m","date":"2026-07-14","input":1}}';
+  const { patch } = planMigrations({ schemaVersion: 1, localImportData: raw });
+  assert.ok(patch.localImportData, "expected the map to be rewritten");
+
+  const healed = JSON.parse(patch.localImportData);
+  assert.equal(Object.prototype.hasOwnProperty.call(healed, "__proto__"), true, "own __proto__ key must survive");
+  assert.equal(healed["__proto__"].time, "2026-07-14T00:00:00.000Z", "time must be backfilled");
+  assert.equal(healed["__proto__"].model, "m");
+});
+
 test("v3 is a no-op marker: the bytes move in background, the stamp here", () => {
   assert.equal(STORAGE_SCHEMA_VERSION, 3);
   const { version, applied, patch } = planMigrations({ schemaVersion: 2 });

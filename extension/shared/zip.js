@@ -4,15 +4,27 @@
 // Reads stored (method 0) and deflate-raw (method 8) entries. No Zip64, no
 // encryption, CRC is not verified (not needed for our own exports).
 
-export async function unzip(arrayBuffer) {
+// Hard limits so a malicious / accidental zip bomb cannot freeze or OOM the
+// dashboard. `maxEntryBytes` bounds one inflated entry, `maxTotalBytes` the
+// whole archive; both are checked WHILE decompressing, not after.
+export const ZIP_LIMITS = {
+  maxEntries: 10000,
+  maxEntryBytes: 64 * 1024 * 1024,
+  maxTotalBytes: 256 * 1024 * 1024,
+};
+
+export async function unzip(arrayBuffer, limits = ZIP_LIMITS) {
+  const lim = { ...ZIP_LIMITS, ...(limits || {}) };
   const view = new DataView(arrayBuffer);
   const bytes = new Uint8Array(arrayBuffer);
   const eocd = findEOCD(view);
   if (eocd < 0) throw new Error("Not a ZIP file (no end-of-central-directory)");
 
   const total = view.getUint16(eocd + 10, true);
+  if (total > lim.maxEntries) throw new Error(`ZIP has too many entries (${total} > ${lim.maxEntries})`);
   let offset = view.getUint32(eocd + 16, true);
   const files = {};
+  let totalBytes = 0;
 
   for (let i = 0; i < total; i++) {
     if (offset + 46 > view.byteLength || view.getUint32(offset, true) !== 0x02014b50) break;
@@ -26,15 +38,19 @@ export async function unzip(arrayBuffer) {
     offset += 46 + nameLen + extraLen + commentLen;
 
     if (name.endsWith("/")) continue;
+    if (compSize > lim.maxEntryBytes) throw new Error(`ZIP entry too large: ${name}`);
     if (localOffset + 30 > view.byteLength || view.getUint32(localOffset, true) !== 0x04034b50) continue;
     const localNameLen = view.getUint16(localOffset + 26, true);
     const localExtraLen = view.getUint16(localOffset + 28, true);
     const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+    if (dataStart + compSize > bytes.length) throw new Error(`truncated ZIP entry: ${name}`);
     const compressed = bytes.subarray(dataStart, dataStart + compSize);
 
     if (method === 0) files[name] = compressed.slice();
-    else if (method === 8) files[name] = await inflateRaw(compressed);
+    else if (method === 8) files[name] = await inflateRaw(compressed, lim.maxEntryBytes);
     else throw new Error(`Unsupported ZIP compression method: ${method}`);
+    totalBytes += files[name].length;
+    if (totalBytes > lim.maxTotalBytes) throw new Error(`ZIP inflates to more than ${lim.maxTotalBytes} bytes`);
   }
   return files;
 }
@@ -47,9 +63,28 @@ function findEOCD(view) {
   return -1;
 }
 
-async function inflateRaw(u8) {
+async function inflateRaw(u8, maxBytes) {
   const stream = new Response(u8).body.pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = stream.getReader();
+  const chunks = [];
+  let len = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    len += value.length;
+    if (maxBytes && len > maxBytes) {
+      await reader.cancel();
+      throw new Error(`ZIP entry inflates past ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(len);
+  let at = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, at);
+    at += chunk.length;
+  }
+  return out;
 }
 
 export function decodeText(u8) {

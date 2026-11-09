@@ -63,8 +63,21 @@ export function rowsToObjects(rows) {
 
 // Rows (array of arrays, header included) -> CSV text. Every field is quoted
 // and embedded quotes are doubled, so values with commas/newlines are safe.
+// A non-numeric cell starting with a spreadsheet formula marker is prefixed
+// with `'` so Excel/Sheets cannot execute it (CSV injection).
+const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+// Accept the numeric spellings Excel/Sheets also accept (leading/trailing
+// decimal point), but not `1_000`: that is text, so the `'` guard must stay.
+const NUMERIC_TEXT = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+function csvCell(v) {
+  let s = String(v == null ? "" : v);
+  if (FORMULA_PREFIX.test(s) && !NUMERIC_TEXT.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 export function toCSV(rows) {
   return (rows || [])
-    .map((row) => (row || []).map((v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`).join(","))
+    .map((row) => (row || []).map(csvCell).join(","))
     .join("\n");
 }

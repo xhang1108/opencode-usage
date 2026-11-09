@@ -43,7 +43,15 @@ export function shouldPassthroughVendorCost(record, passthroughSources = {}) {
 }
 
 export function priceVendorCost(rec, pricing) {
-  const cost = (Number(rec.vendorCost) || 0) / (Number(rec.costScale) || 1);
+  // A present but non-positive / non-finite scale cannot be trusted: falling
+  // back to 1 would report the raw amount (often 1e8-scaled) as USD, and
+  // dividing by 0/negative is worse. Surface the record as unpriced instead.
+  const scale = rec.costScale == null ? 1 : Number(rec.costScale);
+  if (!Number.isFinite(scale) || scale <= 0) {
+    return { cost: 0, savings: 0, window: vendorWindow(rec, pricing), unpriced: true, targetId: null, priceBasis: "invalid-scale" };
+  }
+  const raw = Number(rec.vendorCost);
+  const cost = (Number.isFinite(raw) ? raw : 0) / scale;
   return { cost, savings: 0, window: vendorWindow(rec, pricing), unpriced: false, targetId: null, priceBasis: "vendor-reported" };
 }
 

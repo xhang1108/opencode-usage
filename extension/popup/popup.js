@@ -15,6 +15,7 @@ import {
   defaultCrawlLabel as crawlLabelFor,
   formatDateTime,
   pickUsageWorkspace,
+  safeReleaseUrl,
   usageUrl,
 } from "./view-model.js";
 
@@ -94,7 +95,7 @@ async function renderUpdateBanner() {
   const banner = $("#update-banner");
   if (!banner || !updateInfo || !updateInfo.updateAvailable) return;
   $("#update-version").textContent = updateInfo.latestVersion;
-  $("#update-link").href = updateInfo.releaseUrl;
+  $("#update-link").href = safeReleaseUrl(updateInfo.releaseUrl);
   banner.style.display = "block";
 }
 

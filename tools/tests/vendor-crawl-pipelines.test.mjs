@@ -129,12 +129,36 @@ test("deepseek: retries a 429 scan before succeeding", async () => {
   assert.equal(calls.hourly, 1);
 });
 
-test("deepseek: reports failure when an hourly fetch exhausts its retries", async () => {
+test("deepseek: reports partial data when an hourly fetch exhausts its retries", async () => {
   const { b, calls } = bootDeepSeek({ hourlyStatus: 500 });
   const { terminal } = await startVendor(b, { vendor: "deepseek-official", days: 2 });
-  assert.equal(terminal.type, "error");
-  assert.match(terminal.message, /failed after retries/);
+  // Partial data is kept: the run finishes with a failure count instead of
+  // pretending the whole sync was lost.
+  assert.equal(terminal.type, "vendor-crawl-done");
+  assert.equal(terminal.failures, 1);
   assert.equal(calls.hourly, 5); // 1 attempt + 4 retries
+  const info = b.sent.find((m) => m.type === "info");
+  assert.ok(info, "a partial-failure info message must be sent");
+  assert.match(info.message, /failed after retries/);
+});
+
+test("deepseek: days:2 scans through today with an exclusive +08 midnight end", async () => {
+  // The harness clock is fixed at 2026-09-16T12:00Z (20:00 +08), so today is
+  // 2026-09-16 and the scan must end at +08 midnight of 2026-09-17.
+  const { b } = bootDeepSeek();
+  const { terminal } = await startVendor(b, { vendor: "deepseek-official", days: 2 });
+  assert.equal(terminal.type, "vendor-crawl-done");
+
+  const amounts = b.requests.map((r) => new URL(r.url, "https://api.deepseek.com"));
+  const scan = amounts.find((u) => {
+    if (!u.pathname.endsWith("/amount")) return false;
+    const start = Number(u.searchParams.get("start"));
+    const end = Number(u.searchParams.get("end"));
+    return end - start !== DS_DAY; // hourly fetches are exactly one day wide
+  });
+  assert.ok(scan, "the daily scan request must be present");
+  assert.equal(Number(scan.searchParams.get("start")), DS_SEC);
+  assert.equal(Number(scan.searchParams.get("end")), DS_SEC + 2 * DS_DAY);
 });
 
 // ================================================================ CommandCode
@@ -192,6 +216,90 @@ test("commandcode: falls back to a conservative window when the wide probe is re
   const firstFrom = new URL(requests[0]).searchParams.get("from");
   const secondFrom = new URL(requests[1]).searchParams.get("from");
   assert.notEqual(firstFrom, secondFrom);
+});
+
+// Scripted route: successive day probes use probeStatuses (the last entry
+// repeats); per-day fetches answer through perDayStatus(day).
+function commandcodeScriptedRoute({ probeStatuses = [200], probeBuckets = [CC_DAY_BUCKET], perDayStatus = () => 200 } = {}) {
+  let probes = 0;
+  const requests = [];
+  const route = (req) => {
+    requests.push(req.url);
+    const u = new URL(req.url);
+    if (u.searchParams.get("granularity") === "day") {
+      const status = probeStatuses[Math.min(probes, probeStatuses.length - 1)];
+      probes++;
+      if (status !== 200) return { status, text: `probe ${status}` };
+      return { status: 200, text: JSON.stringify({ data: probeBuckets }) };
+    }
+    const day = new Date(u.searchParams.get("from")).toISOString().slice(0, 10);
+    const status = perDayStatus(day);
+    if (status !== 200) return { status, text: `per-day ${status}` };
+    return { status: 200, text: JSON.stringify({ data: [{ ...CC_DAY_BUCKET, timeBucket: `${day} 00:05:00` }] }) };
+  };
+  return { route, requests };
+}
+
+test("commandcode: retries a 429 day probe before crawling", async () => {
+  const { route, requests } = commandcodeScriptedRoute({ probeStatuses: [429, 200] });
+  const b = bootContent("vendors/commandcode/content.js", { route, sendMessage: () => ({ added: 1 }) });
+  const { terminal } = await startVendor(b, { vendor: "commandcode" });
+
+  assert.equal(terminal.type, "vendor-crawl-done");
+  assert.equal(terminal.records, 1);
+  const dayProbes = requests.filter((u) => /granularity=day/.test(u));
+  const perDay = requests.filter((u) => !/granularity=day/.test(u));
+  assert.equal(dayProbes.length, 2); // one 429, then the successful retry
+  assert.equal(perDay.length, 1); // the retry count does not multiply per-day work
+});
+
+test("commandcode: a 401 day probe reports not-logged-in without a fallback", async () => {
+  const { route, requests } = commandcodeScriptedRoute({ probeStatuses: [401] });
+  const b = bootContent("vendors/commandcode/content.js", { route, sendMessage: () => ({ added: 1 }) });
+  const { terminal } = await startVendor(b, { vendor: "commandcode" });
+
+  assert.equal(terminal.type, "error");
+  assert.match(terminal.message, /not logged in/);
+  assert.equal(requests.length, 1); // no 400-day fallback probe, no per-day fetch
+});
+
+test("commandcode: keeps the successful days when one per-day fetch keeps failing", async () => {
+  const { route, requests } = commandcodeScriptedRoute({
+    probeBuckets: [
+      { ...CC_DAY_BUCKET, timeBucket: "2026-09-12 06:45:00" },
+      { ...CC_DAY_BUCKET, timeBucket: "2026-09-13 06:45:00" },
+    ],
+    perDayStatus: (day) => (day === "2026-09-12" ? 500 : 200),
+  });
+  const b = bootContent("vendors/commandcode/content.js", { route, sendMessage: () => ({ added: 1 }) });
+  const { terminal } = await startVendor(b, { vendor: "commandcode" });
+
+  assert.equal(terminal.type, "vendor-crawl-done");
+  assert.equal(terminal.failures, 1);
+  const data = b.sent.filter((m) => m.type === "vendor-crawl-data");
+  assert.equal(data.length, 1); // only the day that succeeded
+  assert.equal(data[0].source, "commandcode");
+  const perDayDays = requests
+    .filter((u) => !/granularity=day/.test(u))
+    .map((u) => new URL(u).searchParams.get("from").slice(0, 10));
+  assert.ok(perDayDays.includes("2026-09-13"));
+});
+
+test("commandcode: since skips days before the requested start", async () => {
+  const { route, requests } = commandcodeScriptedRoute({
+    probeBuckets: [
+      { ...CC_DAY_BUCKET, timeBucket: "2026-09-12 06:45:00" },
+      { ...CC_DAY_BUCKET, timeBucket: "2026-09-13 06:45:00" },
+    ],
+  });
+  const b = bootContent("vendors/commandcode/content.js", { route, sendMessage: () => ({ added: 1 }) });
+  const { terminal } = await startVendor(b, { vendor: "commandcode", since: "2026-09-13" });
+
+  assert.equal(terminal.type, "vendor-crawl-done");
+  const perDay = requests.filter((u) => !/granularity=day/.test(u));
+  assert.equal(perDay.length, 1);
+  assert.equal(new URL(perDay[0]).searchParams.get("from").slice(0, 10), "2026-09-13");
+  assert.ok(perDay.every((u) => !new URL(u).searchParams.get("from").startsWith("2026-09-12")));
 });
 
 // ================================================================= OpenRouter

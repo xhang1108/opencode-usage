@@ -63,6 +63,7 @@ function createChromeStub(registry) {
   const noop = () => {};
   const chrome = {
     runtime: {
+      id: "test",
       onMessage: { addListener: (fn) => listeners.message.push(fn) },
       onInstalled: { addListener: (fn) => listeners.installed.push(fn) },
       onStartup: { addListener: (fn) => listeners.startup.push(fn) },
@@ -129,10 +130,10 @@ before(async () => {
   await new Promise((r) => setTimeout(r, 0));
   const listener = stub.listeners.message[0];
   assert.equal(typeof listener, "function", "background.js must register an onMessage listener");
-  send = (msg) =>
+  send = (msg, sender = { id: "test", url: "chrome-extension://test/dashboard/dashboard.html" }) =>
     new Promise((resolve, reject) => {
       try {
-        listener(msg, {}, resolve);
+        listener(msg, sender, resolve);
       } catch (e) {
         reject(e);
       }
@@ -366,6 +367,84 @@ test("a __proto__ record id stays a plain key", async () => {
   const db = await send({ type: "get-database" });
   const vendor = db.stores.find((s) => s.key === "vendor:opencode");
   assert.ok(vendor.rows.some((r) => r.id === "__proto__"), "the record must be listed, not swallowed by the prototype");
+});
+
+test("a content-script sender cannot clear or import data", async () => {
+  stub.store.set(KEY_LOCAL, JSON.stringify({ msg_existing: record("msg_existing", "m-a") }));
+  const pageSender = { id: "test", url: "https://opencode.ai/console", tab: { id: 1, url: "https://opencode.ai/console" } };
+  const clear = await send({ type: "clear-local-data" }, pageSender);
+  assert.equal(clear.ok, false);
+  assert.equal(clear.error, "forbidden");
+  assert.ok(stub.store.get(KEY_LOCAL), "the local store must survive a forged clear");
+});
+
+test("crawl data from a page outside the vendor origin is rejected", async () => {
+  const evil = { id: "test", url: "https://evil.example/", tab: { id: 1, url: "https://evil.example/" } };
+  const res = await send(
+    {
+      type: "vendor-crawl-data",
+      source: "opencode",
+      records: [{ id: "forged", source: "opencode", model: "m-a", time: "2026-06-01T10:00:00.000Z" }],
+    },
+    evil,
+  );
+  assert.equal(res.ok, false);
+  assert.match(res.error, /forbidden source/);
+});
+
+test("an extension page opened in a tab can still read the database", async () => {
+  stub.store.set(KEY_LOCAL, JSON.stringify({ msg_existing: record("msg_existing", "m-a") }));
+  const pageSender = {
+    id: "test",
+    url: "chrome-extension://test/dashboard/dashboard.html",
+    tab: { id: 1, url: "chrome-extension://test/dashboard/dashboard.html" },
+  };
+
+  const res = await send({ type: "get-database" }, pageSender);
+
+  assert.notEqual(res.error, "forbidden", "a sender with sender.tab must not be rejected (S2)");
+  assert.equal(res.ok, true, JSON.stringify(res));
+  const local = res.stores.find((s) => s.key === "local");
+  assert.equal(local.count, 1, "the local store must be readable from an extension-page tab");
+});
+
+test("a vendor content script can write crawl data", async () => {
+  const vendorSender = {
+    id: "test",
+    url: "https://opencode.ai/console",
+    tab: { id: 1, url: "https://opencode.ai/console" },
+  };
+
+  const res = await send({ type: "vendor-crawl-data", source: "opencode", records: [] }, vendorSender);
+
+  assert.equal(res.ok, true, JSON.stringify(res));
+  assert.equal(res.stored, 0, "an empty batch stores nothing but is accepted");
+});
+
+test("vendor-crawl-done with failures records a partial warning", async () => {
+  const vendorSender = {
+    id: "test",
+    url: "https://opencode.ai/console",
+    tab: { id: 1, url: "https://opencode.ai/console" },
+  };
+  // A stored record keeps count > 0 so the warning is the partial-data branch,
+  // not the "returned no records" one.
+  const write = await send(
+    { type: "vendor-crawl-data", source: "opencode", records: [record("opencode:partial", "m-a")] },
+    vendorSender,
+  );
+  assert.equal(write.ok, true, JSON.stringify(write));
+
+  const res = await send(
+    { type: "vendor-crawl-done", source: "opencode", newRecords: 1, failures: 1 },
+    vendorSender,
+  );
+  assert.equal(res.ok, true, JSON.stringify(res));
+
+  const state = stub.store.get("crawlState");
+  assert.ok(state, "crawlState must be written");
+  assert.equal(state.warning, true, "failures must raise the warning flag");
+  assert.match(state.message, /partial/, "the message must call the data partial");
 });
 
 // NOTE (open decision, §5.4): background.js does NOT canonically normalize on

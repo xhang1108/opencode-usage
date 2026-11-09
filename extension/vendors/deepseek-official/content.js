@@ -112,7 +112,9 @@
   async function crawl(opts) {
     const mapper = await loadMapper();
     const nowSec = Math.floor(Date.now() / 1000);
-    const endSec = dayStart(nowSec); // today's +08 midnight (exclusive)
+    // Include today: the +08 midnight of *tomorrow* is the exclusive end, so the
+    // current day's hourly buckets are fetched too (they were silently dropped).
+    const endSec = dayStart(nowSec) + DAY;
 
     const scanDays = opts && opts.days ? Math.min(opts.days, MAX_SCAN_DAYS) : MAX_SCAN_DAYS;
     let fromSec;
@@ -186,9 +188,14 @@
       if (i < days.length - 1) await sleep(DELAY_MS);
     }
     if (failures.length > 0) {
-      throw new Error(`DeepSeek: ${failures.length} request(s) failed after retries — ${failures.slice(0, 3).join("; ")}${failures.length > 3 ? " …" : ""}`);
+      // Partial data was already stored per day: report it as a warning instead
+      // of throwing, so the UI does not claim the whole sync was lost.
+      notify({
+        type: "info",
+        message: `DeepSeek: ${failures.length} request(s) failed after retries — partial data saved (${records} rows, ${days.length} days)`,
+      });
     }
-    return { windows, days: days.length, records, added };
+    return { windows, days: days.length, records, added, failures: failures.length };
   }
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -202,7 +209,7 @@
     notify({ type: "crawl-start", workspace: "" });
     crawl({ days: msg.days, since: msg.since })
       .then((res) =>
-        notify({ type: "vendor-crawl-done", source: SOURCE, records: res.records, newRecords: res.added, windows: res.windows, days: res.days })
+        notify({ type: "vendor-crawl-done", source: SOURCE, records: res.records, newRecords: res.added, windows: res.windows, days: res.days, failures: res.failures })
       )
       .catch((e) => notify({ type: "error", message: String((e && e.message) || e) }))
       .finally(() => {

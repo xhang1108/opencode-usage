@@ -26,11 +26,70 @@ import {
   recordFingerprints,
 } from "./shared/merge.js";
 import { STORAGE_SCHEMA_VERSION, pendingMigrations, planMigrations } from "./shared/migrate.js";
-import { LOCAL_STORE_KEY, VENDOR_STORE_PREFIX } from "./shared/stores.js";
+import { LOCAL_STORE_KEY, VENDOR_STORE_PREFIX, putRecord } from "./shared/stores.js";
 import { DASHBOARD_CHUNK_CHARS, chunkEnd } from "./shared/dashboard-transfer.js";
+import { UPDATE_REPO, safeReleaseUrl } from "./shared/update-url.js";
+
+// Message types a content script may send. Everything else mutates data or
+// exposes it, so only an extension page (dashboard/popup) may ask.
+const CONTENT_SCRIPT_TYPES = new Set([
+  "crawl-start",
+  "progress",
+  "error",
+  "info",
+  "vendor-crawl-data",
+  "vendor-crawl-done",
+]);
+
+// Vendor sources whose content script is allowed to write crawl data, keyed by
+// the page host it runs on. `mimo` has no content script (import-only).
+const SOURCE_HOST_PATTERNS = {
+  opencode: [/^opencode\.ai$/],
+  openrouter: [/^openrouter\.ai$/],
+  commandcode: [/(^|\.)commandcode\.ai$/],
+  "deepseek-official": [/(^|\.)deepseek\.com$/],
+  "groq-official": [/^console\.groq\.com$/, /^api\.groq\.com$/],
+};
+
+function isExtensionPageSender(sender) {
+  try {
+    return !!(
+      sender &&
+      sender.id === chrome.runtime.id &&
+      typeof sender.url === "string" &&
+      sender.url.startsWith(chrome.runtime.getURL(""))
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+function senderMatchesSource(source, sender) {
+  if (isExtensionPageSender(sender)) return true; // dashboard import/restore
+  const patterns = SOURCE_HOST_PATTERNS[source];
+  if (!patterns) return false;
+  let host = "";
+  try {
+    host = new URL((sender && (sender.url || (sender.tab && sender.tab.url))) || "").hostname;
+  } catch (e) {
+    return false;
+  }
+  return patterns.some((re) => re.test(host));
+}
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
+
+  // Content scripts are untrusted page-adjacent code: they may report crawl
+  // progress/data, but must never clear, import or read the whole database.
+  if (!CONTENT_SCRIPT_TYPES.has(msg.type) && !isExtensionPageSender(sender)) {
+    sendResponse({ ok: false, error: "forbidden" });
+    return;
+  }
+  if (msg.type === "vendor-crawl-data" && !senderMatchesSource(msg.source, sender)) {
+    sendResponse({ ok: false, error: `forbidden source: ${msg.source}` });
+    return;
+  }
 
   switch (msg.type) {
     case "crawl-start": {
@@ -361,6 +420,7 @@ async function handleVendorCrawlData(msg) {
 async function handleVendorCrawlDone(msg) {
   const source = msg && msg.source;
   const newRecords = (msg && msg.newRecords) || 0;
+  const failures = (msg && msg.failures) || 0;
   if (source === "opencode") closeAutoSyncTab();
   try {
     chrome.action.setBadgeText({ text: "" });
@@ -382,8 +442,13 @@ async function handleVendorCrawlDone(msg) {
       running: false,
       done: true,
       vendor: source,
-      warning: count === 0, // B10: crawler returned nothing
-      message: count === 0 ? `${source} crawl returned no records` : "",
+      warning: count === 0 || failures > 0, // B10: crawler returned nothing / partial
+      message:
+        count === 0
+          ? `${source} crawl returned no records`
+          : failures > 0
+            ? `${source} crawl finished with ${failures} failed request(s); partial data saved`
+            : "",
     },
   });
   const label = (source || "vendor") === "openrouter" ? "OpenRouter" : source;
@@ -746,15 +811,8 @@ async function getAllVendorRecords() {
   return out;
 }
 
-function putRecord(map, id, rec) {
-  // `__proto__` as a key must stay a plain own property (assignment would
-  // invoke the prototype setter and lose the record).
-  if (id === "__proto__") {
-    Object.defineProperty(map, id, { value: rec, enumerable: true, configurable: true, writable: true });
-  } else {
-    map[id] = rec;
-  }
-}
+// putRecord (shared/stores.js) writes id-keyed records without letting a
+// `__proto__` id invoke the prototype setter.
 
 function mergeRecords(base, extra) {
   const merged = { ...(base || {}) };
@@ -1219,7 +1277,6 @@ schedulePeakAlarm().catch(() => {});
 // ===== Update checker (GitHub Releases) =====
 // Unpacked extensions can't auto-update, so this polls GitHub Releases and
 // surfaces "update available" in the popup when a newer version exists.
-const UPDATE_REPO = "xhang1108/opencode-usage";
 const UPDATE_ALARM = "check-update";
 const UPDATE_INTERVAL_MIN = 6 * 60; // every 6 hours
 
@@ -1246,12 +1303,13 @@ async function checkForUpdate() {
     const latest = String(release.tag_name || "").replace(/^v/i, "");
     const current = chrome.runtime.getManifest().version;
     if (!latest) return;
+    const releaseUrl = safeReleaseUrl(release.html_url);
     await chrome.storage.local.set({
       updateInfo: {
         latestVersion: latest,
         currentVersion: current,
         updateAvailable: compareVersions(latest, current) > 0,
-        releaseUrl: release.html_url || `https://github.com/${UPDATE_REPO}/releases`,
+        releaseUrl,
         checkedAt: Date.now(),
       },
     });

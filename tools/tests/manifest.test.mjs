@@ -65,6 +65,21 @@ test("manifest pins a stable extension ID and a plain semver", () => {
   assert.ok(der.length > 100, "key must be a DER-encoded public key");
 });
 
+test("no web_accessible_resource opts into a dynamic URL (H4)", () => {
+  const manifest = readJSON(path.join(ext, "manifest.json"));
+  for (const entry of manifest.web_accessible_resources || []) {
+    assert.ok(
+      !("use_dynamic_url" in entry),
+      `use_dynamic_url must not be set on: ${(entry.resources || []).join(", ")}`,
+    );
+  }
+});
+
+test("extension pages pin the strict CSP", () => {
+  const manifest = readJSON(path.join(ext, "manifest.json"));
+  assert.equal(manifest.content_security_policy.extension_pages, "script-src 'self'; object-src 'none'");
+});
+
 test("every web_accessible_resource file exists", () => {
   const manifest = readJSON(path.join(ext, "manifest.json"));
   for (const entry of manifest.web_accessible_resources || []) {

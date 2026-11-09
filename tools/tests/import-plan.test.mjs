@@ -62,6 +62,15 @@ test("planRecordsImport with no records is empty", () => {
   assert.deepEqual(planRecordsImport([], new Set()), { localMap: {}, vendors: [], unknownCount: 0 });
 });
 
+test("planRecordsImport keeps a __proto__ record id as an own key", () => {
+  const rec = { id: "__proto__", source: "opencode", model: "m", input: 1 };
+  const plan = planRecordsImport([rec]);
+
+  assert.equal(Object.prototype.hasOwnProperty.call(plan.localMap, "__proto__"), true, "own key required");
+  assert.ok(Object.keys(plan.localMap).includes("__proto__"), "key must be enumerable");
+  assert.deepEqual(plan.localMap["__proto__"], rec);
+});
+
 test("chunkRecords keeps order in fixed-size batches", () => {
   assert.deepEqual(chunkRecords([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.deepEqual(chunkRecords([], 2), []);

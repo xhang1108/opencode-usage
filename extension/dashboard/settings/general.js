@@ -34,7 +34,7 @@ export function renderGeneral(ctx) {
   sel.innerHTML = crawlVendors
     .map((v) => {
       const on = ctx.isEnabled(v.source);
-      return `<option value="${v.source}"${on ? "" : " disabled"}>${v.label}${on ? "" : " (disabled)"}</option>`;
+      return `<option value="${escHTML(v.source)}"${on ? "" : " disabled"}>${escHTML(v.label)}${on ? "" : " (disabled)"}</option>`;
     })
     .join("");
   sel.value = ctx.settings.defaultCrawl || "";

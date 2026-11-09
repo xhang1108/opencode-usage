@@ -5,6 +5,7 @@ import {
   LOCAL_STORE_KEY,
   VENDOR_STORE_PREFIX,
   clearMessageFor,
+  putRecord,
 } from "../../extension/shared/stores.js";
 
 // The Database tab lives or dies by this invariant: every managed store maps to
@@ -28,4 +29,22 @@ test("clear handlers use message types the background implements", () => {
 test("unknown store keys have no clear handler", () => {
   assert.equal(clearMessageFor("vendor:"), null);
   assert.equal(clearMessageFor("nope"), null);
+});
+
+test("putRecord writes a __proto__ id as an own key (H1)", () => {
+  const map = {};
+  const rec = { id: "__proto__", model: "m", input: 1 };
+  putRecord(map, "__proto__", rec);
+
+  assert.equal(Object.prototype.hasOwnProperty.call(map, "__proto__"), true, "must be an own property");
+  assert.ok(Object.keys(map).includes("__proto__"), "must be enumerable");
+  assert.equal(map["__proto__"], rec);
+});
+
+test("putRecord keeps ordinary ids behaving normally", () => {
+  const map = {};
+  const rec = { id: "msg_1", model: "m" };
+  putRecord(map, "msg_1", rec);
+  assert.equal(map.msg_1, rec);
+  assert.deepEqual(Object.keys(map), ["msg_1"]);
 });

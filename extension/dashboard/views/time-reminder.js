@@ -15,6 +15,7 @@ import {
 } from "../../shared/time-reminder.js";
 import { renderTimeReminderCard } from "../../shared/time-reminder-view.js";
 import { initCustomSelect } from "./filters.js";
+import { escHTML } from "./format.js";
 
 // `getRateModels()` -> [{ model, rates }] derived from the live pricing config.
 export function createTimeReminder({ getRateModels }) {
@@ -64,7 +65,9 @@ export function createTimeReminder({ getRateModels }) {
 
   function populateTimeModels() {
     const models = listPeakModels(getRateModels());
-    timeModelEl.innerHTML = '<option value="">Select model</option>' + models.map((m) => `<option value="${m}">${m}</option>`).join("");
+    timeModelEl.innerHTML =
+      '<option value="">Select model</option>' +
+      models.map((m) => `<option value="${escHTML(m)}">${escHTML(m)}</option>`).join("");
     return models;
   }
   // (Re)build the model picker from the live rate config and reconcile the

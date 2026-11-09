@@ -14,6 +14,7 @@
 //     version in one chrome.storage.local.set call.
 
 import { normalizeRecord } from "./canonical.js";
+import { putRecord } from "./stores.js";
 
 export const STORAGE_SCHEMA_VERSION = 3;
 
@@ -61,7 +62,7 @@ function healRecordMap(json) {
   if (!dirty) return null;
   const out = {};
   for (const [id, rec] of Object.entries(map)) {
-    out[id] = rec && typeof rec === "object" && rec.model ? normalizeRecord(rec) || rec : rec;
+    putRecord(out, id, rec && typeof rec === "object" && rec.model ? normalizeRecord(rec) || rec : rec);
   }
   return JSON.stringify(out);
 }
