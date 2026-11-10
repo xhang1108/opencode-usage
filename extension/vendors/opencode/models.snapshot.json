@@ -1,9 +1,8 @@
 {
-  "capturedAt": "2026-11-06T12:51:35.589Z",
+  "capturedAt": "2026-11-10T13:23:59.653Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
-    "crouton-alpha-free",
     "deepseek-v4-pro",
     "deepseek-v4.1-flash",
     "gemini-4-argon",
@@ -21,6 +20,7 @@
     "kimi-k3",
     "kimi-k3.1-pro",
     "longcat-2.0",
+    "longcat-2.5-free",
     "mimo-v2.6-flash",
     "mimo-v2.6-pro",
     "minimax-m3",

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-07T11:39:04.463Z",
+  "capturedAt": "2026-11-10T13:23:59.744Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -64,6 +64,10 @@
     {
       "id": "claude-fable-5-1",
       "name": "Claude Fable 5.1"
+    },
+    {
+      "id": "claude-fable-5-2",
+      "name": "Claude Fable 5.2"
     },
     {
       "id": "claude-haiku-4-5-20251001",
@@ -218,6 +222,10 @@
       "name": "LongCat 2.0"
     },
     {
+      "id": "meta/muse-ember",
+      "name": "Muse Ember"
+    },
+    {
       "id": "meta/muse-spark-1.1",
       "name": "Muse Spark 1.1"
     },
@@ -288,10 +296,6 @@
     {
       "id": "ornith/ornith-1.5-122b",
       "name": "Ornith 1.5 122B"
-    },
-    {
-      "id": "reflection/beam:free",
-      "name": "Beam 1.0"
     },
     {
       "id": "sakana/fugu-ultra",
