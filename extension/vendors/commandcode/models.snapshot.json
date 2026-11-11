@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-10T13:23:59.744Z",
+  "capturedAt": "2026-11-11T12:37:18.104Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -162,6 +162,10 @@
       "name": "Gemini 4 Argon"
     },
     {
+      "id": "google/gemini-4-carbon",
+      "name": "Gemini 4 Carbon"
+    },
+    {
       "id": "gpt-5.3-codex",
       "name": "GPT-5.3 Codex"
     },
@@ -300,10 +304,6 @@
     {
       "id": "sakana/fugu-ultra",
       "name": "Fugu Ultra"
-    },
-    {
-      "id": "stealth/crouton-alpha",
-      "name": "Crouton Alpha"
     },
     {
       "id": "stealth/glyph-cluster:free",
