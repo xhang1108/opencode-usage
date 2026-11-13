@@ -2,7 +2,7 @@
 // All Chart.js rendering + the hand-rolled yearly/hourly heatmaps. State
 // (chart instances, drill-down date, intraday view mode) lives in the closure.
 
-import { compactTick } from "./format.js";
+import { compactTick, escHTML } from "./format.js";
 import { heatOpacity, isoDate, yearlyGrid, heatmapCells, hourlyBuckets, modelChartSeries } from "./chart-model.js";
 
 // Single desaturated brand blue (#6a8fc0) with opacity variants.
@@ -111,7 +111,7 @@ function createHeatmapTooltip(wrap) {
 
 // Tooltip body shared by both heatmaps.
 const heatmapTipHTML = (heading, cost, tokens) =>
-  `<div style="color:var(--text-muted); margin-bottom:4px;">${heading}</div>` +
+  `<div style="color:var(--text-muted); margin-bottom:4px;">${escHTML(heading)}</div>` +
   `Cost: <strong>$${cost.toFixed(4)}</strong><br>` +
   `Tokens: <strong>${tokens.toLocaleString()}</strong>`;
 

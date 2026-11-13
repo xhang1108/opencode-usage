@@ -92,7 +92,9 @@ export async function parseXlsx(arrayBuffer) {
       const rid = /r:id="([^"]+)"/.exec(tag)?.[1];
       const target = rid && rels[rid];
       if (!target) continue;
+      if (/[\\]/.test(target) || target.includes("..")) continue;
       const path = `xl/${String(target).replace(/^\/?xl\//, "").replace(/^\//, "")}`;
+      if (!path.startsWith("xl/")) continue;
       const xml = text(path);
       if (xml) sheets.push({ name, rows: parseSheetRows(xml, shared) });
     }

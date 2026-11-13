@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- **ZIP prototype pollution guard.** A crafted ZIP entry named `__proto__` could replace the `files` object's prototype; the reader now builds the map with `Object.create(null)`.
+- **XLSX relationship target validation.** Relationship targets containing `..` or backslashes, or resolving outside `xl/`, are now rejected instead of being read as arbitrary archive entries.
+- **Heatmap tooltip escaping.** The heatmap tooltip heading is now passed through `escHTML` before injection.
+
 ## 1.8.1 - 2026-11-09
 
 ### Fixed

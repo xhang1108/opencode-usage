@@ -23,7 +23,7 @@ export async function unzip(arrayBuffer, limits = ZIP_LIMITS) {
   const total = view.getUint16(eocd + 10, true);
   if (total > lim.maxEntries) throw new Error(`ZIP has too many entries (${total} > ${lim.maxEntries})`);
   let offset = view.getUint32(eocd + 16, true);
-  const files = {};
+  const files = Object.create(null);
   let totalBytes = 0;
 
   for (let i = 0; i < total; i++) {
