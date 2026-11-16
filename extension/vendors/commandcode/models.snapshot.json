@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-13T12:59:10.915Z",
+  "capturedAt": "2026-11-16T13:31:26.889Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -56,6 +56,10 @@
     {
       "id": "Qwen/Qwen3.8-Omni-Flash",
       "name": "Qwen 3.8 Omni Flash"
+    },
+    {
+      "id": "Qwen/Qwen4-Max",
+      "name": "Qwen 4 Max"
     },
     {
       "id": "claude-fable-5",
@@ -324,6 +328,10 @@
     {
       "id": "tencent/hy3-paid",
       "name": "Tencent Hy3"
+    },
+    {
+      "id": "tencent/hy4-flash",
+      "name": "Tencent Hy4 Flash"
     },
     {
       "id": "tencent/hy4-preview",
