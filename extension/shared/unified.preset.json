@@ -1950,6 +1950,22 @@
       ]
     },
     {
+      "id": "hy-4-flash",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.07,
+              "output": 0.281,
+              "cacheRead": 0.003,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "hy-4-preview",
       "rates": [
         {
@@ -3245,6 +3261,22 @@
       ]
     },
     {
+      "id": "qwen-4-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 4.5,
+              "cacheRead": 0.15,
+              "cacheWrite": 1.875
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "qwen-flash",
       "rates": [
         {
@@ -3704,9 +3736,11 @@
     "qwen-official:qwen3.8-max": "qwen-3.8-max",
     "qwen-official:qwen3.8-max-0902": "qwen-3.8-max-0902",
     "qwen-official:qwen3.8-omni-flash": "qwen-3.8-flash-omni",
+    "qwen-official:qwen4-max": "qwen-4-max",
     "qwen-official:qwq-plus": "qwq-plus",
     "tencent-official:hy3": "hy-3",
     "tencent-official:hy4": "hy-4",
+    "tencent-official:hy4-flash": "hy-4-flash",
     "tencent-official:hy4-preview": "hy-4-preview",
     "typesafe-official:jev-1.13.0": "jev-1.13",
     "typesafe-official:jev-1.14.0": "jev-1.14",
@@ -3886,8 +3920,10 @@
     "fp:qwen:3.8:base:27b": "qwen-3.8-27b",
     "fp:qwen:3.8:base:max-0902": "qwen-3.8-max-0902",
     "fp:qwen:3.8:flash:omni": "qwen-3.8-flash-omni",
+    "fp:qwen:4:max:": "qwen-4-max",
     "fp:qwq:0:plus:": "qwq-plus",
     "fp:hy:4:base:": "hy-4",
+    "fp:hy:4:flash:": "hy-4-flash",
     "fp:jev:1.13:base:": "jev-1.13",
     "fp:jev:1.14:base:": "jev-1.14",
     "fp:minimax:3.1:flash:m": "minimax-3.1-flash-m",

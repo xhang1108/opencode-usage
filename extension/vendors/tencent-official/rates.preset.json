@@ -4,6 +4,7 @@
   "modelMap": {
     "tencent-official:hy3": "tencent-official:hy3",
     "tencent-official:hy4": "tencent-official:hy4",
+    "tencent-official:hy4-flash": "tencent-official:hy4-flash",
     "tencent-official:hy4-preview": "tencent-official:hy4-preview"
   },
   "targets": {
@@ -35,6 +36,23 @@
               "input": 0.834,
               "output": 2.501,
               "cacheRead": 0.042,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    "tencent-official:hy4-flash": {
+      "label": "hy4-flash",
+      "scope": "tencent-official",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 0.07,
+              "output": 0.281,
+              "cacheRead": 0.003,
               "cacheWrite": 0
             }
           }

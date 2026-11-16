@@ -1413,6 +1413,23 @@
       ]
     },
     {
+      "model": "qwen4-max",
+      "label": "qwen4-max",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 4.5,
+              "cacheRead": 0.15,
+              "cacheWrite": 1.875
+            }
+          }
+        }
+      ]
+    },
+    {
       "model": "qwq-plus",
       "label": "qwq-plus",
       "rates": [
