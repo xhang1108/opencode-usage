@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-16T13:31:26.889Z",
+  "capturedAt": "2026-11-18T13:48:35.630Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -218,6 +218,14 @@
       "name": "GPT-6.1 Terra"
     },
     {
+      "id": "gpt-6.2-astra",
+      "name": "GPT-6.2 Astra"
+    },
+    {
+      "id": "gpt-6.2-sol",
+      "name": "GPT-6.2 Sol"
+    },
+    {
       "id": "inclusionai/ling-3.1-flash",
       "name": "Ling 3.1 Flash"
     },
@@ -306,6 +314,10 @@
       "name": "Ornith 1.5 122B"
     },
     {
+      "id": "recursive/flint-v1.0:free",
+      "name": "Flint"
+    },
+    {
       "id": "sakana/fugu-ultra",
       "name": "Fugu Ultra"
     },
@@ -328,6 +340,10 @@
     {
       "id": "tencent/hy3-paid",
       "name": "Tencent Hy3"
+    },
+    {
+      "id": "tencent/hy4",
+      "name": "Tencent Hy4"
     },
     {
       "id": "tencent/hy4-flash",
