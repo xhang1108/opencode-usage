@@ -1702,6 +1702,60 @@
       ]
     },
     {
+      "id": "gpt-6.2-astra",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 8,
+                  "output": 40,
+                  "cacheRead": 0.4,
+                  "cacheWrite": 10
+                },
+                "high": {
+                  "input": 16,
+                  "output": 60,
+                  "cacheRead": 0.8,
+                  "cacheWrite": 20
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gpt-6.2-sol",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "tier": {
+                "limit": 272000,
+                "low": {
+                  "input": 2,
+                  "output": 10,
+                  "cacheRead": 0.1,
+                  "cacheWrite": 2.5
+                },
+                "high": {
+                  "input": 4,
+                  "output": 15,
+                  "cacheRead": 0.2,
+                  "cacheWrite": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "grok-0.1-build",
       "rates": [
         {
@@ -3658,6 +3712,8 @@
     "openai-official:gpt-6-sol": "gpt-6-sol",
     "openai-official:gpt-6.1-sol": "gpt-6.1-sol",
     "openai-official:gpt-6.1-terra": "gpt-6.1-terra",
+    "openai-official:gpt-6.2-astra": "gpt-6.2-astra",
+    "openai-official:gpt-6.2-sol": "gpt-6.2-sol",
     "openai-official:o1": "o-1",
     "openai-official:o1-pro": "o-1-pro",
     "openai-official:o3": "o-3",
@@ -3864,6 +3920,8 @@
     "fp:gpt:6:base:sol": "gpt-6-sol",
     "fp:gpt:6.1:base:sol": "gpt-6.1-sol",
     "fp:gpt:6.1:base:terra": "gpt-6.1-terra",
+    "fp:gpt:6.2:base:astra": "gpt-6.2-astra",
+    "fp:gpt:6.2:base:sol": "gpt-6.2-sol",
     "fp:o:1:base:": "o-1",
     "fp:o:1:pro:": "o-1-pro",
     "fp:o:3:base:": "o-3",
