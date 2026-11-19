@@ -1,12 +1,11 @@
 {
-  "capturedAt": "2026-11-16T13:31:26.817Z",
+  "capturedAt": "2026-11-19T14:18:21.801Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
     "deepseek-v4-pro",
     "deepseek-v4.1-flash",
     "gemini-4-argon",
-    "glm-5.2",
     "glm-5.3",
     "glm-5.3-flash",
     "gpt-5.6-luna",

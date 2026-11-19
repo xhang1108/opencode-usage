@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-18T13:48:35.630Z",
+  "capturedAt": "2026-11-19T14:18:21.871Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -168,6 +168,10 @@
     {
       "id": "google/gemini-4-carbon",
       "name": "Gemini 4 Carbon"
+    },
+    {
+      "id": "google/gemini-4-neon",
+      "name": "Gemini 4 Neon"
     },
     {
       "id": "gpt-5.3-codex",
