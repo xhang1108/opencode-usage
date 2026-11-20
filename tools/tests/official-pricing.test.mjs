@@ -285,6 +285,48 @@ const QWEN_D_NOTIER = `<table>
 const QWEN_HTML = QWEN_MAIN + QWEN_MODE + QWEN_FLAT;
 const QWEN_HTML_D = QWEN_HTML + QWEN_D_MAX + QWEN_D_FLASH + QWEN_D_NOTIER;
 
+// 2026-11 live layout: "Service Deployment Scope" / "Input unit price (per
+// million tokens)" headers and a new "Pattern" column between scope and tier.
+// Same column order as layout A once Pattern is skipped.
+const QWEN_PATTERN = `<table>
+<tr><th rowspan="2">Model ID</th><th rowspan="2">Service Deployment Scope</th><th rowspan="2">Pattern</th><th rowspan="2">Input token range per request</th><th rowspan="2">Input unit price (per million tokens)</th><th colspan="2">Output unit price (per million tokens)</th><th rowspan="2">Free quota</th></tr>
+<tr><th>Non-thinking mode</th><th>Thinking mode (chain-of-thought + response)</th></tr>
+${[
+  "qwen3.5-plus",
+  "qwen3.5-flash",
+  "qwen3.6-plus",
+  "qwen3.6-flash",
+  "qwen3.7-plus",
+  "qwen3.7-flash",
+  "qwen3.8-max",
+  "qwen3.8-flash",
+  "qwen-plus",
+  "qwen-max",
+  "qwen-turbo",
+  "qwq-plus",
+]
+  .map(
+    (id, i) =>
+      `<tr><td><p>${id}</p></td><td><p>International</p></td><td><p>Non-thinking and thinking modes</p></td><td><p>0&lt;Token≤1M</p></td><td><p>$${(0.1 + i / 10).toFixed(1)}</p></td><td><p>$${(0.5 + i / 10).toFixed(1)}</p></td><td><p>$${(0.5 + i / 10).toFixed(1)}</p></td><td><p>1 million Tokens</p></td></tr>`,
+  )
+  .join("\n")}
+</table>`;
+
+test("qwen parser: 2026-11 headers (Service Deployment Scope / Input unit price) + Pattern column", () => {
+  const models = parseQwen(QWEN_PATTERN);
+  assert.equal(Object.keys(models).length, 12);
+  assert.deepEqual(models["qwen3.5-plus"].entry.pricing.flat, {
+    input: 0.1,
+    output: 0.5,
+    cacheRead: 0.01,
+    cacheWrite: 0.125,
+  });
+  // A Global-scope row still cannot leak into the USD snapshot: dropping the
+  // anchor fails closed instead of writing a gutted snapshot.
+  const global = QWEN_PATTERN.replace("<p>International</p>", "<p>Global</p>");
+  assert.throws(() => parseQwen(global), /anchor model qwen3.5-plus missing/);
+});
+
 test("qwen parser: layout D single-header tables, one output column, 3-cell tiers", () => {
   const models = parseQwen(QWEN_HTML_D);
   // 12 + qwen3.8-max + qwen3.7-max + qwen3.6-max-preview + qwen3.8-flash +

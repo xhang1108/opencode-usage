@@ -151,7 +151,13 @@ function benchSize(size, { reps, days, seed, modelPool, index, unified }) {
     buildUnifiedIndex: measure(() => buildUnifiedIndex(unified), reps),
   };
 
-  const pricingShare = timings.aggregateCold > 0 ? 1 - timings.aggregateNoop / timings.aggregateCold : 0;
+  // Wall-clock reps can invert: under JIT/GC noise the noop aggregate sometimes
+  // measures slower than the real one, which would yield a negative "share".
+  // A share outside [0,1] is meaningless (the report prints it as a %), so
+  // clamp here rather than let a smoke assertion flake on timing noise.
+  const pricingShare = timings.aggregateCold > 0
+    ? Math.max(0, Math.min(1, 1 - timings.aggregateNoop / timings.aggregateCold))
+    : 0;
   // First-load page JS after Step 9: parse + normalize + one cold aggregate +
   // the pure heatmap plan (the raw scan is now inside the aggregate pass).
   const pureJsSubtotal = timings.parse + timings.normalize + timings.aggregateCold + timings.heatmapCells;

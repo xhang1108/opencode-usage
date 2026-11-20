@@ -17,6 +17,11 @@
 //                text at col+2 (never validated); continuation rows are 3
 //                cells [tier, in, out]. Detected by money in rows[1] — a data
 //                row always carries $, a header row never does.
+//   E. 2026-11   same A–D shapes but "Service Deployment Scope" (capital S),
+//                "Input unit price (per million tokens)", and a new "Pattern"
+//                column between scope and tier. Header matching is
+//                case-insensitive and the Pattern column is skipped when
+//                deriving the input column index.
 // Column indexes are DERIVED from h0 (never hard-coded) and a row is only
 // accepted when the derived cells actually look like prices, so column drift
 // lands on the count/anchor assertions instead of silently writing a
@@ -159,7 +164,7 @@ export function parsePricingModels(html) {
     const h0cells = rows[0].map(textOf);
     const h0 = h0cells.join(" ");
     const h1 = (rows[1] || []).map(textOf).join(" ");
-    if (!/Model ID/.test(h0) || !/Input price/.test(h0) || !/Deployment scope/.test(h0)) continue;
+    if (!/Model ID/i.test(h0) || !/Input (?:unit )?price/i.test(h0) || !/Deployment scope/i.test(h0)) continue;
     // A–C: rows[1] is the second header ("Non-Thinking mode | Thinking mode",
     // never money) and data starts at 2 with TWO output columns. D (max/flash):
     // rows[1] is already a data row (it carries $) and there is ONE output
@@ -175,7 +180,10 @@ export function parsePricingModels(html) {
     // derive the input column: model, scope, [tier], [mode], input, [nt, th], [quota]
     const hasTier = /Input token/i.test(h0);
     const hasMode = h0cells.some((c) => /^mode$/i.test(c));
-    const col = 2 + (hasTier ? 1 : 0) + (hasMode ? 1 : 0);
+    // 2026-11 live pages insert a "Pattern" column (Non-thinking and thinking
+    // modes / Thinking mode only) between scope and tier.
+    const hasPattern = h0cells.some((c) => /^pattern$/i.test(c));
+    const col = 2 + (hasTier ? 1 : 0) + (hasMode ? 1 : 0) + (hasPattern ? 1 : 0);
 
     let cur = null;
     const flush = () => {

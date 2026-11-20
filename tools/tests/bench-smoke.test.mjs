@@ -32,6 +32,6 @@ test("dashboard-load bench runs and emits every required row", () => {
     assert.equal(typeof r.timings[key], "number", `${key} must be a number`);
     assert.ok(r.timings[key] >= 0, `${key} must be >= 0`);
   }
-  assert.ok(r.pricingShare >= 0 && r.pricingShare <= 1, "pricing share must be a fraction");
+  assert.ok(Number.isFinite(r.pricingShare) && r.pricingShare >= 0 && r.pricingShare <= 1, "pricing share must be a finite fraction");
   assert.ok(r.pureJsSubtotal > 0, "pure JS subtotal must be positive");
 });

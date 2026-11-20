@@ -1,4 +1,9 @@
 {
+  "xai-official": {
+    "20261120T142413Z.json": [
+      "grok-build-0.1"
+    ]
+  },
   "deepseek-official": {
     "20241107T075055Z.json": [
       "deepseek-coder"
