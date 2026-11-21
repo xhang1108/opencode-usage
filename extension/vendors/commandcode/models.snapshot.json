@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-19T14:18:21.871Z",
+  "capturedAt": "2026-11-21T13:22:38.274Z",
   "models": [
     {
       "id": "MiniMaxAI/MiniMax-M2.5",
@@ -360,10 +360,6 @@
     {
       "id": "thinkingmachines/inkling",
       "name": "Inkling"
-    },
-    {
-      "id": "thinkingmachines/inkling-2-small:free",
-      "name": "Inkling 2 Small"
     },
     {
       "id": "thinkingmachines/inkling-small",
