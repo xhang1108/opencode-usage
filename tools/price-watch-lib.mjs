@@ -32,6 +32,14 @@ export const VENDORS = {
       "deepseek-chat": ["deepseek-chat & deepseek-reasoner"],
     },
   },
+  "google-official": {
+    // Gemini Developer API list prices. The page publishes the whole Gemini 4
+    // family in one Liquid-flavoured markdown table; the parser keeps Standard
+    // tier only and replays Google's own scheduled intro/list dates.
+    url: "https://ai.google.dev/gemini-api/docs/pricing",
+    dir: "extension/vendors/google-official",
+    parser: "extension/vendors/google-official/pricing-page.js",
+  },
   mimo: {
     // Official public catalog (OpenRouter-style, per-token USD); the SPA shell
     // and bundle no longer embed prices since the 2026-09 platform revamp.

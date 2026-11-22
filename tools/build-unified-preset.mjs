@@ -19,7 +19,8 @@
 // STRUCTURE — id equivalences, group unions, assign keys — but never as a price
 // authority (go.mdx resale prices are not a source anymore). OVERRIDE_RATES win
 // over any vendor table; they are official list prices transcribed by hand for
-// models no daily parser covers (Gemini, legacy GPT, …).
+// models no daily parser covers (older Gemini rows, legacy GPT, …). Gemini 4 is
+// owned by the daily `google-official` parser and must not be re-added here.
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -32,6 +33,7 @@ const root = resolve(here, "..");
 const SOURCES = [
   "opencode", // structure only — its rates never become candidates
   "deepseek-official",
+  "google-official",
   "mimo",
   "xai-official",
   "openai-official",
@@ -96,6 +98,7 @@ function groupIdFor(fp) {
 // one; the owning official vendor wins; authored overrides beat everyone.
 const PREFERRED_BY_SERIES = {
   deepseek: "deepseek-official",
+  gemini: "google-official",
   mimo: "mimo",
   grok: "xai-official",
   gpt: "openai-official",
@@ -181,8 +184,8 @@ const OVERRIDE_RATES = {
   // verified against that page on 2026-09-24 (the Flash promo, the 2.5 Pro
   // 200k tier, the 3.1 Pro tier and all the Flash-Lite rates match).
   // Flash models carry the promo price through 2026-12-31, then the list
-  // price. No gemini-* row is covered by a daily parser, so these stay
-  // hand-transcribed until one is added.
+  // price. These older rows stay hand-transcribed; Gemini 4 is covered by the
+  // daily `google-official` parser and is deliberately NOT listed here.
   "gemini-3.8-flash": geminiFlash(0.75, 3.75),
   "gemini-3.7-flash": geminiFlash(0.75, 3.75),
   "gemini-3.6-flash": geminiFlash(0.75, 3.75),

@@ -21,7 +21,25 @@ export function versionsFromSnapshots(snapshots) {
   const state = {};
   for (const snap of ordered) {
     for (const [id, m] of Object.entries(snap.models || {})) {
-      if (!m || !m.entry) continue;
+      if (!m) continue;
+      // A vendor that publishes a scheduled change inside one table (Google's
+      // Gemini 4 intro/list rates) supplies the FULL dated chain here. Replay it
+      // verbatim instead of treating the snapshot as a single diff step. `entry`
+      // (the current leg) is still required for older readers and integrity
+      // checks; `versions` is authoritative when present.
+      if (Array.isArray(m.versions) && m.versions.length > 0) {
+        if (!m.entry) throw new Error(`price-history: ${id} has versions but no entry`);
+        const last = m.versions[m.versions.length - 1];
+        const { from, ...lastEntry } = last;
+        state[id] = {
+          label: m.label || id,
+          canonical: m.canonical || id,
+          versions: m.versions.map((v) => ({ ...v })),
+          lastKey: JSON.stringify(lastEntry),
+        };
+        continue;
+      }
+      if (!m.entry) continue;
       const key = JSON.stringify(m.entry);
       const st = state[id] || (state[id] = { label: m.label || id, canonical: m.canonical || id, versions: [], lastKey: null });
       st.label = m.label || st.label;

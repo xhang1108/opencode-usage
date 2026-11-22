@@ -1,0 +1,95 @@
+{
+  "source": "google-official",
+  "models": [
+    {
+      "model": "gemini-4-argon",
+      "label": "gemini-4-argon",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 10,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-12-01T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 4,
+              "output": 20,
+              "cacheRead": 0.2,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "gemini-4-carbon",
+      "label": "gemini-4-carbon",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 10,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-12-01T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 4,
+              "output": 20,
+              "cacheRead": 0.2,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "gemini-4-hydrogen",
+      "label": "gemini-4-hydrogen",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 7.5,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "gemini-4-neon",
+      "label": "gemini-4-neon",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 15,
+              "cacheRead": 0.15,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

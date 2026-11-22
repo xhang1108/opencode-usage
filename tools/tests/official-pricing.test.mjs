@@ -17,12 +17,12 @@ import { parsePricingModels as parseLongcat, snapshotFromPage as snapLongcat } f
 // VENDORS wiring
 // ---------------------------------------------------------------------------
 
-test("eight official sources are wired with existing parser files", () => {
+test("nine official sources are wired with existing parser files", () => {
   assert.ok(
     VENDORS["deepseek-official"].url.endsWith("/quick_start/pricing/"),
     "deepseek-official url needs the trailing slash (the slash-less Docusaurus path serves the docs home page with no price table)",
   );
-  for (const source of ["xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official", "zai-official", "longcat-official"]) {
+  for (const source of ["google-official", "xai-official", "openai-official", "qwen-official", "tencent-official", "typesafe-official", "minimax-official", "zai-official", "longcat-official"]) {
     const cfg = VENDORS[source];
     assert.ok(cfg, `${source} missing from VENDORS`);
     assert.match(cfg.url, /^https:\/\//);
@@ -903,7 +903,7 @@ test("longcat pages merge into one snapshot; a duplicated model refuses", () => 
 // Cross-source snapshot contract (price-history -> preset round trip)
 // ---------------------------------------------------------------------------
 
-test("all eight parsers produce valid snapshot -> preset chains", async () => {
+test("parser-backed snapshots round-trip into valid presets", async () => {
   const { versionsFromSnapshots, presetFromVersions } = await import("../../extension/shared/price-history.js");
   const cases = [
     ["openai-official", snapOpenAI(OPENAI_MD, "2026-09-24T05:17:00.000Z"), "gpt-6-luna"],

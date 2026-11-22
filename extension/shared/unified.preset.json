@@ -711,6 +711,92 @@
       ]
     },
     {
+      "id": "gemini-4-argon",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 10,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-12-01T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 4,
+              "output": 20,
+              "cacheRead": 0.2,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-4-carbon",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 2,
+              "output": 10,
+              "cacheRead": 0.1,
+              "cacheWrite": 0
+            }
+          }
+        },
+        {
+          "from": "2026-12-01T00:00:00Z",
+          "pricing": {
+            "flat": {
+              "input": 4,
+              "output": 20,
+              "cacheRead": 0.2,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-4-hydrogen",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 1.5,
+              "output": 7.5,
+              "cacheRead": 0.075,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemini-4-neon",
+      "rates": [
+        {
+          "from": null,
+          "pricing": {
+            "flat": {
+              "input": 3,
+              "output": 15,
+              "cacheRead": 0.15,
+              "cacheWrite": 0
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "glm-4-32b-0414-128k",
       "rates": [
         {
@@ -3658,6 +3744,10 @@
     "deepseek-official:deepseek-v4.1-flash-expires-on-0910": "deepseek-4-flash",
     "deepseek-official:deepseek-v4-pro-free": "deepseek-4-pro",
     "deepseek-official:deepseek-chat & deepseek-reasoner": "deepseek-chat",
+    "google-official:gemini-4-argon": "gemini-4-argon",
+    "google-official:gemini-4-carbon": "gemini-4-carbon",
+    "google-official:gemini-4-hydrogen": "gemini-4-hydrogen",
+    "google-official:gemini-4-neon": "gemini-4-neon",
     "mimo:mimo-v2-flash": "mimo-2-flash",
     "mimo:mimo-v2-omni": "mimo-2-omni",
     "mimo:mimo-v2-pro": "mimo-2-pro",
@@ -3875,6 +3965,10 @@
     "fp:deepseek:4:base:flash-0731": "deepseek-4-flash",
     "fp:deepseek:4.1:base:flash-expires-on-0910": "deepseek-4-flash",
     "fp:deepseek:0:base:chat-&-deepseek-reasoner": "deepseek-chat",
+    "fp:gemini:4:base:argon": "gemini-4-argon",
+    "fp:gemini:4:base:carbon": "gemini-4-carbon",
+    "fp:gemini:4:base:hydrogen": "gemini-4-hydrogen",
+    "fp:gemini:4:base:neon": "gemini-4-neon",
     "fp:mimo:2:flash:": "mimo-2-flash",
     "fp:mimo:2:base:omni": "mimo-2-omni",
     "fp:mimo:2:pro:": "mimo-2-pro",
