@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.8.2 - 2026-11-22
+
+The shipped price list is current through 2026-11-22: Tencent Hy4 Flash and Google Gemini 4 are priced from official sources, so `hy4-flash-free` no longer shows as unpriced.
+
+### Added
+
+- **Google Gemini 4 is watched daily (`google-official`).** Gemini 4 publishes an intro rate that rolls into a list rate inside one table, so the parser keeps the dated chain verbatim (`versions`) instead of treating the page as one diff step. `gemini` joins `PREFERRED_BY_SERIES`, and the older hand-transcribed Gemini rows stay as they are.
+- **Tencent Hy4 Flash** is priced from the official page (snapshot 2026-11-16): $0.07 / $0.281 / $0.003 per 1M input / output / cached input.
+
+### Fixed
+
+- **`hy4-flash-free` showed as unpriced on 1.8.1.** The model first appeared on 2026-11-16, a week after 1.8.1 was built, and its paid sibling `hy-4-flash` got a rate group only that same day. The price list ships inside the extension, so "Reset to preset" on 1.8.1 kept reloading the 1.8.1 copy and could never price it. 1.8.2 carries both: the free id resolves through its `hy:4:flash` fingerprint to the `hy-4-flash` group. It deliberately has no literal `assign` key, so looking for `opencode:hy4-flash-free` in the JSON will not find it even while pricing works. A customized stored list is offered **Update price list** in the unpriced notice.
 
 ### Security
 
