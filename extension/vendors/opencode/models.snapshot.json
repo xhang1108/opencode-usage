@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-19T14:18:21.801Z",
+  "capturedAt": "2026-11-23T15:51:28.346Z",
   "models": [
     "beam-free",
     "claude-haiku-5-5",
@@ -19,8 +19,7 @@
     "kimi-k2.7-code",
     "kimi-k3",
     "kimi-k3.1-pro",
-    "longcat-2.0",
-    "longcat-2.5-free",
+    "longcat-2.5",
     "mimo-v2.6-flash",
     "mimo-v2.6-pro",
     "minimax-m3",
